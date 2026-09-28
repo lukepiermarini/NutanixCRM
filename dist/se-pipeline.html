@@ -1,0 +1,3265 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="Deal pipeline, meeting notes and task tracker for Nutanix Systems Engineers. Runs entirely in your browser; data stays on your PC.">
+<title>SE Pipeline</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%234f46e5'/%3E%3Ctext x='16' y='21' font-size='13' font-family='Arial' font-weight='700' fill='white' text-anchor='middle'%3ESE%3C/text%3E%3C/svg%3E">
+<style>
+/* ---------- Tokens ---------- */
+:root {
+  --bg: #f5f6f8; --surface: #ffffff; --surface-2: #f0f2f5; --border: #e2e5ea; --border-strong: #cfd4dc;
+  --text: #16181d; --muted: #5f6673; --accent: #4f46e5; --accent-2: #4338ca; --accent-soft: #eef0ff;
+  --danger: #dc2626; --danger-soft: #fdecec; --warn: #b45309; --warn-soft: #fff5e0; --success: #15803d; --success-soft: #e8f7ee;
+  --radius: 10px; --radius-sm: 6px; --shadow: 0 1px 2px rgba(16,24,40,.06), 0 1px 3px rgba(16,24,40,.08);
+  --shadow-lg: 0 12px 32px rgba(16,24,40,.18); --font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0f1115; --surface: #171a21; --surface-2: #1e222b; --border: #2a2f3a; --border-strong: #3a4150;
+    --text: #e8eaef; --muted: #9aa2b1; --accent: #818cf8; --accent-2: #a5b4fc; --accent-soft: #23264a;
+    --danger: #f87171; --danger-soft: #3a1d1d; --warn: #fbbf24; --warn-soft: #3a2e12; --success: #4ade80; --success-soft: #16301f;
+    --shadow: 0 1px 2px rgba(0,0,0,.4); --shadow-lg: 0 12px 32px rgba(0,0,0,.5); color-scheme: dark;
+  }
+}
+
+/* ---------- Base ---------- */
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; }
+body { font: 14px/1.45 var(--font); background: var(--bg); color: var(--text); -webkit-font-smoothing: antialiased; }
+h2, h3 { margin: 0; font-weight: 600; }
+h3 { font-size: 14px; display: flex; align-items: center; gap: 6px; }
+p { margin: 0; }
+a { color: var(--accent); }
+[hidden] { display: none !important; }
+.icon { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; flex: none; }
+.muted { color: var(--muted); }
+.small { font-size: 12px; }
+.center { text-align: center; }
+.mono { font-family: var(--mono); font-size: 12.5px; }
+.pre { white-space: pre-wrap; word-break: break-word; margin: 0; font-family: inherit; }
+pre.pre { background: var(--surface-2); padding: 12px; border-radius: var(--radius-sm); max-height: 420px; overflow: auto; }
+.text-danger { color: var(--danger); } .text-success { color: var(--success); }
+.grow { flex: 1; }
+.row { display: flex; align-items: center; gap: 8px; }
+.row.wrap { flex-wrap: wrap; }
+.row.end { justify-content: flex-end; }
+.stack { display: flex; flex-direction: column; gap: 14px; }
+.clamp-1, .clamp-2 { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; }
+.clamp-1 { -webkit-line-clamp: 1; } .clamp-2 { -webkit-line-clamp: 2; }
+.link { color: var(--accent); text-decoration: none; display: inline-flex; align-items: center; gap: 3px; }
+.link:hover { text-decoration: underline; }
+.danger { color: var(--danger) !important; }
+
+/* ---------- Controls ---------- */
+.btn { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; border-radius: var(--radius-sm); border: 1px solid var(--border-strong);
+  background: var(--surface); color: var(--text); font: 500 13px var(--font); cursor: pointer; white-space: nowrap; transition: background .12s, border-color .12s; }
+.btn:hover { background: var(--surface-2); }
+.btn:focus-visible, .input:focus, .icon-btn:focus-visible, .deal-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.btn-primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-2); }
+@media (prefers-color-scheme: dark) { .btn-primary { color: #0f1115; } }
+.btn-danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn-ghost { border-color: transparent; background: transparent; }
+.btn-sm { height: 28px; padding: 0 8px; font-size: 12px; }
+.icon-btn { display: inline-grid; place-items: center; width: 30px; height: 30px; border: 0; border-radius: var(--radius-sm); background: transparent; color: var(--muted); cursor: pointer; }
+.icon-btn:hover { background: var(--surface-2); color: var(--text); }
+.icon-btn.sm { width: 24px; height: 24px; }
+.icon-btn.sm .icon { width: 14px; height: 14px; }
+.input { width: 100%; min-height: 34px; padding: 6px 10px; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); background: var(--surface);
+  color: var(--text); font: 13.5px var(--font); }
+textarea.input { resize: vertical; line-height: 1.45; }
+select.input { padding-right: 4px; }
+.input-date { width: 140px; }
+.search { width: 260px; }
+.page-head select.input { width: auto; max-width: 260px; }
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.field-label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; }
+.hint { color: var(--muted); font-size: 12px; }
+.form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px 14px; }
+.form-grid.cols-3 { grid-template-columns: 1.2fr 1.2fr .8fr; }
+.span-2 { grid-column: span 2; display: flex; flex-direction: column; gap: 6px; }
+.toggle { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; cursor: pointer; user-select: none; }
+.check { width: 18px; height: 18px; accent-color: var(--accent); cursor: pointer; flex: none; }
+.segmented { display: inline-flex; border: 1px solid var(--border-strong); border-radius: var(--radius-sm); overflow: hidden; }
+.seg { border: 0; background: var(--surface); color: var(--muted); padding: 0 12px; height: 32px; font: 500 13px var(--font); cursor: pointer; }
+.seg + .seg { border-left: 1px solid var(--border-strong); }
+.seg.is-active { background: var(--accent-soft); color: var(--accent); }
+
+/* ---------- Chips / badges ---------- */
+.badge { --c: #64748b; display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 99px; font-size: 11.5px; font-weight: 600;
+  color: var(--c); background: color-mix(in srgb, var(--c) 14%, transparent); white-space: nowrap; }
+.chip { display: inline-flex; align-items: center; gap: 3px; padding: 1px 7px; border-radius: 99px; font-size: 11px; font-weight: 600; text-transform: capitalize; }
+.prio-high { background: var(--danger-soft); color: var(--danger); }
+.prio-medium { background: var(--surface-2); color: var(--muted); }
+.prio-low { background: var(--surface-2); color: var(--muted); opacity: .7; }
+.chip-ai { background: var(--accent-soft); color: var(--accent); text-transform: none; }
+.chip .icon { width: 11px; height: 11px; }
+.pill { display: inline-flex; align-items: center; gap: 3px; font-size: 11.5px; color: var(--muted); }
+.pill .icon { width: 12px; height: 12px; }
+.due { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 500; }
+.due .icon { width: 12px; height: 12px; }
+.due-overdue { color: var(--danger); } .due-today { color: var(--warn); } .due-soon { color: var(--text); } .due-later, .due-none, .due-done { color: var(--muted); }
+.count { font-size: 12px; color: var(--muted); background: var(--surface-2); border-radius: 99px; padding: 0 7px; font-weight: 600; }
+
+/* ---------- Shell ---------- */
+.app-header { position: sticky; top: 0; z-index: 20; display: flex; align-items: center; gap: 20px; padding: 10px 20px; background: var(--surface); border-bottom: 1px solid var(--border); }
+.brand { display: flex; align-items: center; gap: 10px; }
+.logo { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; background: linear-gradient(135deg, #4f46e5, #22c55e); color: #fff; font-weight: 800; font-size: 13px; }
+.brand-name { font-weight: 700; line-height: 1.1; }
+.brand-ws { font-size: 11.5px; color: var(--muted); max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.nav { display: flex; gap: 2px; }
+.nav-link { position: relative; padding: 7px 12px; border-radius: var(--radius-sm); color: var(--muted); text-decoration: none; font-weight: 500; display: inline-flex; gap: 6px; align-items: center; }
+.nav-link:hover { background: var(--surface-2); color: var(--text); }
+.nav-link.is-active { color: var(--accent); background: var(--accent-soft); }
+.nav-badge { background: var(--danger); color: #fff; font-size: 11px; font-weight: 700; border-radius: 99px; padding: 0 6px; line-height: 17px; }
+.header-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.save-ind { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; color: var(--muted); font: 12px var(--font); cursor: pointer; max-width: 260px; }
+.save-ind span:last-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.save-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--success); flex: none; }
+.save-busy .save-dot { background: var(--accent); animation: pulse 1s infinite; }
+.save-warn .save-dot { background: var(--warn); } .save-warn { color: var(--warn); }
+.save-err .save-dot { background: var(--danger); } .save-err { color: var(--danger); }
+@keyframes pulse { 50% { opacity: .3; } }
+.app-main { padding: 18px 20px 40px; }
+.app-main[data-route="pipeline"] { padding-right: 0; }
+.page-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; padding-right: 20px; }
+.loading { display: grid; place-items: center; height: 60vh; color: var(--muted); }
+
+/* ---------- Stats ---------- */
+.stats { display: flex; gap: 10px; flex-wrap: wrap; }
+.stat { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 8px 14px; display: flex; flex-direction: column; min-width: 130px; }
+.stat-v { font-size: 20px; font-weight: 700; }
+.stat-l { font-size: 12px; color: var(--muted); }
+.stat-warn .stat-v { color: var(--danger); }
+
+/* ---------- Board ---------- */
+.board { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(250px, 1fr); gap: 12px; overflow-x: auto; padding: 0 20px 16px 0; min-height: calc(100vh - 180px); align-items: start; }
+.column { --c: #64748b; background: var(--surface-2); border-radius: var(--radius); border-top: 3px solid var(--c); display: flex; flex-direction: column; max-height: calc(100vh - 180px); transition: box-shadow .12s, background .12s; }
+.column.is-over { box-shadow: inset 0 0 0 2px var(--c); background: color-mix(in srgb, var(--c) 7%, var(--surface-2)); }
+.column-head { padding: 10px 12px 6px; }
+.column-head h3 { font-size: 13px; }
+.column-head .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--c); flex: none; }
+.column-sub { display: flex; align-items: center; justify-content: space-between; color: var(--muted); font-size: 12px; font-weight: 600; margin-top: 2px; }
+.column-def { display: none; font-size: 12px; color: var(--muted); margin-top: 6px; background: var(--surface); border-radius: var(--radius-sm); padding: 8px; }
+.column.show-def .column-def { display: block; }
+.column-list { flex: 1; overflow-y: auto; padding: 4px 8px 8px; display: flex; flex-direction: column; gap: 8px; min-height: 60px; }
+.column-empty { border: 1.5px dashed var(--border-strong); border-radius: var(--radius-sm); color: var(--muted); font-size: 12px; text-align: center; padding: 18px 8px; }
+.column-add { margin: 0 8px 8px; border: 0; background: transparent; color: var(--muted); display: flex; align-items: center; gap: 6px; padding: 6px 8px; border-radius: var(--radius-sm); cursor: pointer; font: 500 12.5px var(--font); }
+.column-add:hover { background: var(--surface); color: var(--text); }
+.drop-marker { height: 3px; border-radius: 2px; background: var(--accent); margin: -2px 0; }
+
+.deal-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 10px 8px; box-shadow: var(--shadow); cursor: grab; display: flex; flex-direction: column; gap: 5px; }
+.deal-card:hover { border-color: var(--border-strong); }
+.deal-card.is-dragging { opacity: .4; }
+.deal-card-account { font-size: 11.5px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .02em; }
+.deal-card-name { font-weight: 600; line-height: 1.3; }
+.deal-card-meta { display: flex; gap: 10px; align-items: center; font-size: 12px; }
+.deal-card-meta span { display: inline-flex; align-items: center; gap: 3px; }
+.deal-card-meta .icon { width: 12px; height: 12px; }
+.amount { font-weight: 700; }
+.deal-card-next { display: flex; justify-content: space-between; gap: 6px; font-size: 12px; background: var(--surface-2); border-radius: 4px; padding: 4px 6px; }
+.deal-card-next.is-overdue { background: var(--danger-soft); color: var(--danger); }
+.due-inline { white-space: nowrap; font-weight: 600; }
+.deal-card-foot { display: flex; align-items: center; gap: 10px; }
+
+/* ---------- Panels ---------- */
+.backdrop { position: fixed; inset: 0; z-index: 50; background: rgba(15,17,21,.45); display: flex; align-items: flex-start; justify-content: center; padding: 5vh 16px; animation: fade .15s; overflow-y: auto; }
+.backdrop.closing { opacity: 0; transition: opacity .15s; }
+.backdrop-drawer { justify-content: flex-end; padding: 0; align-items: stretch; }
+@keyframes fade { from { opacity: 0; } }
+@keyframes slide { from { transform: translateX(40px); opacity: 0; } }
+.modal, .drawer { background: var(--surface); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; }
+.modal { border-radius: 14px; width: 100%; max-height: 90vh; }
+.modal-sm { max-width: 440px; } .modal-md { max-width: 620px; } .modal-lg { max-width: 980px; }
+.drawer { width: min(720px, 100vw); height: 100vh; animation: slide .18s; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 18px; border-bottom: 1px solid var(--border); }
+.panel-title { font-size: 16px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.panel-body { padding: 18px; overflow-y: auto; flex: 1; }
+.panel-foot { padding: 12px 18px; border-top: 1px solid var(--border); }
+.panel-foot > .row { width: 100%; }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 16px; }
+.modal .card { background: var(--bg); }
+.section { display: flex; flex-direction: column; gap: 8px; }
+.section-head { display: flex; align-items: center; justify-content: space-between; }
+.section h3 { font-size: 12px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+.bullets { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 3px; }
+.kv-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px 20px; background: var(--surface-2); border-radius: var(--radius); padding: 14px; }
+.kv-grid > div { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.k { font-size: 11.5px; color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .03em; }
+.stage-def { display: flex; gap: 8px; font-size: 12.5px; color: var(--muted); background: var(--accent-soft); border-radius: var(--radius-sm); padding: 8px 10px; }
+.timeline { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.timeline li { display: flex; gap: 10px; align-items: center; font-size: 12.5px; }
+details.raw summary { cursor: pointer; color: var(--muted); font-weight: 600; font-size: 13px; margin-bottom: 8px; }
+
+/* ---------- Tasks ---------- */
+.quick-add { margin-bottom: 18px; height: 42px; font-size: 14px; }
+.task-groups { display: flex; flex-direction: column; gap: 20px; max-width: 1000px; }
+.task-group-title { font-size: 13px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); margin-bottom: 8px; }
+.grp-overdue .task-group-title { color: var(--danger); }
+.grp-today .task-group-title { color: var(--warn); }
+.task-list { display: flex; flex-direction: column; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+.task-row { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.task-row:last-child { border-bottom: 0; }
+.task-row:hover { background: var(--surface-2); }
+.task-main { flex: 1; min-width: 0; cursor: pointer; }
+.task-title { font-weight: 500; }
+.task-meta { display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; font-size: 12px; margin-top: 2px; }
+.task-row.is-done .task-title { text-decoration: line-through; color: var(--muted); }
+.task-row .input-date { width: 132px; min-height: 28px; font-size: 12px; padding: 2px 6px; }
+
+/* ---------- Meetings / accounts ---------- */
+.meeting-table { display: flex; flex-direction: column; gap: 8px; max-width: 1100px; }
+.meeting-row { display: flex; gap: 14px; align-items: flex-start; text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; cursor: pointer; font: inherit; color: inherit; }
+.meeting-row:hover { border-color: var(--border-strong); box-shadow: var(--shadow); }
+.meeting-date { display: flex; flex-direction: column; align-items: center; min-width: 44px; background: var(--accent-soft); color: var(--accent); border-radius: 8px; padding: 4px 6px; }
+.meeting-date .d { font-size: 18px; font-weight: 700; line-height: 1.1; } .meeting-date .m { font-size: 11px; text-transform: uppercase; font-weight: 600; }
+.meeting-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.meeting-side { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+.meeting-list, .deal-mini-list { display: flex; flex-direction: column; gap: 6px; }
+.meeting-item, .deal-mini { display: flex; flex-direction: column; gap: 3px; text-align: left; border: 1px solid var(--border); background: var(--surface); border-radius: var(--radius-sm); padding: 10px 12px; cursor: pointer; font: inherit; color: inherit; }
+.deal-mini { flex-direction: row; align-items: center; gap: 10px; } .deal-mini strong { flex: 1; }
+.meeting-item:hover, .deal-mini:hover { background: var(--surface-2); }
+.meeting-item-head { display: flex; justify-content: space-between; gap: 10px; }
+.account-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+.account-card { display: flex; flex-direction: column; gap: 8px; text-align: left; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; cursor: pointer; font: inherit; color: inherit; }
+.account-card:hover { border-color: var(--border-strong); box-shadow: var(--shadow); }
+.account-name { font-weight: 700; font-size: 15px; }
+.account-stats { display: flex; gap: 14px; font-size: 12.5px; color: var(--muted); }
+.account-stats strong { color: var(--text); }
+.contacts { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+.contact { display: flex; flex-direction: column; gap: 2px; background: var(--surface-2); border-radius: var(--radius-sm); padding: 8px 10px; font-size: 13px; }
+.contacts-edit { display: flex; flex-direction: column; gap: 6px; align-items: flex-start; }
+.contact-row { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr auto; gap: 6px; width: 100%; }
+
+/* ---------- New meeting wizard ---------- */
+.dropzone { position: relative; }
+.dropzone-hint { display: none; position: absolute; inset: 0; border: 2px dashed var(--accent); background: color-mix(in srgb, var(--accent-soft) 85%, transparent); border-radius: var(--radius-sm);
+  align-items: center; justify-content: center; gap: 8px; color: var(--accent); font-weight: 600; pointer-events: none; }
+.dropzone.is-over .dropzone-hint { display: flex; }
+.notes-input { min-height: 300px; font-size: 13px; }
+.engine { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); }
+.engine-ai { color: var(--accent); }
+.processing { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 60px 20px; text-align: center; }
+.spinner { width: 36px; height: 36px; border-radius: 50%; border: 3px solid var(--accent-soft); border-top-color: var(--accent); animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.stage-reco { border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
+.stage-reco.is-suggested { border-color: var(--accent); background: var(--accent-soft); }
+.stage-reco select { width: auto; }
+.action-head, .action-item { display: grid; grid-template-columns: 22px minmax(200px, 1fr) 130px 120px 140px 96px 30px; gap: 6px; align-items: center; }
+.action-items { display: flex; flex-direction: column; gap: 6px; }
+.action-item.is-excluded > :not(input[type=checkbox]) { opacity: .45; }
+.ai-details { grid-column: 2 / -1; }
+
+/* ---------- Settings ---------- */
+.settings { display: flex; flex-direction: column; gap: 16px; max-width: 820px; }
+.storage-status { padding: 10px 12px; border-radius: var(--radius-sm); background: var(--surface-2); font-size: 13px; }
+.status-saved { background: var(--success-soft); color: var(--success); }
+.status-needs-permission { background: var(--warn-soft); color: var(--warn); }
+.status-error { background: var(--danger-soft); color: var(--danger); }
+
+/* ---------- Empty / toast ---------- */
+.empty { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; padding: 60px 20px; border: 1.5px dashed var(--border-strong); border-radius: var(--radius); margin-right: 20px; }
+.empty-title { font-size: 16px; font-weight: 600; }
+.toasts { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); z-index: 100; display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
+.toast { background: #1f2330; color: #fff; padding: 10px 16px; border-radius: 8px; box-shadow: var(--shadow-lg); font-size: 13px; max-width: 560px; animation: fade .15s; pointer-events: auto; }
+.toast-success { background: #166534; } .toast-error { background: #b91c1c; } .toast-warn { background: #92400e; }
+.toast.closing { opacity: 0; transition: opacity .2s; }
+
+/* ---------- Responsive ---------- */
+@media (max-width: 900px) {
+  .app-header { flex-wrap: wrap; gap: 10px; padding: 10px 12px; }
+  .nav { order: 3; width: 100%; overflow-x: auto; }
+  .hide-sm { display: none; }
+  .app-main { padding: 14px 12px 40px; }
+  .form-grid, .form-grid.cols-3, .kv-grid { grid-template-columns: 1fr; }
+  .span-2 { grid-column: auto; }
+  .search { width: 100%; }
+  .action-head { display: none; }
+  .action-item { grid-template-columns: 22px 1fr 1fr; }
+  .action-item .ai-title { grid-column: 2 / -1; }
+  .contact-row { grid-template-columns: 1fr 1fr; }
+  .task-row { flex-wrap: wrap; }
+  .task-main { flex-basis: calc(100% - 40px); }
+  .task-row .input-date { margin-left: 30px; }
+  .page-head select.input { max-width: none; width: 100%; }
+}
+@media print { .app-header, .page-head { display: none; } }
+
+</style>
+</head>
+<body>
+<header id="app-header" class="app-header"></header>
+<main id="app-main" class="app-main"><div id="app-loading" class="loading">Loading your workspace…</div></main>
+<noscript>This app needs JavaScript enabled.</noscript>
+<script>
+/* SE Pipeline v1.0.0 · built 2026-09-28T16:06:46.263Z */
+/* ---- src/core/util.js ---- */
+/* Shared, dependency-free helpers. Pure functions only — safe to load in Node for tests. */
+(function (NX) {
+  'use strict';
+
+  const util = {};
+
+  util.uid = function uid(prefix) {
+    const rand = (globalThis.crypto && crypto.randomUUID)
+      ? crypto.randomUUID().replace(/-/g, '').slice(0, 16)
+      : Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+    return (prefix ? prefix + '_' : '') + rand;
+  };
+
+  util.nowISO = () => new Date().toISOString();
+
+  /** Local calendar date as YYYY-MM-DD (not UTC, so "today" matches the user's wall clock). */
+  util.toLocalISODate = function toLocalISODate(d) {
+    const date = d instanceof Date ? d : new Date(d);
+    const off = date.getTimezoneOffset() * 60000;
+    return new Date(date.getTime() - off).toISOString().slice(0, 10);
+  };
+
+  util.todayISO = () => util.toLocalISODate(new Date());
+
+  /** Parse YYYY-MM-DD as a local-midnight Date. */
+  util.parseISODate = function parseISODate(s) {
+    if (!s || !/^\d{4}-\d{2}-\d{2}$/.test(s)) return null;
+    const [y, m, d] = s.split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    return isNaN(dt) ? null : dt;
+  };
+
+  util.addDays = function addDays(isoDate, n) {
+    const d = util.parseISODate(isoDate) || new Date();
+    d.setDate(d.getDate() + n);
+    return util.toLocalISODate(d);
+  };
+
+  /** Adds business days (skips Sat/Sun). */
+  util.addBusinessDays = function addBusinessDays(isoDate, n) {
+    const d = util.parseISODate(isoDate) || new Date();
+    let left = n;
+    while (left > 0) {
+      d.setDate(d.getDate() + 1);
+      const wd = d.getDay();
+      if (wd !== 0 && wd !== 6) left--;
+    }
+    return util.toLocalISODate(d);
+  };
+
+  /** Whole days from `from` to `to` (both YYYY-MM-DD). Negative when `to` is in the past. */
+  util.daysBetween = function daysBetween(from, to) {
+    const a = util.parseISODate(from), b = util.parseISODate(to);
+    if (!a || !b) return null;
+    return Math.round((b - a) / 86400000);
+  };
+
+  util.formatDate = function formatDate(iso, opts) {
+    const d = util.parseISODate(iso) || (iso ? new Date(iso) : null);
+    if (!d || isNaN(d)) return '';
+    return d.toLocaleDateString(undefined, opts || { month: 'short', day: 'numeric', year: 'numeric' });
+  };
+
+  /** "Today", "Tomorrow", "in 3 days", "2 days overdue", or a formatted date. */
+  util.relativeDue = function relativeDue(iso) {
+    if (!iso) return 'No date';
+    const diff = util.daysBetween(util.todayISO(), iso);
+    if (diff === null) return '';
+    if (diff === 0) return 'Today';
+    if (diff === 1) return 'Tomorrow';
+    if (diff === -1) return 'Yesterday';
+    if (diff < 0) return Math.abs(diff) + ' days overdue';
+    if (diff < 7) return 'in ' + diff + ' days';
+    return util.formatDate(iso, { month: 'short', day: 'numeric' });
+  };
+
+  util.formatMoney = function formatMoney(n) {
+    const v = Number(n) || 0;
+    if (Math.abs(v) >= 1e6) return '$' + (v / 1e6).toFixed(v % 1e6 === 0 ? 0 : 1) + 'M';
+    if (Math.abs(v) >= 1e3) return '$' + Math.round(v / 1e3) + 'K';
+    return '$' + v.toLocaleString();
+  };
+
+  util.debounce = function debounce(fn, ms) {
+    let t = null;
+    const wrapped = function (...args) {
+      clearTimeout(t);
+      t = setTimeout(() => fn.apply(this, args), ms);
+    };
+    wrapped.flush = function (...args) { clearTimeout(t); return fn.apply(this, args); };
+    return wrapped;
+  };
+
+  util.clone = (o) => JSON.parse(JSON.stringify(o));
+
+  util.normalize = (s) => String(s || '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+
+  util.byKey = function byKey(key, dir) {
+    const sign = dir === 'desc' ? -1 : 1;
+    return (a, b) => {
+      const av = a[key] ?? '', bv = b[key] ?? '';
+      return av < bv ? -sign : av > bv ? sign : 0;
+    };
+  };
+
+  NX.util = util;
+})(globalThis.NX = globalThis.NX || {});
+
+/* ---- src/core/schema.js ---- */
+/* Domain model: pipeline stages, entity factories and normalizers.
+ * Every record that enters the store goes through a normalizer so imported
+ * or AI-generated data can never corrupt the shape of the database. */
+(function (NX) {
+  'use strict';
+  const { uid, nowISO, todayISO } = NX.util;
+
+  const SCHEMA_VERSION = 1;
+
+  const STAGES = [
+    {
+      id: 'identified', order: 1, name: 'Identified Opportunity', short: 'Identified', color: '#64748b', open: true,
+      definition: 'Discussed with End User or Partner. Believe there to be a fit/need. There are next steps planned to further discuss requirements and timing. Get ready to review with your manager.',
+    },
+    {
+      id: 'discovery', order: 2, name: 'Opportunity Discovery', short: 'Discovery', color: '#0ea5e9', open: true,
+      definition: 'Validated pain/gain/risk. Identify customer metrics. Reached mutual agreement to progress. "Why do anything" established.',
+    },
+    {
+      id: 'develop', order: 3, name: 'Develop Opportunity', short: 'Develop', color: '#6366f1', open: true,
+      definition: 'Focused on identifying and validating resources. Requirements, timing, and interests of key stakeholders established.',
+    },
+    {
+      id: 'tech_diff', order: 4, name: 'Technical Differentiation', short: 'Tech Diff', color: '#a855f7', open: true,
+      definition: 'Configuration being determined to solve agreed upon use case and pain points of customer. Actively engaged in POC or working toward agreed upon success criteria.',
+    },
+    {
+      id: 'tech_win', order: 5, name: 'Technical Win', short: 'Tech Win', color: '#f59e0b', open: true,
+      definition: 'Customer has agreed to Nutanix configuration and confirmed it can solve technical requirements.',
+    },
+    { id: 'closed_won', order: 6, name: 'Closed Won', short: 'Won', color: '#16a34a', open: false, definition: 'Deal closed — customer purchased.' },
+    { id: 'closed_lost', order: 7, name: 'Closed Lost', short: 'Lost', color: '#dc2626', open: false, definition: 'Deal lost or abandoned. Capture the reason.' },
+  ];
+  const STAGE_IDS = STAGES.map((s) => s.id);
+  const stageById = (id) => STAGES.find((s) => s.id === id) || STAGES[0];
+
+  const TASK_OWNERS = [
+    { id: 'me', label: 'Me' },
+    { id: 'account_exec', label: 'Account Exec' },
+    { id: 'customer', label: 'Customer' },
+    { id: 'partner', label: 'Partner' },
+    { id: 'nutanix_other', label: 'Nutanix (other)' },
+  ];
+  const OWNER_IDS = TASK_OWNERS.map((o) => o.id);
+  const PRIORITIES = ['high', 'medium', 'low'];
+
+  const str = (v, max) => (v == null ? '' : String(v)).slice(0, max || 20000);
+  const strList = (v) => (Array.isArray(v) ? v.map((x) => str(x, 2000).trim()).filter(Boolean) : []);
+  const isoDateOrEmpty = (v) => (typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : '');
+  const num = (v) => { const n = Number(String(v ?? '').replace(/[^0-9.-]/g, '')); return isFinite(n) ? n : 0; };
+  const oneOf = (v, list, dflt) => (list.includes(v) ? v : dflt);
+
+  function stamp(rec, prefix) {
+    const t = nowISO();
+    return { id: rec.id || uid(prefix), createdAt: rec.createdAt || t, updatedAt: t };
+  }
+
+  const normalize = {
+    account(a) {
+      a = a || {};
+      return {
+        ...stamp(a, 'acc'),
+        name: str(a.name, 200).trim() || 'Untitled account',
+        industry: str(a.industry, 120),
+        partner: str(a.partner, 200),
+        website: str(a.website, 300),
+        notes: str(a.notes),
+        contacts: (Array.isArray(a.contacts) ? a.contacts : []).map((c) => ({
+          id: c.id || uid('con'),
+          name: str(c.name, 200),
+          title: str(c.title, 200),
+          email: str(c.email, 200),
+          phone: str(c.phone, 60),
+          role: str(c.role, 120),
+        })).filter((c) => c.name),
+      };
+    },
+
+    deal(d) {
+      d = d || {};
+      const stage = oneOf(d.stage, STAGE_IDS, 'identified');
+      const history = Array.isArray(d.stageHistory) && d.stageHistory.length
+        ? d.stageHistory.filter((h) => STAGE_IDS.includes(h.stage)).map((h) => ({ stage: h.stage, at: str(h.at, 40) }))
+        : [{ stage, at: nowISO() }];
+      return {
+        ...stamp(d, 'deal'),
+        accountId: str(d.accountId, 64),
+        name: str(d.name, 200).trim() || 'Untitled opportunity',
+        stage,
+        position: typeof d.position === 'number' && isFinite(d.position) ? d.position : Date.now(),
+        amount: num(d.amount),
+        closeDate: isoDateOrEmpty(d.closeDate),
+        useCase: str(d.useCase, 2000),
+        products: strList(d.products),
+        partner: str(d.partner, 200),
+        accountExec: str(d.accountExec, 200),
+        competitors: strList(d.competitors),
+        successCriteria: str(d.successCriteria, 4000),
+        nextStep: str(d.nextStep, 1000),
+        lostReason: str(d.lostReason, 1000),
+        stageHistory: history,
+      };
+    },
+
+    meeting(m) {
+      m = m || {};
+      return {
+        ...stamp(m, 'mtg'),
+        accountId: str(m.accountId, 64),
+        dealId: str(m.dealId, 64),
+        title: str(m.title, 300).trim() || 'Meeting',
+        date: isoDateOrEmpty(m.date) || todayISO(),
+        attendees: (Array.isArray(m.attendees) ? m.attendees : []).map((a) =>
+          typeof a === 'string' ? { name: a, organization: '', role: '' }
+            : { name: str(a.name, 200), organization: str(a.organization, 200), role: str(a.role, 200) }
+        ).filter((a) => a.name),
+        summary: str(m.summary),
+        discussionPoints: strList(m.discussionPoints),
+        painPoints: strList(m.painPoints),
+        requirements: strList(m.requirements),
+        environment: strList(m.environment),
+        competitors: strList(m.competitors),
+        risks: strList(m.risks),
+        decisions: strList(m.decisions),
+        followUpEmail: str(m.followUpEmail),
+        stageBefore: oneOf(m.stageBefore, STAGE_IDS, ''),
+        stageAfter: oneOf(m.stageAfter, STAGE_IDS, ''),
+        stageRationale: str(m.stageRationale, 2000),
+        rawNotes: str(m.rawNotes, 500000),
+        processedBy: oneOf(m.processedBy, ['ai', 'heuristic', 'manual'], 'manual'),
+      };
+    },
+
+    task(t) {
+      t = t || {};
+      const status = oneOf(t.status, ['open', 'done'], 'open');
+      return {
+        ...stamp(t, 'task'),
+        title: str(t.title, 500).trim() || 'Untitled task',
+        details: str(t.details, 4000),
+        dueDate: isoDateOrEmpty(t.dueDate),
+        priority: oneOf(t.priority, PRIORITIES, 'medium'),
+        owner: oneOf(t.owner, OWNER_IDS, 'me'),
+        ownerName: str(t.ownerName, 200),
+        status,
+        completedAt: status === 'done' ? (t.completedAt || nowISO()) : '',
+        accountId: str(t.accountId, 64),
+        dealId: str(t.dealId, 64),
+        meetingId: str(t.meetingId, 64),
+      };
+    },
+  };
+
+  /** Upgrades an exported workspace snapshot from any older schema version. */
+  function migrateSnapshot(snap) {
+    const s = snap && typeof snap === 'object' ? snap : {};
+    const version = Number(s.schemaVersion) || 1;
+    // Future migrations go here: if (version < 2) { ... }
+    return {
+      schemaVersion: Math.max(version, SCHEMA_VERSION),
+      accounts: (s.accounts || []).map(normalize.account),
+      deals: (s.deals || []).map(normalize.deal),
+      meetings: (s.meetings || []).map(normalize.meeting),
+      tasks: (s.tasks || []).map(normalize.task),
+      settings: s.settings && typeof s.settings === 'object' ? s.settings : {},
+    };
+  }
+
+  NX.schema = {
+    SCHEMA_VERSION, STAGES, STAGE_IDS, stageById, TASK_OWNERS, OWNER_IDS, PRIORITIES,
+    normalize, migrateSnapshot,
+  };
+})(globalThis.NX = globalThis.NX || {});
+
+/* ---- src/core/db.js ---- */
+/* Persistence adapter: IndexedDB (per browser profile = per user's PC).
+ * Exposes a tiny async key/value + collection API so the store never touches
+ * IndexedDB directly. A remote HTTP adapter with the same surface can replace
+ * this later without changing any UI code (see docs/ARCHITECTURE.md). */
+(function (NX) {
+  'use strict';
+
+  const DB_NAME = 'nutanix-se-pipeline';
+  const DB_VERSION = 1;
+  const COLLECTIONS = ['accounts', 'deals', 'meetings', 'tasks'];
+  const INDEXES = {
+    accounts: [['name', 'name']],
+    deals: [['accountId', 'accountId'], ['stage', 'stage']],
+    meetings: [['accountId', 'accountId'], ['dealId', 'dealId'], ['date', 'date']],
+    tasks: [['accountId', 'accountId'], ['dealId', 'dealId'], ['meetingId', 'meetingId'], ['status', 'status'], ['dueDate', 'dueDate']],
+  };
+
+  function promisify(req) {
+    return new Promise((resolve, reject) => {
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  function txDone(tx) {
+    return new Promise((resolve, reject) => {
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+      tx.onabort = () => reject(tx.error || new Error('Transaction aborted'));
+    });
+  }
+
+  class IndexedDBAdapter {
+    constructor() { this.kind = 'indexeddb'; this.db = null; }
+
+    async open() {
+      this.db = await new Promise((resolve, reject) => {
+        const req = indexedDB.open(DB_NAME, DB_VERSION);
+        req.onupgradeneeded = () => {
+          const db = req.result;
+          for (const name of COLLECTIONS) {
+            if (!db.objectStoreNames.contains(name)) {
+              const os = db.createObjectStore(name, { keyPath: 'id' });
+              for (const [idx, path] of INDEXES[name]) os.createIndex(idx, path);
+            }
+          }
+          if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta');
+        };
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+        req.onblocked = () => reject(new Error('Database blocked by another open tab'));
+      });
+      return this;
+    }
+
+    async getAll(collection) {
+      const tx = this.db.transaction(collection, 'readonly');
+      return promisify(tx.objectStore(collection).getAll());
+    }
+
+    /** Applies puts/deletes across collections atomically. ops: [{collection, put?: rec, del?: id}] */
+    async commit(ops) {
+      if (!ops.length) return;
+      const names = [...new Set(ops.map((o) => o.collection))];
+      const tx = this.db.transaction(names, 'readwrite');
+      for (const op of ops) {
+        const os = tx.objectStore(op.collection);
+        if (op.put) os.put(op.put);
+        else if (op.del) os.delete(op.del);
+      }
+      return txDone(tx);
+    }
+
+    async replaceAll(snapshot) {
+      const tx = this.db.transaction(COLLECTIONS, 'readwrite');
+      for (const name of COLLECTIONS) {
+        const os = tx.objectStore(name);
+        os.clear();
+        for (const rec of snapshot[name] || []) os.put(rec);
+      }
+      return txDone(tx);
+    }
+
+    async getMeta(key) {
+      const tx = this.db.transaction('meta', 'readonly');
+      return promisify(tx.objectStore('meta').get(key));
+    }
+
+    async setMeta(key, value) {
+      const tx = this.db.transaction('meta', 'readwrite');
+      if (value === undefined) tx.objectStore('meta').delete(key);
+      else tx.objectStore('meta').put(value, key);
+      return txDone(tx);
+    }
+  }
+
+  /** Used when IndexedDB is unavailable (some private-browsing modes). Data lives only in memory. */
+  class MemoryAdapter {
+    constructor() { this.kind = 'memory'; this.data = { meta: {} }; COLLECTIONS.forEach((c) => (this.data[c] = new Map())); }
+    async open() { return this; }
+    async getAll(c) { return [...this.data[c].values()]; }
+    async commit(ops) { for (const o of ops) o.put ? this.data[o.collection].set(o.put.id, o.put) : this.data[o.collection].delete(o.del); }
+    async replaceAll(s) { COLLECTIONS.forEach((c) => { this.data[c] = new Map((s[c] || []).map((r) => [r.id, r])); }); }
+    async getMeta(k) { return this.data.meta[k]; }
+    async setMeta(k, v) { if (v === undefined) delete this.data.meta[k]; else this.data.meta[k] = v; }
+  }
+
+  async function openDatabase() {
+    if (typeof indexedDB === 'undefined') return new MemoryAdapter().open();
+    try {
+      return await new IndexedDBAdapter().open();
+    } catch (err) {
+      console.warn('IndexedDB unavailable, falling back to memory storage', err);
+      return new MemoryAdapter().open();
+    }
+  }
+
+  NX.db = { openDatabase, COLLECTIONS, IndexedDBAdapter, MemoryAdapter };
+})(globalThis.NX = globalThis.NX || {});
+
+/* ---- src/core/store.js ---- */
+/* Service layer ("the API"). All reads come from an in-memory cache hydrated
+ * at startup; all writes are validated, applied to the cache, persisted
+ * atomically through the adapter, and broadcast as change events.
+ *
+ * The method surface mirrors the REST endpoints in docs/ARCHITECTURE.md, e.g.
+ *   api.deals.move(id, stage)   <->   POST /api/v1/deals/:id/move
+ * so a cloud backend can be introduced by swapping the adapter. */
+(function (NX) {
+  'use strict';
+  const { normalize, migrateSnapshot, SCHEMA_VERSION, stageById } = NX.schema;
+  const { nowISO } = NX.util;
+
+  const SETTINGS_DEFAULTS = {
+    userName: '',
+    workspaceName: 'My Workspace',
+    apiKey: '',
+    model: 'claude-opus-5',
+    effort: 'high',
+    remindersEnabled: false,
+  };
+  // Secrets never leave the browser via export / file sync.
+  const PRIVATE_SETTINGS = ['apiKey'];
+
+  function createStore(adapter) {
+    const cache = { accounts: new Map(), deals: new Map(), meetings: new Map(), tasks: new Map() };
+    let settings = { ...SETTINGS_DEFAULTS };
+    const listeners = new Set();
+
+    function emit(evt) { for (const fn of listeners) { try { fn(evt); } catch (e) { console.error(e); } } }
+
+    /** Applies ops to cache + adapter. ops: [{collection, put} | {collection, del}] */
+    async function commit(ops, evt) {
+      for (const op of ops) {
+        if (op.put) cache[op.collection].set(op.put.id, op.put);
+        else cache[op.collection].delete(op.del);
+      }
+      await adapter.commit(ops);
+      await adapter.setMeta('lastChangeAt', nowISO());
+      emit(evt || { type: 'change' });
+    }
+
+    function must(collection, id) {
+      const rec = cache[collection].get(id);
+      if (!rec) throw new Error(`${collection.slice(0, -1)} ${id} not found`);
+      return rec;
+    }
+
+    const list = (collection, filter) => {
+      let rows = [...cache[collection].values()];
+      if (filter) for (const [k, v] of Object.entries(filter)) if (v !== undefined && v !== '') rows = rows.filter((r) => r[k] === v);
+      return rows;
+    };
+
+    // ---------------- Accounts ----------------
+    const accounts = {
+      list: (f) => list('accounts', f).sort((a, b) => a.name.localeCompare(b.name)),
+      get: (id) => cache.accounts.get(id) || null,
+      findByName(name) {
+        const n = NX.util.normalize(name);
+        return n ? accounts.list().find((a) => NX.util.normalize(a.name) === n) || null : null;
+      },
+      async create(data) {
+        const rec = normalize.account(data);
+        await commit([{ collection: 'accounts', put: rec }], { type: 'accounts.create', id: rec.id });
+        return rec;
+      },
+      async update(id, patch) {
+        const rec = normalize.account({ ...must('accounts', id), ...patch, id });
+        await commit([{ collection: 'accounts', put: rec }], { type: 'accounts.update', id });
+        return rec;
+      },
+      /** Cascades to the account's deals, meetings and tasks. */
+      async remove(id) {
+        const ops = [{ collection: 'accounts', del: id }];
+        for (const c of ['deals', 'meetings', 'tasks']) for (const r of list(c, { accountId: id })) ops.push({ collection: c, del: r.id });
+        await commit(ops, { type: 'accounts.remove', id });
+      },
+    };
+
+    // ---------------- Deals ----------------
+    const deals = {
+      list: (f) => list('deals', f).sort((a, b) => a.position - b.position),
+      get: (id) => cache.deals.get(id) || null,
+      async create(data) {
+        const rec = normalize.deal(data);
+        if (!rec.accountId || !cache.accounts.has(rec.accountId)) throw new Error('A deal must belong to an existing account');
+        await commit([{ collection: 'deals', put: rec }], { type: 'deals.create', id: rec.id });
+        return rec;
+      },
+      async update(id, patch) {
+        const prev = must('deals', id);
+        const next = { ...prev, ...patch, id };
+        if (patch.stage && patch.stage !== prev.stage) next.stageHistory = [...prev.stageHistory, { stage: patch.stage, at: nowISO() }];
+        const rec = normalize.deal(next);
+        await commit([{ collection: 'deals', put: rec }], { type: 'deals.update', id });
+        return rec;
+      },
+      /** Moves a deal to a stage and (optionally) between two neighbours for manual ordering. */
+      async move(id, stage, beforeId) {
+        const prev = must('deals', id);
+        const column = deals.list({ stage }).filter((d) => d.id !== id);
+        let position;
+        const idx = beforeId ? column.findIndex((d) => d.id === beforeId) : -1;
+        if (idx === -1) position = column.length ? column[column.length - 1].position + 1000 : Date.now();
+        else {
+          const after = column[idx].position;
+          const before = idx > 0 ? column[idx - 1].position : after - 2000;
+          position = (before + after) / 2;
+        }
+        const patch = { stage, position };
+        if (stage !== 'closed_lost') patch.lostReason = prev.stage === 'closed_lost' ? '' : prev.lostReason;
+        return deals.update(id, patch);
+      },
+      async remove(id) {
+        const ops = [{ collection: 'deals', del: id }];
+        for (const t of list('tasks', { dealId: id })) ops.push({ collection: 'tasks', del: t.id });
+        for (const m of list('meetings', { dealId: id })) ops.push({ collection: 'meetings', put: { ...m, dealId: '' } });
+        await commit(ops, { type: 'deals.remove', id });
+      },
+    };
+
+    // ---------------- Meetings ----------------
+    const meetings = {
+      list: (f) => list('meetings', f).sort((a, b) => (b.date + b.createdAt).localeCompare(a.date + a.createdAt)),
+      get: (id) => cache.meetings.get(id) || null,
+      async update(id, patch) {
+        const rec = normalize.meeting({ ...must('meetings', id), ...patch, id });
+        await commit([{ collection: 'meetings', put: rec }], { type: 'meetings.update', id });
+        return rec;
+      },
+      async remove(id, { removeTasks = false } = {}) {
+        const ops = [{ collection: 'meetings', del: id }];
+        for (const t of list('tasks', { meetingId: id })) {
+          ops.push(removeTasks ? { collection: 'tasks', del: t.id } : { collection: 'tasks', put: { ...t, meetingId: '' } });
+        }
+        await commit(ops, { type: 'meetings.remove', id });
+      },
+      /**
+       * Composite write used by the "New meeting" flow (POST /api/v1/meetings/ingest).
+       * Creates the account / deal if needed, stores the meeting, creates the
+       * accepted action items as tasks and applies an optional stage move — atomically.
+       */
+      async ingest(input) {
+        const ops = [];
+        let account = input.accountId ? must('accounts', input.accountId) : null;
+        if (!account) {
+          const name = String(input.newAccountName || '').trim();
+          if (!name) throw new Error('Choose an account or enter a new account name');
+          account = accounts.findByName(name) || normalize.account({ name });
+          ops.push({ collection: 'accounts', put: account });
+        }
+        let deal = input.dealId ? must('deals', input.dealId) : null;
+        if (!deal && input.newDealName) {
+          deal = normalize.deal({ accountId: account.id, name: input.newDealName, stage: 'identified' });
+        }
+        const stageBefore = deal ? deal.stage : '';
+        if (deal) {
+          const patch = {};
+          if (input.moveToStage && input.moveToStage !== deal.stage) {
+            patch.stage = input.moveToStage;
+            patch.stageHistory = [...deal.stageHistory, { stage: input.moveToStage, at: nowISO() }];
+            patch.position = Date.now();
+          }
+          if (input.nextStep) patch.nextStep = input.nextStep;
+          if (input.competitors && input.competitors.length) patch.competitors = [...new Set([...deal.competitors, ...input.competitors])];
+          deal = normalize.deal({ ...deal, ...patch });
+          ops.push({ collection: 'deals', put: deal });
+        }
+        const meeting = normalize.meeting({
+          ...input.meeting,
+          accountId: account.id,
+          dealId: deal ? deal.id : '',
+          stageBefore,
+          stageAfter: deal ? deal.stage : '',
+        });
+        ops.push({ collection: 'meetings', put: meeting });
+        const tasks = (input.tasks || []).map((t) => normalize.task({
+          ...t, accountId: account.id, dealId: deal ? deal.id : '', meetingId: meeting.id, status: 'open',
+        }));
+        for (const t of tasks) ops.push({ collection: 'tasks', put: t });
+        await commit(ops, { type: 'meetings.ingest', id: meeting.id });
+        return { account, deal, meeting, tasks };
+      },
+    };
+
+    // ---------------- Tasks ----------------
+    const tasks = {
+      list: (f) => list('tasks', f).sort((a, b) =>
+        (a.status === b.status ? 0 : a.status === 'open' ? -1 : 1) ||
+        (a.dueDate || '9999').localeCompare(b.dueDate || '9999') ||
+        ['high', 'medium', 'low'].indexOf(a.priority) - ['high', 'medium', 'low'].indexOf(b.priority)),
+      get: (id) => cache.tasks.get(id) || null,
+      async create(data) {
+        const rec = normalize.task(data);
+        await commit([{ collection: 'tasks', put: rec }], { type: 'tasks.create', id: rec.id });
+        return rec;
+      },
+      async update(id, patch) {
+        const prev = must('tasks', id);
+        const next = { ...prev, ...patch, id };
+        if (patch.status === 'open') next.completedAt = '';
+        const rec = normalize.task(next);
+        await commit([{ collection: 'tasks', put: rec }], { type: 'tasks.update', id });
+        return rec;
+      },
+      complete: (id, done = true) => tasks.update(id, { status: done ? 'done' : 'open', completedAt: done ? nowISO() : '' }),
+      async remove(id) { await commit([{ collection: 'tasks', del: id }], { type: 'tasks.remove', id }); },
+    };
+
+    // ---------------- Settings ----------------
+    const settingsApi = {
+      get: () => ({ ...settings }),
+      async update(patch) {
+        settings = { ...settings, ...patch };
+        await adapter.setMeta('settings', settings);
+        emit({ type: 'settings.update', local: Object.keys(patch).every((k) => PRIVATE_SETTINGS.includes(k)) });
+        return settingsApi.get();
+      },
+    };
+
+    // ---------------- Workspace (export / import) ----------------
+    const workspace = {
+      snapshot() {
+        const publicSettings = { ...settings };
+        PRIVATE_SETTINGS.forEach((k) => delete publicSettings[k]);
+        return {
+          app: 'nutanix-se-pipeline',
+          schemaVersion: SCHEMA_VERSION,
+          savedAt: nowISO(),
+          settings: publicSettings,
+          accounts: [...cache.accounts.values()],
+          deals: [...cache.deals.values()],
+          meetings: [...cache.meetings.values()],
+          tasks: [...cache.tasks.values()],
+        };
+      },
+      /** mode: 'replace' wipes the workspace first; 'merge' upserts by id. */
+      async load(raw, mode = 'replace') {
+        if (!raw || typeof raw !== 'object' || !Array.isArray(raw.deals)) throw new Error('That file is not a workspace export');
+        const snap = migrateSnapshot(raw);
+        const merged = {};
+        for (const c of ['accounts', 'deals', 'meetings', 'tasks']) {
+          const base = mode === 'merge' ? new Map(cache[c]) : new Map();
+          for (const r of snap[c]) base.set(r.id, r);
+          merged[c] = [...base.values()];
+        }
+        await adapter.replaceAll(merged);
+        for (const c of Object.keys(merged)) cache[c] = new Map(merged[c].map((r) => [r.id, r]));
+        const keep = {}; PRIVATE_SETTINGS.forEach((k) => (keep[k] = settings[k]));
+        settings = { ...SETTINGS_DEFAULTS, ...settings, ...snap.settings, ...keep };
+        await adapter.setMeta('settings', settings);
+        await adapter.setMeta('lastChangeAt', raw.savedAt || nowISO());
+        emit({ type: 'workspace.load' });
+      },
+      async reset() {
+        await workspace.load({ deals: [], accounts: [], meetings: [], tasks: [] }, 'replace');
+      },
+      lastChangeAt: () => adapter.getMeta('lastChangeAt'),
+      counts: () => ({ accounts: cache.accounts.size, deals: cache.deals.size, meetings: cache.meetings.size, tasks: cache.tasks.size }),
+    };
+
+    // ---------------- Derived queries used by several views ----------------
+    const queries = {
+      dealSummary(dealId) {
+        const open = list('tasks', { dealId, status: 'open' }).sort((a, b) => (a.dueDate || '9999').localeCompare(b.dueDate || '9999'));
+        const ms = meetings.list({ dealId });
+        return { openTasks: open.length, nextTask: open[0] || null, lastMeeting: ms[0] || null, meetingCount: ms.length };
+      },
+      stageLabel: (id) => stageById(id).name,
+    };
+
+    return {
+      adapter,
+      async init() {
+        for (const c of Object.keys(cache)) cache[c] = new Map((await adapter.getAll(c)).map((r) => [r.id, r]));
+        settings = { ...SETTINGS_DEFAULTS, ...((await adapter.getMeta('settings')) || {}) };
+        return this;
+      },
+      on(fn) { listeners.add(fn); return () => listeners.delete(fn); },
+      accounts, deals, meetings, tasks, settings: settingsApi, workspace, queries,
+    };
+  }
+
+  NX.createStore = createStore;
+  NX.SETTINGS_DEFAULTS = SETTINGS_DEFAULTS;
+})(globalThis.NX = globalThis.NX || {});
+
+/* ---- src/core/filesync.js ---- */
+/* Auto-save to a JSON file on the user's PC via the File System Access API
+ * (Chrome / Edge). IndexedDB is always the primary store; the linked file is a
+ * continuously-updated mirror the user owns, can back up, or move to a new PC.
+ * Browsers without the API (Firefox / Safari) fall back to manual export. */
+(function (NX) {
+  'use strict';
+
+  const FILE_TYPES = [{ description: 'SE Pipeline workspace', accept: { 'application/json': ['.json'] } }];
+
+  function createFileSync(store) {
+    const supported = typeof window !== 'undefined' && 'showSaveFilePicker' in window;
+    let handle = null;
+    // status: unsupported | disconnected | needs-permission | saving | saved | error
+    let state = { status: supported ? 'disconnected' : 'unsupported', fileName: '', lastSavedAt: '', error: '' };
+    const listeners = new Set();
+
+    function setState(patch) {
+      state = { ...state, ...patch };
+      for (const fn of listeners) fn(state);
+    }
+
+    async function writeNow() {
+      if (!handle) return;
+      try {
+        setState({ status: 'saving' });
+        const writable = await handle.createWritable();
+        await writable.write(JSON.stringify(store.workspace.snapshot(), null, 2));
+        await writable.close();
+        setState({ status: 'saved', lastSavedAt: new Date().toISOString(), error: '' });
+      } catch (err) {
+        console.error('File save failed', err);
+        const lost = err && (err.name === 'NotAllowedError' || err.name === 'SecurityError');
+        setState({ status: lost ? 'needs-permission' : 'error', error: err.message || String(err) });
+      }
+    }
+    const scheduleWrite = NX.util.debounce(writeNow, 700);
+
+    async function readHandle(h) {
+      const file = await h.getFile();
+      const text = await file.text();
+      return text.trim() ? JSON.parse(text) : null;
+    }
+
+    /** If the file on disk is newer than the browser copy (e.g. edited on another PC), load it. */
+    async function reconcile() {
+      const disk = await readHandle(handle).catch(() => null);
+      const local = await store.workspace.lastChangeAt();
+      if (disk && disk.savedAt && (!local || disk.savedAt > local)) {
+        await store.workspace.load(disk, 'replace');
+        return 'loaded-from-file';
+      }
+      await writeNow();
+      return 'wrote-to-file';
+    }
+
+    async function adopt(h) {
+      handle = h;
+      // Persisting the handle lets the link survive restarts; if the browser can't store it, keep saving this session.
+      await store.adapter.setMeta('fileHandle', h).catch((e) => console.warn('Could not remember file handle', e));
+      setState({ fileName: h.name, status: 'saved' });
+    }
+
+    const api = {
+      supported,
+      getState: () => state,
+      onChange(fn) { listeners.add(fn); return () => listeners.delete(fn); },
+
+      /** Restores a previously linked file at startup (permission may need a click to re-grant). */
+      async init() {
+        if (!supported) return;
+        const saved = await store.adapter.getMeta('fileHandle').catch(() => null);
+        if (!saved) return;
+        handle = saved;
+        setState({ fileName: saved.name });
+        const perm = await saved.queryPermission({ mode: 'readwrite' }).catch(() => 'denied');
+        if (perm === 'granted') { setState({ status: 'saved' }); await reconcile(); }
+        else setState({ status: 'needs-permission' });
+      },
+
+      /** Create a new save file (must run from a click handler). */
+      async createFile() {
+        const h = await window.showSaveFilePicker({ suggestedName: 'se-pipeline-workspace.json', types: FILE_TYPES });
+        await adopt(h);
+        await writeNow();
+      },
+
+      /** Open an existing workspace file, load it, and keep auto-saving to it. */
+      async openFile() {
+        const [h] = await window.showOpenFilePicker({ types: FILE_TYPES, multiple: false });
+        const perm = await h.requestPermission({ mode: 'readwrite' });
+        if (perm !== 'granted') throw new Error('Write permission was not granted');
+        const data = await readHandle(h);
+        if (data) await store.workspace.load(data, 'replace');
+        await adopt(h);
+        await writeNow();
+      },
+
+      /** Re-grant access after a browser restart (must run from a click handler). */
+      async reconnect() {
+        if (!handle) return;
+        const perm = await handle.requestPermission({ mode: 'readwrite' });
+        if (perm !== 'granted') { setState({ status: 'needs-permission' }); return; }
+        setState({ status: 'saved' });
+        return reconcile();
+      },
+
+      async disconnect() {
+        handle = null;
+        await store.adapter.setMeta('fileHandle', undefined);
+        setState({ status: 'disconnected', fileName: '', lastSavedAt: '' });
+      },
+
+      /** Called on every store change. */
+      notifyChange() { if (handle && state.status !== 'needs-permission') scheduleWrite(); },
+      flush() { if (handle && state.status !== 'needs-permission') return scheduleWrite.flush(); },
+    };
+    return api;
+  }
+
+  /** Browser download of the current workspace — works everywhere. */
+  function downloadJSON(obj, filename) {
+    const blob = new Blob([JSON.stringify(obj, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = Object.assign(document.createElement('a'), { href: url, download: filename });
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  function pickJSONFile() {
+    return new Promise((resolve, reject) => {
+      const input = Object.assign(document.createElement('input'), { type: 'file', accept: '.json,application/json' });
+      input.onchange = async () => {
+        try { resolve(input.files[0] ? JSON.parse(await input.files[0].text()) : null); } catch (e) { reject(new Error('Could not read JSON: ' + e.message)); }
+      };
+      input.click();
+    });
+  }
+
+  NX.createFileSync = createFileSync;
+  NX.files = { downloadJSON, pickJSONFile };
+})(globalThis.NX = globalThis.NX || {});
+
+/* ---- src/core/ai.js ---- */
+/* Meeting-notes intelligence.
+ *
+ * processNotes() turns raw Zoom transcripts / AI Companion summaries / scribbled
+ * notes into a structured meeting record + dated action items + a stage
+ * recommendation. Two engines share one output contract:
+ *   - Claude (Anthropic Messages API, structured JSON output) when an API key is set
+ *   - an offline heuristic parser otherwise (or if the API call fails)
+ *
+ * Raw fetch is used on purpose: the app ships as a single dependency-free HTML
+ * file with no build-time package manager, so the SDK can't be bundled. */
+(function (NX) {
+  'use strict';
+  const { STAGES, STAGE_IDS, OWNER_IDS, PRIORITIES } = NX.schema;
+  const U = NX.util;
+
+  const API_URL = 'https://api.anthropic.com/v1/messages';
+  const MODELS = [
+    { id: 'claude-opus-5', label: 'Claude Opus 5 (recommended)' },
+    { id: 'claude-sonnet-5', label: 'Claude Sonnet 5 (faster, lower cost)' },
+    { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5 (fastest)' },
+  ];
+
+  // ---------------------------------------------------------------------------
+  // Output contract (also the JSON schema sent to Claude)
+  // ---------------------------------------------------------------------------
+  const strArr = { type: 'array', items: { type: 'string' } };
+  const RESULT_SCHEMA = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['title', 'meetingDate', 'matchedAccountId', 'suggestedAccountName', 'matchedDealId', 'suggestedDealName',
+      'attendees', 'summary', 'discussionPoints', 'painPoints', 'requirements', 'environment', 'competitors', 'risks',
+      'decisions', 'actionItems', 'suggestedStage', 'stageRationale', 'dealNextStep', 'followUpEmail'],
+    properties: {
+      title: { type: 'string', description: 'Short meeting title, e.g. "Acme – NC2 on AWS POC kickoff"' },
+      meetingDate: { type: 'string', description: 'YYYY-MM-DD if stated or inferable, else empty string' },
+      matchedAccountId: { type: 'string', description: 'id of the existing account this meeting is about, or empty string' },
+      suggestedAccountName: { type: 'string', description: 'Customer organization name as it appears in the notes' },
+      matchedDealId: { type: 'string', description: 'id of the existing deal this meeting is about, or empty string' },
+      suggestedDealName: { type: 'string', description: 'If no deal matches, a concise opportunity name; else empty string' },
+      attendees: {
+        type: 'array',
+        items: {
+          type: 'object', additionalProperties: false, required: ['name', 'organization', 'role'],
+          properties: { name: { type: 'string' }, organization: { type: 'string' }, role: { type: 'string' } },
+        },
+      },
+      summary: { type: 'string', description: '3-5 sentence executive summary of what happened and why it matters' },
+      discussionPoints: strArr,
+      painPoints: { ...strArr, description: 'Customer pain / gain / risk statements, business drivers, metrics' },
+      requirements: { ...strArr, description: 'Technical requirements, sizing, success criteria' },
+      environment: { ...strArr, description: 'Current environment facts: hypervisor, hardware, workloads, versions, renewal dates' },
+      competitors: strArr,
+      risks: { ...strArr, description: 'Deal risks, blockers, open questions' },
+      decisions: strArr,
+      actionItems: {
+        type: 'array',
+        items: {
+          type: 'object', additionalProperties: false,
+          required: ['title', 'details', 'owner', 'ownerName', 'dueDate', 'priority'],
+          properties: {
+            title: { type: 'string', description: 'Imperative, specific action (starts with a verb)' },
+            details: { type: 'string' },
+            owner: { type: 'string', enum: OWNER_IDS },
+            ownerName: { type: 'string' },
+            dueDate: { type: 'string', description: 'YYYY-MM-DD' },
+            priority: { type: 'string', enum: PRIORITIES },
+          },
+        },
+      },
+      suggestedStage: { type: 'string', enum: [...STAGE_IDS, 'no_change'] },
+      stageRationale: { type: 'string' },
+      dealNextStep: { type: 'string', description: 'One-line next step for the deal card' },
+      followUpEmail: { type: 'string', description: 'Ready-to-send recap email to the customer (plain text)' },
+    },
+  };
+
+  function systemPrompt() {
+    const stages = STAGES.map((s) => `- ${s.id} = "${s.name}": ${s.definition}`).join('\n');
+    return `You are the meeting-notes analyst for a Nutanix Systems Engineer (SE). The SE pastes raw, unformatted meeting notes — usually Zoom auto-transcripts or Zoom AI Companion summaries — and you turn them into an accurate CRM record they can act on.
+
+Nutanix context: the SE works alongside an Account Executive and channel partners, selling Nutanix Cloud Platform (AHV, AOS/NCI, Prism Central, NC2 on AWS/Azure, Nutanix Unified Storage/Files/Objects, NDB, NKP/Kubernetes, Flow, Data Lens, Move for migrations). Common drivers: VMware/Broadcom licensing changes, hardware refreshes, consolidation, DR, VDI/EUC, databases, hybrid cloud.
+
+Pipeline stages (use the id values):
+${stages}
+
+How to work:
+- Only record facts present in the notes. Never invent names, numbers, dates or commitments. If something is unclear, say so in risks rather than guessing.
+- Action items are the most important output. Capture every commitment anyone made, and add the obvious SE follow-ups the notes imply (e.g. send recap, schedule next meeting, prepare sizing). Each must be concrete and start with a verb.
+- owner: "me" = the SE (the person the notes belong to), "account_exec" = the Nutanix AE/sales rep, "customer", "partner", "nutanix_other" (SA, specialists, support). Put the person's name in ownerName when known.
+- Every action item needs a dueDate (YYYY-MM-DD). Resolve relative dates ("by Friday", "next week", "EOM") against the meeting date. If no date was stated, pick a realistic one: recap/follow-up emails within 1 business day, internal prep before the next scheduled meeting, otherwise 3-5 business days. Never pick a weekend.
+- priority: high = blocks deal progress or was promised to the customer with a date; low = nice to have.
+- suggestedStage: recommend moving the deal only when the notes clearly show the exit criteria of the current stage are met (or the deal was won/lost); otherwise "no_change". Explain your reasoning in stageRationale by referencing the stage definition.
+- matchedAccountId / matchedDealId: choose only from the provided lists, match on customer name (allow abbreviations/typos). Leave empty if nothing matches.
+- followUpEmail: concise, professional recap addressed to the customer attendees: thanks, key takeaways, agreed next steps with owners and dates. No subject line placeholder brackets.`;
+  }
+
+  function userPrompt(notes, ctx) {
+    const context = {
+      today: U.todayISO(),
+      meetingDateHint: ctx.meetingDate || '',
+      seName: ctx.userName || '(the SE)',
+      preselectedAccountId: ctx.accountId || '',
+      preselectedDealId: ctx.dealId || '',
+      accounts: ctx.accounts.map((a) => ({ id: a.id, name: a.name, partner: a.partner })),
+      deals: ctx.deals.map((d) => ({ id: d.id, accountId: d.accountId, name: d.name, stage: d.stage })),
+    };
+    return `<context>\n${JSON.stringify(context, null, 1)}\n</context>\n\n<meeting_notes>\n${notes}\n</meeting_notes>\n\nAnalyze these meeting notes and return the JSON record.`;
+  }
+
+  class AIError extends Error {
+    constructor(message, { status, retryable } = {}) { super(message); this.name = 'AIError'; this.status = status; this.retryable = !!retryable; }
+  }
+
+  async function callClaude({ apiKey, model, effort, notes, ctx, signal, _noFallback }) {
+    const useFallbacks = !_noFallback && /^claude-(opus-5|fable-5)/.test(model);
+    const body = {
+      model,
+      max_tokens: 16000,
+      system: systemPrompt(),
+      messages: [{ role: 'user', content: userPrompt(notes, ctx) }],
+      output_config: { format: { type: 'json_schema', schema: RESULT_SCHEMA } },
+    };
+    if (effort && !/haiku/.test(model)) body.output_config.effort = effort;
+    if (useFallbacks) body.fallbacks = 'default';
+
+    const headers = {
+      'content-type': 'application/json',
+      'x-api-key': apiKey,
+      'anthropic-version': '2023-06-01',
+      // Required for calling the API straight from a browser page.
+      'anthropic-dangerous-direct-browser-access': 'true',
+    };
+    if (useFallbacks) headers['anthropic-beta'] = 'server-side-fallback-2026-07-01';
+
+    let res;
+    try {
+      res = await fetch(API_URL, { method: 'POST', headers, body: JSON.stringify(body), signal });
+    } catch (err) {
+      if (err.name === 'AbortError') throw err;
+      throw new AIError('Could not reach the Claude API (network/firewall?). ' + err.message, { retryable: true });
+    }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const msg = (data.error && data.error.message) || res.statusText;
+      if (res.status === 400 && useFallbacks && /fallback/i.test(msg)) {
+        return callClaude({ apiKey, model, effort, notes, ctx, signal, _noFallback: true });
+      }
+      if (res.status === 401) throw new AIError('Invalid API key — check Settings.', { status: 401 });
+      if (res.status === 403) throw new AIError('API key lacks permission: ' + msg, { status: 403 });
+      if (res.status === 404) throw new AIError(`Model "${model}" not available to this key: ${msg}`, { status: 404 });
+      if (res.status === 429) throw new AIError('Rate limited by the Claude API — try again in a minute.', { status: 429, retryable: true });
+      if (res.status >= 500) throw new AIError('Claude API is temporarily unavailable (' + res.status + ').', { status: res.status, retryable: true });
+      throw new AIError('Claude API error: ' + msg, { status: res.status });
+    }
+    if (data.stop_reason === 'refusal') throw new AIError('Claude declined to process these notes.', { status: 200 });
+    if (data.stop_reason === 'max_tokens') throw new AIError('The notes produced too long a response. Try splitting them.', { status: 200 });
+    const text = (data.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('');
+    try {
+      return JSON.parse(text);
+    } catch {
+      throw new AIError('Claude returned an unreadable response.', { status: 200, retryable: true });
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Offline heuristic engine
+  // ---------------------------------------------------------------------------
+  const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+  const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
+  const COMPETITORS = ['VMware', 'Broadcom', 'vSAN', 'VxRail', 'Dell APEX', 'HPE', 'SimpliVity', 'Azure Stack HCI', 'Azure Local', 'Hyper-V',
+    'Pure Storage', 'NetApp', 'HyperFlex', 'Proxmox', 'OpenShift', 'Red Hat', 'Scale Computing', 'Citrix', 'Omnissa', 'Cohesity', 'Rubrik'];
+
+  /** Strips WebVTT/SRT scaffolding so transcripts read as "Speaker: text" lines. */
+  function cleanTranscript(raw) {
+    return String(raw || '')
+      .replace(/\r\n?/g, '\n')
+      .replace(/^WEBVTT.*$/m, '')
+      .split('\n')
+      .filter((l) => !/^\s*\d+\s*$/.test(l) && !/-->/.test(l))
+      .map((l) => l.replace(/^\s*\[?\d{1,2}:\d{2}(:\d{2})?(\.\d+)?\]?\s*/, '').trimEnd())
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  }
+
+  /** Resolves natural-language due dates relative to baseDate (YYYY-MM-DD). Returns '' if none found. */
+  function parseDueDate(text, baseDate) {
+    const t = ' ' + String(text).toLowerCase() + ' ';
+    const base = baseDate || U.todayISO();
+    const baseDow = U.parseISODate(base).getDay();
+    // Next occurrence of a weekday (today counts as a week away); nextWeek skips into the following week.
+    const nextDow = (dow, nextWeek) => {
+      const diff = (dow - baseDow + 7) % 7 || 7;
+      return U.addDays(base, nextWeek && diff < 7 ? diff + 7 : diff);
+    };
+    const fridayOffset = (5 - baseDow + 7) % 7;
+    let m;
+    if (/\b(today|eod|end of (the )?day|asap|immediately)\b/.test(t)) return base;
+    if (/\btomorrow\b/.test(t)) return U.addBusinessDays(base, 1);
+    if ((m = t.match(/\bin (\d+|a|one|two|three) (business )?(day|week)s?\b/))) {
+      const n = { a: 1, one: 1, two: 2, three: 3 }[m[1]] || Number(m[1]);
+      return m[3] === 'week' ? U.addDays(base, n * 7) : (m[2] ? U.addBusinessDays(base, n) : U.addDays(base, n));
+    }
+    if (/\b(eow|end of (the )?week|this week)\b/.test(t)) return U.addDays(base, baseDow === 6 ? 6 : fridayOffset);
+    if (/\bnext week\b/.test(t)) return U.addDays(base, baseDow === 0 || baseDow === 6 ? fridayOffset : fridayOffset + 7);
+    if (/\b(eom|end of (the )?month)\b/.test(t)) {
+      const d = U.parseISODate(base); return U.toLocalISODate(new Date(d.getFullYear(), d.getMonth() + 1, 0));
+    }
+    if ((m = t.match(/\bnext (monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/))) return nextDow(WEEKDAYS.indexOf(m[1]), true);
+    if ((m = t.match(/\b(?:by|on|before|until|this|due) (monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri)\b/))) {
+      const idx = WEEKDAYS.findIndex((w) => w.startsWith(m[1]));
+      return nextDow(idx, false);
+    }
+    if ((m = t.match(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/))) {
+      const b = U.parseISODate(base);
+      let y = m[3] ? Number(m[3].length === 2 ? '20' + m[3] : m[3]) : b.getFullYear();
+      let d = new Date(y, Number(m[1]) - 1, Number(m[2]));
+      if (!m[3] && d < b) d = new Date(y + 1, Number(m[1]) - 1, Number(m[2]));
+      if (!isNaN(d) && d.getMonth() === Number(m[1]) - 1) return U.toLocalISODate(d);
+    }
+    const monthRe = new RegExp('\\b(' + MONTHS.map((x) => x.slice(0, 3)).join('|') + ')[a-z]*\\.? (\\d{1,2})(?:st|nd|rd|th)?\\b');
+    if ((m = t.match(monthRe))) {
+      const b = U.parseISODate(base);
+      const mi = MONTHS.findIndex((x) => x.startsWith(m[1]));
+      let d = new Date(b.getFullYear(), mi, Number(m[2]));
+      if (d < b) d = new Date(b.getFullYear() + 1, mi, Number(m[2]));
+      return U.toLocalISODate(d);
+    }
+    return '';
+  }
+
+  const HEADINGS = [
+    ['summary', /^(quick recap|summary|meeting summary|overview|recap|tl;?dr)$/],
+    ['actions', /^(next steps?|action items?|actions|follow[- ]?ups?|to ?dos?|takeaways and next steps)$/],
+    ['decisions', /^(decisions?( made)?|agreements?|agreed)$/],
+    ['risks', /^(risks?|concerns?|blockers?|open (questions|items|issues)|issues)$/],
+    ['pain', /^(pain points?|challenges?|business drivers?|drivers|problems?)$/],
+    ['requirements', /^(requirements?|technical requirements?|success criteria|scope)$/],
+    ['environment', /^(current environment|environment|current state|infrastructure)$/],
+    ['attendees', /^(attendees|participants|present|who attended)$/],
+  ];
+
+  function detectHeading(line) {
+    const l = line.replace(/^#+\s*|\*\*|__/g, '').replace(/[:\s]+$/, '').trim().toLowerCase();
+    if (!l || l.split(/\s+/).length > 5) return null;
+    const hit = HEADINGS.find(([, re]) => re.test(l));
+    return hit ? hit[0] : null;
+  }
+
+  const bulletText = (l) => l.replace(/^\s*([-*•●◦▪]|\d+[.)]|\[[ x]\])\s*/i, '').trim();
+
+  function heuristicParse(rawNotes, ctx) {
+    const notes = cleanTranscript(rawNotes);
+    const lines = notes.split('\n').map((l) => l.trim()).filter(Boolean);
+    const meetingDate = ctx.meetingDate || U.todayISO();
+    const sections = { summary: [], actions: [], decisions: [], risks: [], pain: [], requirements: [], environment: [], attendees: [], body: [] };
+    let current = 'body';
+    for (const line of lines) {
+      const h = detectHeading(line);
+      if (h) { current = h; continue; }
+      // Inline "Heading: content"
+      const inline = line.match(/^([A-Za-z ]{3,30}):\s+(.+)$/);
+      if (inline && detectHeading(inline[1])) { sections[detectHeading(inline[1])].push(inline[2]); continue; }
+      sections[current].push(line);
+    }
+
+    // Attendees: explicit list, or speaker labels "Name: text"
+    const speakers = new Map();
+    for (const l of lines) {
+      const m = l.match(/^([A-Z][\w'.-]+(?: [A-Z][\w'.-]+){0,3})\s*:\s+\S/);
+      if (m && !detectHeading(m[1]) && !/^(Note|Action|Todo|Next|Summary|Decision|Risk|Re|Subject|Date|Time|Topic)/i.test(m[1])) {
+        speakers.set(m[1], (speakers.get(m[1]) || 0) + 1);
+      }
+    }
+    let attendees = sections.attendees.flatMap((l) => bulletText(l).split(/[,;]/)).map((n) => n.trim()).filter(Boolean)
+      .map((n) => { const [name, org] = n.split(/\s*[(\-–]\s*/); return { name: name.trim(), organization: (org || '').replace(')', '').trim(), role: '' }; });
+    if (!attendees.length) attendees = [...speakers.keys()].map((name) => ({ name, organization: '', role: '' }));
+
+    // Action items
+    const ACTION_RE = /\b(action item|todo|to-do|follow[- ]up|will (send|schedule|share|provide|set ?up|review|follow|get|reach|connect|prepare|put together|draft|confirm|check|look|build|run|book|update|loop)|need(s)? to|going to (send|schedule|share|provide)|i'll|we'll|let me|next step)\b/i;
+    const candidates = [...sections.actions.map(bulletText)];
+    for (const l of [...sections.body, ...sections.summary]) if (ACTION_RE.test(l) && l.length < 400) candidates.push(bulletText(l));
+    const userFirst = U.normalize(ctx.userName || '').split(' ')[0];
+    const seen = new Set();
+    const actionItems = [];
+    for (let c of candidates) {
+      c = c.replace(/^(action items?|next steps?|todo|ai)\s*[:\-]\s*/i, '').trim();
+      if (c.length < 6) continue;
+      const key = U.normalize(c).slice(0, 60);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      let owner = 'me', ownerName = '';
+      const speaker = c.match(/^([A-Z][\w'.-]+(?: [A-Z][\w'.-]+)?)\s*:\s*(.+)$/);
+      if (speaker) { ownerName = speaker[1]; c = speaker[2]; }
+      const who = c.match(/^([A-Z][\w'.-]+(?: [A-Z][\w'.-]+)?)\s+(will|to|should|needs to|is going to)\b/);
+      if (who && !/^(We|I|They|Team|Customer|Partner|Nutanix)$/.test(who[1])) { ownerName = who[1]; c = c.slice(who[0].length).trim(); }
+      const lower = c.toLowerCase();
+      if (/^(i|i'll|we|we'll|let me)\b/i.test(c) || (userFirst && U.normalize(ownerName).startsWith(userFirst))) owner = 'me';
+      else if (/\b(customer|client|they will|their team)\b/.test(lower)) owner = 'customer';
+      else if (/\bpartner\b/.test(lower)) owner = 'partner';
+      else if (/\b(ae|account exec|account executive|sales rep)\b/.test(lower)) owner = 'account_exec';
+      else if (ownerName) owner = 'customer';
+      const priority = /\b(asap|urgent|critical|blocker|must|immediately|today|tomorrow)\b/i.test(c) ? 'high'
+        : /\b(nice to have|eventually|when possible|at some point)\b/i.test(c) ? 'low' : 'medium';
+      const title = c.replace(/^(i'll|i will|we'll|we will|let me)\s+/i, '').replace(/^\w/, (x) => x.toUpperCase()).replace(/[.;]\s*$/, '');
+      const due = parseDueDate(c, meetingDate) || U.addBusinessDays(meetingDate, priority === 'high' ? 1 : priority === 'low' ? 10 : 3);
+      actionItems.push({ title: title.slice(0, 240), details: '', owner, ownerName, dueDate: due, priority });
+    }
+    if (!actionItems.some((a) => /recap|summary|follow[- ]?up email/i.test(a.title))) {
+      actionItems.unshift({ title: 'Send meeting recap and next steps to attendees', details: '', owner: 'me', ownerName: ctx.userName || '', dueDate: U.addBusinessDays(meetingDate, 1), priority: 'high' });
+    }
+
+    const body = [...sections.body, ...sections.summary];
+    const grab = (re) => [...new Set(body.filter((l) => re.test(l)).map(bulletText))].slice(0, 8);
+    const painPoints = [...sections.pain.map(bulletText), ...grab(/\b(pain|challeng|struggl|frustrat|problem|issue|too (slow|expensive)|cost|renewal|end of (life|support)|eol|licens|broadcom|price increase)\b/i)];
+    const risks = [...sections.risks.map(bulletText), ...grab(/\b(risk|concern|blocker|worried|budget|not sure|unclear|delay|push(ed)? out|competit)\b/i)];
+    const requirements = [...sections.requirements.map(bulletText), ...grab(/\b(require|must have|need(s)? (to support|to have)|success criteria|rpo|rto|tb|cores|vms?\b|nodes?)\b/i)];
+    const environment = [...sections.environment.map(bulletText), ...grab(/\b(currently|today they|running on|vsphere|esxi|vcenter|hyper-v|dell|hpe|cisco|lenovo|san|netapp|pure)\b/i)];
+    const decisions = [...sections.decisions.map(bulletText), ...grab(/\b(agreed|decided|decision|approved|signed off)\b/i)];
+    const competitors = COMPETITORS.filter((c) => new RegExp('\\b' + c.replace(/\s+/g, '\\s+') + '\\b', 'i').test(notes));
+
+    const summarySrc = sections.summary.length ? sections.summary.join(' ') : body.slice(0, 6).join(' ');
+    const summary = summarySrc.split(/(?<=[.!?])\s+/).slice(0, 5).join(' ').slice(0, 1200);
+
+    // Account / deal matching by name frequency
+    const normNotes = ' ' + U.normalize(notes) + ' ';
+    let matchedAccountId = ctx.accountId || '';
+    if (!matchedAccountId) {
+      let best = 0;
+      for (const a of ctx.accounts) {
+        const n = U.normalize(a.name);
+        if (!n) continue;
+        const count = normNotes.split(' ' + n + ' ').length - 1;
+        if (count > best) { best = count; matchedAccountId = a.id; }
+      }
+    }
+    let matchedDealId = ctx.dealId || '';
+    if (!matchedDealId && matchedAccountId) {
+      const acctDeals = ctx.deals.filter((d) => d.accountId === matchedAccountId && STAGES.find((s) => s.id === d.stage).open);
+      // Score each open deal by how many of its distinctive name words appear in the notes.
+      const scored = acctDeals.map((d) => {
+        const words = [...new Set(U.normalize(d.name).split(' ').filter((w) => w.length > 2))];
+        return { d, score: words.filter((w) => normNotes.includes(' ' + w + ' ')).length };
+      }).sort((a, b) => b.score - a.score);
+      const best = scored[0] && scored[0].score >= 2 && (!scored[1] || scored[1].score < scored[0].score) ? scored[0].d : null;
+      matchedDealId = (best || (acctDeals.length === 1 ? acctDeals[0] : null) || {}).id || '';
+    }
+
+    // Stage suggestion from strong keyword signals only
+    const deal = ctx.deals.find((d) => d.id === matchedDealId);
+    const currentOrder = deal ? STAGES.find((s) => s.id === deal.stage).order : 0;
+    const SIGNALS = [
+      ['closed_won', /\b(po (received|issued)|purchase order (received|issued|signed)|signed the (order|contract|quote)|closed won)\b/i],
+      ['closed_lost', /\b(went with|chose|selected) (vmware|broadcom|dell|hpe|microsoft|azure|another vendor|a competitor)|\bclosed lost\b|no longer (moving forward|pursuing)/i],
+      ['tech_win', /\b(technical win|tech win|approved the (design|config|configuration|architecture)|signed off on the (design|config|bom)|poc (was )?successful|met (all )?(the )?success criteria)\b/i],
+      ['tech_diff', /\b(poc|proof of concept|pilot|success criteria|sizing|bom|bill of materials|configuration|test drive)\b/i],
+      ['develop', /\b(stakeholders?|decision makers?|timeline|budget (approved|cycle)|requirements (gathering|workshop)|procurement)\b/i],
+      ['discovery', /\b(pain points?|metrics|business case|why change|current costs?|tco|roi)\b/i],
+    ];
+    let suggestedStage = 'no_change', stageRationale = 'No clear exit-criteria signals found in the notes.';
+    for (const [stage, re] of SIGNALS) {
+      const m = notes.match(re);
+      const order = STAGES.find((s) => s.id === stage).order;
+      if (m && deal && (order > currentOrder || stage === 'closed_lost')) {
+        if (stage === deal.stage) break;
+        suggestedStage = stage;
+        stageRationale = `Notes mention "${m[0]}", which matches the ${STAGES.find((s) => s.id === stage).name} stage criteria. Please verify before moving.`;
+        break;
+      }
+    }
+
+    const acct = ctx.accounts.find((a) => a.id === matchedAccountId);
+    const firstLine = sections.summary[0] ? bulletText(sections.summary[0]).split(/[.!?]/)[0] : '';
+    const topic = firstLine && firstLine.length <= 70 && !(acct && U.normalize(firstLine).startsWith(U.normalize(acct.name))) ? firstLine : 'Meeting ' + U.formatDate(meetingDate, { month: 'short', day: 'numeric' });
+    const title = (acct ? acct.name + ' – ' : '') + topic;
+    const mine = actionItems.filter((a) => a.owner === 'me');
+    const followUpEmail = [
+      'Hi all,', '',
+      'Thank you for your time today. A quick recap:', '',
+      summary || '(summary)', '',
+      'Next steps:',
+      ...actionItems.map((a) => `• ${a.title}${a.ownerName ? ' (' + a.ownerName + ')' : ''} – by ${U.formatDate(a.dueDate, { month: 'short', day: 'numeric' })}`),
+      '', 'Please let me know if I missed anything.', '', 'Best regards,', ctx.userName || '',
+    ].join('\n');
+
+    return {
+      title,
+      meetingDate: ctx.meetingDate || '',
+      matchedAccountId, suggestedAccountName: acct ? acct.name : '',
+      matchedDealId, suggestedDealName: '',
+      attendees, summary,
+      discussionPoints: body.filter((l) => l.length > 25 && !ACTION_RE.test(l)).slice(0, 8).map(bulletText),
+      painPoints: [...new Set(painPoints)].slice(0, 8),
+      requirements: [...new Set(requirements)].slice(0, 8),
+      environment: [...new Set(environment)].slice(0, 8),
+      competitors, risks: [...new Set(risks)].slice(0, 8), decisions: [...new Set(decisions)].slice(0, 8),
+      actionItems,
+      suggestedStage, stageRationale,
+      dealNextStep: mine[0] ? mine[0].title : (actionItems[0] || {}).title || '',
+      followUpEmail,
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Public entry point
+  // ---------------------------------------------------------------------------
+  /** Coerces any engine output to the contract (defends against partial / odd AI output). */
+  function sanitize(r, ctx) {
+    const s = (v) => (typeof v === 'string' ? v.trim() : '');
+    const arr = (v) => (Array.isArray(v) ? v.map(s).filter(Boolean) : []);
+    const base = ctx.meetingDate || U.todayISO();
+    const iso = (v) => (/^\d{4}-\d{2}-\d{2}$/.test(v || '') ? v : '');
+    const accountOk = ctx.accounts.some((a) => a.id === r.matchedAccountId);
+    const dealOk = ctx.deals.some((d) => d.id === r.matchedDealId && (!accountOk || d.accountId === r.matchedAccountId));
+    return {
+      title: s(r.title) || 'Meeting',
+      meetingDate: iso(r.meetingDate) || base,
+      matchedAccountId: accountOk ? r.matchedAccountId : '',
+      suggestedAccountName: s(r.suggestedAccountName),
+      matchedDealId: dealOk ? r.matchedDealId : '',
+      suggestedDealName: s(r.suggestedDealName),
+      attendees: (Array.isArray(r.attendees) ? r.attendees : []).filter((a) => a && s(a.name))
+        .map((a) => ({ name: s(a.name), organization: s(a.organization), role: s(a.role) })),
+      summary: s(r.summary),
+      discussionPoints: arr(r.discussionPoints), painPoints: arr(r.painPoints), requirements: arr(r.requirements),
+      environment: arr(r.environment), competitors: arr(r.competitors), risks: arr(r.risks), decisions: arr(r.decisions),
+      actionItems: (Array.isArray(r.actionItems) ? r.actionItems : []).filter((a) => a && s(a.title)).map((a) => ({
+        title: s(a.title), details: s(a.details),
+        owner: OWNER_IDS.includes(a.owner) ? a.owner : 'me', ownerName: s(a.ownerName),
+        dueDate: iso(a.dueDate) || U.addBusinessDays(base, 3),
+        priority: PRIORITIES.includes(a.priority) ? a.priority : 'medium',
+      })),
+      suggestedStage: [...STAGE_IDS, 'no_change'].includes(r.suggestedStage) ? r.suggestedStage : 'no_change',
+      stageRationale: s(r.stageRationale),
+      dealNextStep: s(r.dealNextStep),
+      followUpEmail: s(r.followUpEmail),
+    };
+  }
+
+  /**
+   * @param {string} notes raw notes / transcript
+   * @param {{accounts, deals, userName, meetingDate, accountId, dealId}} ctx
+   * @param {{apiKey, model, effort, signal, forceOffline}} opts
+   * @returns {Promise<{result, engine: 'ai'|'heuristic', warning?: string}>}
+   */
+  async function processNotes(notes, ctx, opts = {}) {
+    if (!String(notes || '').trim()) throw new Error('Paste or drop your meeting notes first');
+    if (opts.apiKey && !opts.forceOffline) {
+      try {
+        const raw = await callClaude({ apiKey: opts.apiKey, model: opts.model || 'claude-opus-5', effort: opts.effort, notes: cleanTranscript(notes), ctx, signal: opts.signal });
+        return { result: sanitize(raw, ctx), engine: 'ai' };
+      } catch (err) {
+        if (err.name === 'AbortError') throw err;
+        return { result: sanitize(heuristicParse(notes, ctx), ctx), engine: 'heuristic', warning: err.message + ' Used the offline parser instead.' };
+      }
+    }
+    return { result: sanitize(heuristicParse(notes, ctx), ctx), engine: 'heuristic' };
+  }
+
+  /** Minimal request to verify a key/model combination from Settings. */
+  async function testConnection({ apiKey, model }) {
+    const res = await fetch(API_URL, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
+      body: JSON.stringify({ model, max_tokens: 16, messages: [{ role: 'user', content: 'Reply with OK.' }] }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error((data.error && data.error.message) || res.statusText);
+    return data.model;
+  }
+
+  NX.ai = { MODELS, RESULT_SCHEMA, processNotes, heuristicParse, cleanTranscript, parseDueDate, sanitize, testConnection, systemPrompt };
+})(globalThis.NX = globalThis.NX || {});
+
+/* ---- src/ui/dom.js ---- */
+/* Tiny DOM toolkit. All user/AI text is inserted with textContent — never
+ * innerHTML — so pasted transcripts can't inject markup. */
+(function (NX) {
+  'use strict';
+
+  function h(tag, attrs, ...children) {
+    const [name, ...classes] = tag.split('.');
+    const el = document.createElement(name || 'div');
+    if (classes.length) el.className = classes.join(' ');
+    if (attrs && (typeof attrs !== 'object' || attrs instanceof Node || Array.isArray(attrs))) { children.unshift(attrs); attrs = null; }
+    let deferredValue;
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (v == null || v === false) continue;
+      if (k === 'value') { deferredValue = v; continue; } // after children, so <select> options exist
+      if (k === 'class') el.className += (el.className ? ' ' : '') + v;
+      else if (k === 'style' && typeof v === 'object') for (const [sk, sv] of Object.entries(v)) sk.startsWith('--') ? el.style.setProperty(sk, sv) : (el.style[sk] = sv);
+      else if (k === 'dataset') Object.assign(el.dataset, v);
+      else if (k.startsWith('on') && typeof v === 'function') el.addEventListener(k.slice(2).toLowerCase(), v);
+      else if (k in el && k !== 'list' && k !== 'form') el[k] = v;
+      else el.setAttribute(k, v === true ? '' : v);
+    }
+    append(el, children);
+    if (deferredValue !== undefined) el.value = deferredValue;
+    return el;
+  }
+
+  function append(el, children) {
+    for (const c of children.flat(Infinity)) {
+      if (c == null || c === false) continue;
+      el.appendChild(c instanceof Node ? c : document.createTextNode(String(c)));
+    }
+    return el;
+  }
+
+  function clear(el) { while (el.firstChild) el.removeChild(el.firstChild); return el; }
+
+  function icon(name) {
+    const paths = {
+      plus: 'M12 5v14M5 12h14',
+      x: 'M18 6 6 18M6 6l12 12',
+      check: 'M20 6 9 17l-5-5',
+      trash: 'M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6',
+      edit: 'M12 20h9M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z',
+      cal: 'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z',
+      doc: 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Zm0 0v6h6M8 13h8M8 17h5',
+      copy: 'M9 9h11v11H9zM5 15H4V4h11v1',
+      info: 'M12 16v-4M12 8h.01M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20Z',
+      spark: 'M12 3l1.9 5.8L20 11l-6.1 2.2L12 19l-1.9-5.8L4 11l6.1-2.2Z',
+      save: 'M5 3h11l5 5v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2Zm2 0v6h8M7 21v-8h10v8',
+      upload: 'M12 16V4M7 9l5-5 5 5M4 20h16',
+      bell: 'M6 8a6 6 0 1 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10 21h4',
+      mail: 'M4 4h16v16H4zM4 6l8 7 8-7',
+    };
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('class', 'icon');
+    svg.setAttribute('aria-hidden', 'true');
+    const p = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    p.setAttribute('d', paths[name] || paths.info);
+    svg.appendChild(p);
+    return svg;
+  }
+
+  NX.dom = { h, append, clear, icon };
+})(globalThis.NX = globalThis.NX || {});
+
+/* ---- src/ui/components/overlay.js ---- */
+/* Modals, side drawers, toasts and confirm dialogs. */
+(function (NX) {
+  'use strict';
+  const { h, icon } = NX.dom;
+
+  const stack = [];
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && stack.length) { e.preventDefault(); stack[stack.length - 1].close(); }
+  });
+
+  /**
+   * openPanel({ title, body, footer, kind: 'modal'|'drawer', size: 'sm'|'md'|'lg', onClose })
+   * body / footer may be Nodes or functions (panel) => Node.
+   */
+  function openPanel(opts) {
+    const kind = opts.kind || 'modal';
+    const backdrop = h('div.backdrop' + (kind === 'drawer' ? '.backdrop-drawer' : ''));
+    const panel = h(`div.${kind}.${kind}-${opts.size || 'md'}`, { role: 'dialog', 'aria-modal': 'true', 'aria-label': opts.title || '' });
+    let closed = false;
+    const api = {
+      el: panel,
+      close() {
+        if (closed) return;
+        if (opts.beforeClose && opts.beforeClose() === false) return;
+        closed = true;
+        stack.splice(stack.indexOf(api), 1);
+        backdrop.classList.add('closing');
+        setTimeout(() => backdrop.remove(), 150);
+        opts.onClose && opts.onClose();
+      },
+      setTitle(t) { titleEl.textContent = t; },
+      setBody(node) { NX.dom.clear(bodyEl).appendChild(node); },
+      setFooter(node) { NX.dom.clear(footEl); if (node) footEl.appendChild(node); footEl.hidden = !node; },
+    };
+    const titleEl = h('h2.panel-title', opts.title || '');
+    const bodyEl = h('div.panel-body');
+    const footEl = h('div.panel-foot');
+    panel.append(
+      h('div.panel-head', titleEl, h('button.icon-btn', { title: 'Close (Esc)', 'aria-label': 'Close', onclick: () => api.close() }, icon('x'))),
+      bodyEl, footEl,
+    );
+    backdrop.addEventListener('mousedown', (e) => { if (e.target === backdrop && !opts.sticky) api.close(); });
+    backdrop.appendChild(panel);
+    document.body.appendChild(backdrop);
+    stack.push(api);
+    const resolve = (x) => (typeof x === 'function' ? x(api) : x);
+    if (opts.body) bodyEl.appendChild(resolve(opts.body));
+    api.setFooter(opts.footer ? resolve(opts.footer) : null);
+    requestAnimationFrame(() => {
+      const f = panel.querySelector('[autofocus]') || panel.querySelector('input:not([type=checkbox]),textarea,select');
+      if (f && kind === 'modal') f.focus();
+    });
+    return api;
+  }
+
+  function toast(message, type = 'info', ms = 3500) {
+    let host = document.getElementById('toasts');
+    if (!host) { host = h('div.toasts', { id: 'toasts', role: 'status', 'aria-live': 'polite' }); document.body.appendChild(host); }
+    const el = h(`div.toast.toast-${type}`, message);
+    host.appendChild(el);
+    setTimeout(() => { el.classList.add('closing'); setTimeout(() => el.remove(), 200); }, ms);
+  }
+
+  function confirmDialog({ title, message, confirmLabel = 'Confirm', danger = false }) {
+    return new Promise((resolve) => {
+      let answered = false;
+      const p = openPanel({
+        title, size: 'sm',
+        body: h('p.muted', message),
+        footer: () => h('div.row.end',
+          h('button.btn', { onclick: () => p.close() }, 'Cancel'),
+          h('button.btn.' + (danger ? 'btn-danger' : 'btn-primary'), { autofocus: true, onclick: () => { answered = true; p.close(); } }, confirmLabel),
+        ),
+        onClose: () => resolve(answered),
+      });
+    });
+  }
+
+  function promptDialog({ title, label, value = '', placeholder = '', confirmLabel = 'Save', multiline = false }) {
+    return new Promise((resolve) => {
+      let result = null;
+      const input = multiline
+        ? h('textarea.input', { rows: 3, value, placeholder, autofocus: true })
+        : h('input.input', { value, placeholder, autofocus: true });
+      const submit = () => { result = input.value; p.close(); };
+      if (!multiline) input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+      const p = openPanel({
+        title, size: 'sm',
+        body: h('label.field', h('span', label), input),
+        footer: () => h('div.row.end', h('button.btn', { onclick: () => p.close() }, 'Cancel'), h('button.btn.btn-primary', { onclick: submit }, confirmLabel)),
+        onClose: () => resolve(result),
+      });
+    });
+  }
+
+  async function copyText(text) {
+    try { await navigator.clipboard.writeText(text); toast('Copied to clipboard', 'success'); }
+    catch {
+      const ta = h('textarea', { value: text, style: { position: 'fixed', opacity: '0' } });
+      document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove();
+      toast('Copied to clipboard', 'success');
+    }
+  }
+
+  NX.ui = Object.assign(NX.ui || {}, { openPanel, toast, confirmDialog, promptDialog, copyText });
+})(globalThis.NX = globalThis.NX || {});
+
+/* ---- src/ui/components/common.js ---- */
+/* Reusable presentational pieces shared across views. */
+(function (NX) {
+  'use strict';
+  const { h, icon } = NX.dom;
+  const U = NX.util;
+  const S = NX.schema;
+  const store = () => NX.app.store;
+
+  function field(label, input, hint) {
+    return h('label.field', h('span.field-label', label), input, hint ? h('small.hint', hint) : null);
+  }
+
+  function stageBadge(stageId) {
+    const s = S.stageById(stageId);
+    return h('span.badge', { style: { '--c': s.color }, title: s.definition }, s.name);
+  }
+
+  function priorityChip(p) { return h(`span.chip.prio-${p}`, p); }
+
+  const ownerLabel = (id) => (S.TASK_OWNERS.find((o) => o.id === id) || S.TASK_OWNERS[0]).label;
+
+  function dueChip(task) {
+    const diff = task.dueDate ? U.daysBetween(U.todayISO(), task.dueDate) : null;
+    const cls = task.status === 'done' ? 'due-done' : diff === null ? 'due-none' : diff < 0 ? 'due-overdue' : diff === 0 ? 'due-today' : diff <= 3 ? 'due-soon' : 'due-later';
+    return h(`span.due.${cls}`, { title: task.dueDate ? U.formatDate(task.dueDate) : '' }, icon('cal'), U.relativeDue(task.dueDate));
+  }
+
+  function stageSelect(value, attrs) {
+    return h('select.input', { value, ...attrs }, S.STAGES.map((s) => h('option', { value: s.id }, `${s.order}. ${s.name}`)));
+  }
+
+  function ownerSelect(value, attrs) {
+    return h('select.input', { value, ...attrs }, S.TASK_OWNERS.map((o) => h('option', { value: o.id }, o.label)));
+  }
+
+  function prioritySelect(value, attrs) {
+    return h('select.input', { value, ...attrs }, S.PRIORITIES.map((p) => h('option', { value: p }, p[0].toUpperCase() + p.slice(1))));
+  }
+
+  function accountSelect(value, attrs, { allowEmpty = 'None', allowNew = false } = {}) {
+    return h('select.input', { value, ...attrs },
+      allowEmpty ? h('option', { value: '' }, allowEmpty) : null,
+      allowNew ? h('option', { value: '__new__' }, '+ New account…') : null,
+      store().accounts.list().map((a) => h('option', { value: a.id }, a.name)));
+  }
+
+  function dealSelect(accountId, value, attrs, { allowEmpty = 'None', allowNew = false } = {}) {
+    const deals = accountId ? store().deals.list({ accountId }) : [];
+    return h('select.input', { value, ...attrs },
+      allowEmpty ? h('option', { value: '' }, allowEmpty) : null,
+      allowNew ? h('option', { value: '__new__' }, '+ New opportunity…') : null,
+      deals.map((d) => h('option', { value: d.id }, `${d.name} (${S.stageById(d.stage).short})`)));
+  }
+
+  function emptyState(title, text, action) {
+    return h('div.empty', h('div.empty-title', title), text ? h('p.muted', text) : null, action || null);
+  }
+
+  /** A single task line with inline complete / reschedule. */
+  function taskRow(task, { showContext = true } = {}) {
+    const acct = task.accountId ? store().accounts.get(task.accountId) : null;
+    const deal = task.dealId ? store().deals.get(task.dealId) : null;
+    const done = task.status === 'done';
+    const date = h('input.input.input-date', {
+      type: 'date', value: task.dueDate, title: 'Reschedule',
+      onchange: (e) => store().tasks.update(task.id, { dueDate: e.target.value }),
+      onclick: (e) => e.stopPropagation(),
+    });
+    return h('div.task-row' + (done ? '.is-done' : ''), { dataset: { id: task.id } },
+      h('input.check', {
+        type: 'checkbox', checked: done, title: done ? 'Mark open' : 'Mark done', 'aria-label': 'Complete task',
+        onchange: (e) => store().tasks.complete(task.id, e.target.checked),
+      }),
+      h('div.task-main', { onclick: () => NX.ui.openTaskEditor(task.id) },
+        h('div.task-title', task.title),
+        h('div.task-meta',
+          dueChip(task),
+          priorityChip(task.priority),
+          h('span.muted', ownerLabel(task.owner) + (task.ownerName ? ' · ' + task.ownerName : '')),
+          showContext && acct ? h('a.link', { href: '#', onclick: (e) => { e.preventDefault(); e.stopPropagation(); NX.ui.openAccountDrawer(acct.id); } }, acct.name) : null,
+          showContext && deal ? h('a.link', { href: '#', onclick: (e) => { e.preventDefault(); e.stopPropagation(); NX.ui.openDealDrawer(deal.id); } }, deal.name) : null,
+          task.meetingId && store().meetings.get(task.meetingId)
+            ? h('a.link.muted', { href: '#', onclick: (e) => { e.preventDefault(); e.stopPropagation(); NX.ui.openMeeting(task.meetingId); } }, icon('doc'), 'meeting') : null,
+        ),
+      ),
+      date,
+    );
+  }
+
+  function list(items, className) {
+    return items && items.length ? h('ul.' + (className || 'bullets'), items.map((i) => h('li', i))) : null;
+  }
+
+  function section(title, content, extra) {
+    if (!content) return null;
+    return h('section.section', h('div.section-head', h('h3', title), extra || null), content);
+  }
+
+  /** Download a single task as an .ics calendar reminder. */
+  function downloadICS(task) {
+    const d = (task.dueDate || U.todayISO()).replace(/-/g, '');
+    const next = U.addDays(task.dueDate || U.todayISO(), 1).replace(/-/g, '');
+    const esc = (s) => String(s).replace(/[\\;,]/g, (m) => '\\' + m).replace(/\n/g, '\\n');
+    const acct = task.accountId ? store().accounts.get(task.accountId) : null;
+    const ics = [
+      'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//SE Pipeline//EN', 'BEGIN:VEVENT',
+      'UID:' + task.id + '@se-pipeline', 'DTSTAMP:' + new Date().toISOString().replace(/[-:]/g, '').replace(/\.\d+/, ''),
+      'DTSTART;VALUE=DATE:' + d, 'DTEND;VALUE=DATE:' + next,
+      'SUMMARY:' + esc((acct ? acct.name + ': ' : '') + task.title),
+      'DESCRIPTION:' + esc(task.details || ''),
+      'BEGIN:VALARM', 'TRIGGER:-PT15H', 'ACTION:DISPLAY', 'DESCRIPTION:Reminder', 'END:VALARM',
+      'END:VEVENT', 'END:VCALENDAR',
+    ].join('\r\n');
+    const url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }));
+    const a = h('a', { href: url, download: 'task-' + d + '.ics' });
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  NX.ui = Object.assign(NX.ui || {}, {
+    field, stageBadge, priorityChip, ownerLabel, dueChip, stageSelect, ownerSelect, prioritySelect,
+    accountSelect, dealSelect, emptyState, taskRow, list, section, downloadICS,
+  });
+})(globalThis.NX = globalThis.NX || {});
+
+/* ---- src/ui/components/editors.js ---- */
+/* Create/edit forms and detail drawers for deals, accounts and tasks. */
+(function (NX) {
+  'use strict';
+  const { h, icon } = NX.dom;
+  const U = NX.util;
+  const S = NX.schema;
+  const ui = NX.ui;
+  const store = () => NX.app.store;
+
+  const csv = (s) => String(s || '').split(',').map((x) => x.trim()).filter(Boolean);
+
+  /** Keeps a drawer in sync with the store; closes it if its record disappears. */
+  function liveDrawer({ title, size, render, exists }) {
+    let off;
+    const panel = ui.openPanel({ kind: 'drawer', size: size || 'lg', title, body: h('div'), onClose: () => off && off() });
+    const paint = () => {
+      if (!exists()) return panel.close();
+      const scroll = panel.el.querySelector('.panel-body').scrollTop;
+      panel.setBody(render(panel));
+      panel.el.querySelector('.panel-body').scrollTop = scroll;
+    };
+    off = store().on(paint);
+    paint();
+    return panel;
+  }
+
+  async function run(fn, okMsg) {
+    try { const r = await fn(); if (okMsg) ui.toast(okMsg, 'success'); return r; }
+    catch (err) { console.error(err); ui.toast(err.message || String(err), 'error', 6000); throw err; }
+  }
+
+  // ---------------------------------------------------------------- Deals
+  function openDealEditor(dealId, defaults = {}) {
+    const deal = dealId ? store().deals.get(dealId) : null;
+    const d = deal || { stage: 'identified', ...defaults };
+    const f = {};
+    f.account = ui.accountSelect(d.accountId || '', {}, { allowEmpty: 'Select account…', allowNew: true });
+    f.newAccount = h('input.input', { placeholder: 'New account name', hidden: true });
+    f.account.addEventListener('change', () => { f.newAccount.hidden = f.account.value !== '__new__'; if (!f.newAccount.hidden) f.newAccount.focus(); });
+    f.name = h('input.input', { value: d.name || '', placeholder: 'e.g. VMware exit – 12 node AHV cluster', autofocus: true });
+    f.stage = ui.stageSelect(d.stage);
+    f.amount = h('input.input', { type: 'number', min: 0, step: 1000, value: d.amount || '', placeholder: '0' });
+    f.closeDate = h('input.input', { type: 'date', value: d.closeDate || '' });
+    f.useCase = h('textarea.input', { rows: 2, value: d.useCase || '', placeholder: 'Primary use case / workload' });
+    f.products = h('input.input', { value: (d.products || []).join(', '), placeholder: 'NCI, NC2, NUS, NDB…' });
+    f.partner = h('input.input', { value: d.partner || '' });
+    f.ae = h('input.input', { value: d.accountExec || '' });
+    f.competitors = h('input.input', { value: (d.competitors || []).join(', '), placeholder: 'VMware, Dell VxRail…' });
+    f.success = h('textarea.input', { rows: 2, value: d.successCriteria || '', placeholder: 'POC / technical success criteria' });
+    f.nextStep = h('input.input', { value: d.nextStep || '' });
+    f.lost = h('input.input', { value: d.lostReason || '', placeholder: 'Why was it lost?' });
+    const lostField = ui.field('Lost reason', f.lost);
+    const syncLost = () => { lostField.hidden = f.stage.value !== 'closed_lost'; };
+    f.stage.addEventListener('change', syncLost); syncLost();
+
+    const save = async () => {
+      let accountId = f.account.value;
+      if (accountId === '__new__') {
+        const name = f.newAccount.value.trim();
+        if (!name) return ui.toast('Enter the new account name', 'error');
+        accountId = (store().accounts.findByName(name) || await store().accounts.create({ name })).id;
+      }
+      if (!accountId) return ui.toast('Pick an account', 'error');
+      const data = {
+        accountId, name: f.name.value, stage: f.stage.value, amount: f.amount.value, closeDate: f.closeDate.value,
+        useCase: f.useCase.value, products: csv(f.products.value), partner: f.partner.value, accountExec: f.ae.value,
+        competitors: csv(f.competitors.value), successCriteria: f.success.value, nextStep: f.nextStep.value,
+        lostReason: f.stage.value === 'closed_lost' ? f.lost.value : '',
+      };
+      await run(() => (deal ? store().deals.update(deal.id, data) : store().deals.create(data)), deal ? 'Deal updated' : 'Deal created');
+      p.close();
+    };
+
+    const p = ui.openPanel({
+      title: deal ? 'Edit opportunity' : 'New opportunity',
+      body: h('form.form-grid', { onsubmit: (e) => { e.preventDefault(); save(); } },
+        h('div.span-2', ui.field('Account', f.account), f.newAccount),
+        h('div.span-2', ui.field('Opportunity name', f.name)),
+        ui.field('Stage', f.stage), ui.field('Amount (USD)', f.amount),
+        ui.field('Target close date', f.closeDate), ui.field('Partner', f.partner),
+        ui.field('Account Exec', f.ae), ui.field('Competitors', f.competitors),
+        h('div.span-2', ui.field('Products', f.products)),
+        h('div.span-2', ui.field('Use case', f.useCase)),
+        h('div.span-2', ui.field('Success criteria', f.success)),
+        h('div.span-2', ui.field('Next step', f.nextStep)),
+        h('div.span-2', lostField),
+        h('button', { type: 'submit', hidden: true }),
+      ),
+      footer: () => h('div.row.end', h('button.btn', { onclick: () => p.close() }, 'Cancel'), h('button.btn.btn-primary', { onclick: save }, deal ? 'Save' : 'Create')),
+    });
+    return p;
+  }
+
+  function openDealDrawer(dealId) {
+    return liveDrawer({
+      title: 'Opportunity',
+      exists: () => !!store().deals.get(dealId),
+      render: (panel) => {
+        const d = store().deals.get(dealId);
+        const acct = store().accounts.get(d.accountId);
+        panel.setTitle(d.name);
+        const tasks = store().tasks.list({ dealId });
+        const meetings = store().meetings.list({ dealId });
+        const stageSel = ui.stageSelect(d.stage, {
+          onchange: async (e) => {
+            const patch = { stage: e.target.value };
+            if (e.target.value === 'closed_lost') {
+              const reason = await ui.promptDialog({ title: 'Closed lost', label: 'Reason (optional)', value: d.lostReason });
+              patch.lostReason = reason || '';
+            }
+            run(() => store().deals.update(dealId, patch), 'Stage updated');
+          },
+        });
+        return h('div.stack',
+          h('div.row.wrap',
+            h('button.btn.btn-primary', { onclick: () => NX.ui.openNewMeeting({ accountId: d.accountId, dealId }) }, icon('spark'), 'New meeting'),
+            h('button.btn', { onclick: () => openTaskEditor(null, { accountId: d.accountId, dealId }) }, icon('plus'), 'Task'),
+            h('button.btn', { onclick: () => openDealEditor(dealId) }, icon('edit'), 'Edit'),
+            h('span.grow'),
+            h('button.btn.btn-ghost.danger', {
+              onclick: async () => {
+                if (await ui.confirmDialog({ title: 'Delete opportunity?', message: `"${d.name}" and its tasks will be deleted. Meetings are kept on the account.`, confirmLabel: 'Delete', danger: true })) {
+                  run(() => store().deals.remove(dealId), 'Deal deleted');
+                }
+              },
+            }, icon('trash'), 'Delete'),
+          ),
+          h('div.kv-grid',
+            h('div', h('span.k', 'Account'), acct ? h('a.link', { href: '#', onclick: (e) => { e.preventDefault(); openAccountDrawer(acct.id); } }, acct.name) : '—'),
+            h('div', h('span.k', 'Stage'), stageSel),
+            h('div', h('span.k', 'Amount'), U.formatMoney(d.amount)),
+            h('div', h('span.k', 'Close date'), d.closeDate ? U.formatDate(d.closeDate) : '—'),
+            h('div', h('span.k', 'Partner'), d.partner || '—'),
+            h('div', h('span.k', 'Account Exec'), d.accountExec || '—'),
+            h('div', h('span.k', 'Products'), d.products.join(', ') || '—'),
+            h('div', h('span.k', 'Competitors'), d.competitors.join(', ') || '—'),
+          ),
+          h('p.stage-def', icon('info'), S.stageById(d.stage).definition),
+          d.nextStep ? ui.section('Next step', h('p', d.nextStep)) : null,
+          d.useCase ? ui.section('Use case', h('p.pre', d.useCase)) : null,
+          d.successCriteria ? ui.section('Success criteria', h('p.pre', d.successCriteria)) : null,
+          d.lostReason ? ui.section('Lost reason', h('p', d.lostReason)) : null,
+          ui.section(`Tasks (${tasks.filter((t) => t.status === 'open').length} open)`,
+            tasks.length ? h('div.task-list', tasks.map((t) => ui.taskRow(t, { showContext: false }))) : h('p.muted', 'No tasks yet.')),
+          ui.section(`Meetings (${meetings.length})`,
+            meetings.length ? h('div.meeting-list', meetings.map(meetingItem)) : h('p.muted', 'No meetings logged yet.')),
+          ui.section('Stage history', h('ol.timeline', [...d.stageHistory].reverse().map((s) =>
+            h('li', ui.stageBadge(s.stage), h('span.muted', new Date(s.at).toLocaleString()))))),
+        );
+      },
+    });
+  }
+
+  function meetingItem(m) {
+    return h('button.meeting-item', { onclick: () => NX.ui.openMeeting(m.id) },
+      h('div.meeting-item-head', h('strong', m.title), h('span.muted', U.formatDate(m.date))),
+      m.summary ? h('div.muted.clamp-2', m.summary) : null);
+  }
+
+  // ---------------------------------------------------------------- Accounts
+  function openAccountEditor(accountId) {
+    const a = accountId ? store().accounts.get(accountId) : {};
+    const f = {
+      name: h('input.input', { value: a.name || '', autofocus: true }),
+      industry: h('input.input', { value: a.industry || '' }),
+      partner: h('input.input', { value: a.partner || '' }),
+      website: h('input.input', { value: a.website || '' }),
+      notes: h('textarea.input', { rows: 4, value: a.notes || '' }),
+    };
+    const contacts = (a.contacts || []).map((c) => ({ ...c }));
+    const contactsEl = h('div.contacts-edit');
+    const paintContacts = () => {
+      NX.dom.clear(contactsEl);
+      contacts.forEach((c, i) => {
+        const inp = (k, ph) => h('input.input', { value: c[k] || '', placeholder: ph, oninput: (e) => (c[k] = e.target.value) });
+        contactsEl.appendChild(h('div.contact-row', inp('name', 'Name'), inp('title', 'Title'), inp('email', 'Email'), inp('role', 'Role (champion, DM…)'),
+          h('button.icon-btn', { type: 'button', title: 'Remove', onclick: () => { contacts.splice(i, 1); paintContacts(); } }, icon('x'))));
+      });
+      contactsEl.appendChild(h('button.btn.btn-ghost', { type: 'button', onclick: () => { contacts.push({ name: '' }); paintContacts(); } }, icon('plus'), 'Add contact'));
+    };
+    paintContacts();
+    const save = async () => {
+      if (!f.name.value.trim()) return ui.toast('Account name is required', 'error');
+      const dup = store().accounts.findByName(f.name.value);
+      if (dup && dup.id !== accountId) return ui.toast('An account with that name already exists', 'error');
+      const data = { name: f.name.value, industry: f.industry.value, partner: f.partner.value, website: f.website.value, notes: f.notes.value, contacts };
+      await run(() => (accountId ? store().accounts.update(accountId, data) : store().accounts.create(data)), accountId ? 'Account updated' : 'Account created');
+      p.close();
+    };
+    const p = ui.openPanel({
+      title: accountId ? 'Edit account' : 'New account',
+      body: h('div.form-grid',
+        h('div.span-2', ui.field('Account name', f.name)),
+        ui.field('Industry', f.industry), ui.field('Partner / reseller', f.partner),
+        h('div.span-2', ui.field('Website', f.website)),
+        h('div.span-2', h('span.field-label', 'Contacts'), contactsEl),
+        h('div.span-2', ui.field('Notes', f.notes)),
+      ),
+      footer: () => h('div.row.end', h('button.btn', { onclick: () => p.close() }, 'Cancel'), h('button.btn.btn-primary', { onclick: save }, 'Save')),
+    });
+  }
+
+  function openAccountDrawer(accountId) {
+    return liveDrawer({
+      title: 'Account',
+      exists: () => !!store().accounts.get(accountId),
+      render: (panel) => {
+        const a = store().accounts.get(accountId);
+        panel.setTitle(a.name);
+        const deals = store().deals.list({ accountId });
+        const tasks = store().tasks.list({ accountId });
+        const meetings = store().meetings.list({ accountId });
+        return h('div.stack',
+          h('div.row.wrap',
+            h('button.btn.btn-primary', { onclick: () => NX.ui.openNewMeeting({ accountId }) }, icon('spark'), 'New meeting'),
+            h('button.btn', { onclick: () => openDealEditor(null, { accountId }) }, icon('plus'), 'Opportunity'),
+            h('button.btn', { onclick: () => openTaskEditor(null, { accountId }) }, icon('plus'), 'Task'),
+            h('button.btn', { onclick: () => openAccountEditor(accountId) }, icon('edit'), 'Edit'),
+            h('span.grow'),
+            h('button.btn.btn-ghost.danger', {
+              onclick: async () => {
+                if (await ui.confirmDialog({ title: 'Delete account?', message: `This permanently deletes "${a.name}" with ${deals.length} deal(s), ${meetings.length} meeting(s) and ${tasks.length} task(s).`, confirmLabel: 'Delete everything', danger: true })) {
+                  run(() => store().accounts.remove(accountId), 'Account deleted');
+                }
+              },
+            }, icon('trash'), 'Delete'),
+          ),
+          h('div.kv-grid',
+            h('div', h('span.k', 'Industry'), a.industry || '—'),
+            h('div', h('span.k', 'Partner'), a.partner || '—'),
+            h('div', h('span.k', 'Website'), a.website || '—'),
+            h('div', h('span.k', 'Open pipeline'), U.formatMoney(deals.filter((d) => S.stageById(d.stage).open).reduce((s, d) => s + d.amount, 0))),
+          ),
+          a.notes ? ui.section('Notes', h('p.pre', a.notes)) : null,
+          a.contacts.length ? ui.section('Contacts', h('div.contacts', a.contacts.map((c) =>
+            h('div.contact', h('strong', c.name), h('span.muted', [c.title, c.role].filter(Boolean).join(' · ')), c.email ? h('a.link', { href: 'mailto:' + c.email }, c.email) : null)))) : null,
+          ui.section(`Opportunities (${deals.length})`, deals.length ? h('div.deal-mini-list', deals.map((d) =>
+            h('button.deal-mini', { onclick: () => openDealDrawer(d.id) }, h('strong', d.name), ui.stageBadge(d.stage), h('span.muted', U.formatMoney(d.amount)))))
+            : h('p.muted', 'No opportunities yet.')),
+          ui.section(`Tasks (${tasks.filter((t) => t.status === 'open').length} open)`, tasks.length ? h('div.task-list', tasks.map((t) => ui.taskRow(t, { showContext: false }))) : h('p.muted', 'No tasks.')),
+          ui.section(`Meetings (${meetings.length})`, meetings.length ? h('div.meeting-list', meetings.map(meetingItem)) : h('p.muted', 'No meetings yet.')),
+        );
+      },
+    });
+  }
+
+  // ---------------------------------------------------------------- Tasks
+  function openTaskEditor(taskId, defaults = {}) {
+    const t = taskId ? store().tasks.get(taskId) : { priority: 'medium', owner: 'me', dueDate: U.addBusinessDays(U.todayISO(), 2), ...defaults };
+    if (!t) return;
+    const f = {
+      title: h('input.input', { value: t.title || '', autofocus: true, placeholder: 'What needs to happen?' }),
+      details: h('textarea.input', { rows: 3, value: t.details || '' }),
+      due: h('input.input', { type: 'date', value: t.dueDate || '' }),
+      priority: ui.prioritySelect(t.priority),
+      owner: ui.ownerSelect(t.owner),
+      ownerName: h('input.input', { value: t.ownerName || '', placeholder: 'Person (optional)' }),
+      account: ui.accountSelect(t.accountId || ''),
+    };
+    const dealWrap = h('div');
+    const paintDeals = (val) => { NX.dom.clear(dealWrap).appendChild(f.deal = ui.dealSelect(f.account.value, val || '')); };
+    paintDeals(t.dealId);
+    f.account.addEventListener('change', () => paintDeals(''));
+
+    const save = async () => {
+      if (!f.title.value.trim()) return ui.toast('Task title is required', 'error');
+      const data = { title: f.title.value, details: f.details.value, dueDate: f.due.value, priority: f.priority.value, owner: f.owner.value, ownerName: f.ownerName.value, accountId: f.account.value, dealId: f.deal.value };
+      await run(() => (taskId ? store().tasks.update(taskId, data) : store().tasks.create(data)), taskId ? 'Task updated' : 'Task added');
+      p.close();
+    };
+    const p = ui.openPanel({
+      title: taskId ? 'Edit task' : 'New task', size: 'md',
+      body: h('form.form-grid', { onsubmit: (e) => { e.preventDefault(); save(); } },
+        h('div.span-2', ui.field('Task', f.title)),
+        ui.field('Due date', f.due), ui.field('Priority', f.priority),
+        ui.field('Owner', f.owner), ui.field('Owner name', f.ownerName),
+        ui.field('Account', f.account), h('label.field', h('span.field-label', 'Opportunity'), dealWrap),
+        h('div.span-2', ui.field('Details', f.details)),
+        h('button', { type: 'submit', hidden: true }),
+      ),
+      footer: () => h('div.row',
+        taskId ? h('button.btn.btn-ghost.danger', { onclick: async () => { await run(() => store().tasks.remove(taskId), 'Task deleted'); p.close(); } }, icon('trash'), 'Delete') : null,
+        taskId ? h('button.btn.btn-ghost', { onclick: () => ui.downloadICS(store().tasks.get(taskId)) }, icon('cal'), 'Add to calendar') : null,
+        h('span.grow'),
+        h('button.btn', { onclick: () => p.close() }, 'Cancel'),
+        h('button.btn.btn-primary', { onclick: save }, 'Save')),
+    });
+  }
+
+  NX.ui = Object.assign(NX.ui || {}, { openDealEditor, openDealDrawer, openAccountEditor, openAccountDrawer, openTaskEditor, meetingItem, liveDrawer, run });
+})(globalThis.NX = globalThis.NX || {});
+
+/* ---- src/ui/components/meeting-wizard.js ---- */
+/* "New meeting" flow: capture notes -> analyze -> review & edit -> save.
+ * Saving creates the meeting, the accepted action items as dated tasks,
+ * the account / opportunity if new, and applies the accepted stage move. */
+(function (NX) {
+  'use strict';
+  const { h, icon, clear } = NX.dom;
+  const U = NX.util;
+  const S = NX.schema;
+  const ui = NX.ui;
+  const store = () => NX.app.store;
+
+  const TEXT_EXT = /\.(txt|vtt|srt|md|markdown|text|csv|log|json|html?)$/i;
+
+  async function readDroppedFile(file) {
+    if (!TEXT_EXT.test(file.name) && !/^text\//.test(file.type)) {
+      throw new Error(`"${file.name}" isn't a text file. Export Zoom notes as .txt/.vtt, or copy & paste them.`);
+    }
+    let text = await file.text();
+    if (/\.html?$/i.test(file.name)) text = new DOMParser().parseFromString(text, 'text/html').body.innerText;
+    return text;
+  }
+
+  function openNewMeeting(defaults = {}) {
+    const state = {
+      step: 'capture',
+      accountId: defaults.accountId || '',
+      dealId: defaults.dealId || '',
+      date: U.todayISO(),
+      notes: '',
+      abort: null,
+    };
+    const p = ui.openPanel({
+      title: 'New meeting', size: 'lg', sticky: true,
+      body: h('div'),
+      beforeClose: () => {
+        if (state.step === 'review' || (state.step === 'capture' && state.notes.trim().length > 40)) {
+          return window.confirm('Discard this meeting? Your notes and analysis will be lost.');
+        }
+        if (state.abort) state.abort.abort();
+        return true;
+      },
+    });
+
+    // ------------------------------------------------------------ Step 1
+    function renderCapture() {
+      state.step = 'capture';
+      p.setTitle('New meeting');
+      const settings = store().settings.get();
+      const acctSel = ui.accountSelect(state.accountId, {}, { allowEmpty: 'Auto-detect from notes' });
+      const dealWrap = h('div');
+      const paintDeal = () => {
+        clear(dealWrap).appendChild(ui.dealSelect(acctSel.value, state.dealId, { onchange: (e) => (state.dealId = e.target.value) }, { allowEmpty: acctSel.value ? 'Auto-detect / none' : 'Auto-detect' }));
+      };
+      acctSel.addEventListener('change', () => { state.accountId = acctSel.value; state.dealId = ''; paintDeal(); });
+      paintDeal();
+      const date = h('input.input', { type: 'date', value: state.date, onchange: (e) => (state.date = e.target.value) });
+      const ta = h('textarea.input.notes-input', {
+        value: state.notes, rows: 14, autofocus: true,
+        placeholder: 'Paste the Zoom transcript, Zoom AI Companion summary, or your own rough notes here…\n\nOr drag & drop a .txt / .vtt / .md file anywhere in this box.',
+        oninput: (e) => { state.notes = e.target.value; counter.textContent = e.target.value.length.toLocaleString() + ' chars'; },
+      });
+      const counter = h('span.muted.small', state.notes.length.toLocaleString() + ' chars');
+      const drop = h('div.dropzone', ta, h('div.dropzone-hint', icon('upload'), 'Drop notes file'));
+      ['dragenter', 'dragover'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('is-over'); }));
+      ['dragleave', 'drop'].forEach((ev) => drop.addEventListener(ev, () => drop.classList.remove('is-over')));
+      drop.addEventListener('drop', async (e) => {
+        e.preventDefault();
+        const files = [...(e.dataTransfer.files || [])];
+        if (!files.length) return;
+        try {
+          const texts = await Promise.all(files.map(readDroppedFile));
+          state.notes = (state.notes ? state.notes + '\n\n' : '') + texts.join('\n\n');
+          ta.value = state.notes; ta.dispatchEvent(new Event('input'));
+          ui.toast(`Loaded ${files.length} file(s)`, 'success');
+        } catch (err) { ui.toast(err.message, 'error', 6000); }
+      });
+      const fileBtn = h('input', { type: 'file', accept: '.txt,.vtt,.srt,.md,.html,text/*', multiple: true, hidden: true,
+        onchange: async (e) => {
+          try {
+            const texts = await Promise.all([...e.target.files].map(readDroppedFile));
+            state.notes = (state.notes ? state.notes + '\n\n' : '') + texts.join('\n\n');
+            ta.value = state.notes; ta.dispatchEvent(new Event('input'));
+          } catch (err) { ui.toast(err.message, 'error', 6000); }
+        } });
+
+      const engineNote = settings.apiKey
+        ? h('span.engine.engine-ai', icon('spark'), 'Claude will analyze these notes')
+        : h('span.engine', icon('info'), 'Offline parser (add a Claude API key in Settings for much better results)');
+
+      p.setBody(h('div.stack',
+        h('div.form-grid.cols-3',
+          ui.field('Account', acctSel), h('label.field', h('span.field-label', 'Opportunity'), dealWrap), ui.field('Meeting date', date)),
+        h('div.field', h('div.row', h('span.field-label', 'Meeting notes'), h('span.grow'), counter,
+          h('button.btn.btn-ghost.btn-sm', { type: 'button', onclick: () => fileBtn.click() }, icon('upload'), 'Choose file'), fileBtn), drop),
+        engineNote,
+      ));
+      p.setFooter(h('div.row',
+        h('button.btn.btn-ghost', { onclick: () => { state.notes = ''; renderReview(blankResult(), 'manual'); } }, 'Skip — enter manually'),
+        h('span.grow'),
+        h('button.btn', { onclick: () => p.close() }, 'Cancel'),
+        h('button.btn.btn-primary', { onclick: analyze }, icon('spark'), 'Process notes'),
+      ));
+    }
+
+    function blankResult() {
+      const acct = store().accounts.get(state.accountId);
+      return NX.ai.sanitize({
+        title: acct ? acct.name + ' – meeting' : 'Meeting', meetingDate: state.date,
+        matchedAccountId: state.accountId, matchedDealId: state.dealId, actionItems: [], suggestedStage: 'no_change',
+      }, aiContext());
+    }
+
+    function aiContext() {
+      return {
+        accounts: store().accounts.list(), deals: store().deals.list(),
+        userName: store().settings.get().userName, meetingDate: state.date,
+        accountId: state.accountId, dealId: state.dealId,
+      };
+    }
+
+    // ------------------------------------------------------------ Step 2
+    async function analyze() {
+      if (!state.notes.trim()) return ui.toast('Paste or drop your meeting notes first', 'error');
+      state.step = 'processing';
+      const settings = store().settings.get();
+      const started = Date.now();
+      const timer = h('span.muted');
+      const tick = setInterval(() => (timer.textContent = Math.round((Date.now() - started) / 1000) + 's'), 500);
+      state.abort = new AbortController();
+      p.setBody(h('div.processing', h('div.spinner'),
+        h('div', h('strong', settings.apiKey ? 'Claude is reading your notes…' : 'Parsing notes…')),
+        h('p.muted', 'Extracting summary, action items, owners, due dates and stage signals.'), timer));
+      p.setFooter(h('div.row.end', h('button.btn', { onclick: () => { state.abort.abort(); } }, 'Cancel')));
+      try {
+        const { result, engine, warning } = await NX.ai.processNotes(state.notes, aiContext(), {
+          apiKey: settings.apiKey, model: settings.model, effort: settings.effort, signal: state.abort.signal,
+        });
+        if (warning) ui.toast(warning, 'warn', 9000);
+        renderReview(result, engine);
+      } catch (err) {
+        if (err.name === 'AbortError') { renderCapture(); return; }
+        ui.toast(err.message, 'error', 6000);
+        renderCapture();
+      } finally {
+        clearInterval(tick);
+        state.abort = null;
+      }
+    }
+
+    // ------------------------------------------------------------ Step 3
+    function renderReview(r, engine) {
+      state.step = 'review';
+      p.setTitle('Review meeting');
+      const model = {
+        accountId: state.accountId || r.matchedAccountId || '',
+        newAccountName: r.suggestedAccountName,
+        dealId: state.dealId || r.matchedDealId || '',
+        newDealName: r.suggestedDealName,
+        items: r.actionItems.map((a) => ({ ...a, include: true })),
+      };
+      if (model.accountId && !store().accounts.get(model.accountId)) model.accountId = '';
+      if (!model.accountId && model.newAccountName) {
+        const existing = store().accounts.findByName(model.newAccountName);
+        if (existing) model.accountId = existing.id;
+      }
+
+      // --- Account / deal association
+      const acctSel = ui.accountSelect(model.accountId || (model.newAccountName ? '__new__' : ''), {}, { allowEmpty: 'Select account…', allowNew: true });
+      const newAcct = h('input.input', { value: model.newAccountName, placeholder: 'New account name' });
+      const dealWrap = h('div');
+      const newDeal = h('input.input', { value: model.newDealName || '', placeholder: 'New opportunity name' });
+      const stageWrap = h('div');
+      let dealSel;
+      const paintAssoc = () => {
+        newAcct.hidden = acctSel.value !== '__new__';
+        const acctId = acctSel.value === '__new__' ? '' : acctSel.value;
+        const currentDeal = acctId && store().deals.get(model.dealId) && store().deals.get(model.dealId).accountId === acctId ? model.dealId : '';
+        dealSel = ui.dealSelect(acctId, currentDeal || (model.newDealName ? '__new__' : ''), {}, { allowEmpty: 'No opportunity', allowNew: true });
+        dealSel.addEventListener('change', () => { newDeal.hidden = dealSel.value !== '__new__'; paintStage(); });
+        clear(dealWrap).append(dealSel, newDeal);
+        newDeal.hidden = dealSel.value !== '__new__';
+        paintStage();
+      };
+      acctSel.addEventListener('change', paintAssoc);
+
+      // --- Stage recommendation
+      const moveChk = h('input', { type: 'checkbox' });
+      const moveSel = ui.stageSelect(r.suggestedStage !== 'no_change' ? r.suggestedStage : 'identified');
+      const paintStage = () => {
+        const deal = dealSel && store().deals.get(dealSel.value);
+        const isNew = dealSel && dealSel.value === '__new__';
+        clear(stageWrap);
+        if (!deal && !isNew) return;
+        const current = deal ? deal.stage : 'identified';
+        const suggested = r.suggestedStage !== 'no_change' && r.suggestedStage !== current;
+        moveChk.checked = suggested;
+        if (suggested) moveSel.value = r.suggestedStage; else moveSel.value = current;
+        stageWrap.append(h('div.stage-reco' + (suggested ? '.is-suggested' : ''),
+          h('div.row.wrap', h('span', 'Current stage:'), ui.stageBadge(current)),
+          h('label.row.wrap', moveChk, h('span', 'Move opportunity to'), moveSel),
+          r.stageRationale ? h('p.muted.small', icon('spark'), r.stageRationale) : null,
+        ));
+      };
+
+      // --- Editable content
+      const title = h('input.input', { value: r.title });
+      const date = h('input.input', { type: 'date', value: r.meetingDate || state.date });
+      const summary = h('textarea.input', { rows: 4, value: r.summary });
+      const nextStep = h('input.input', { value: r.dealNextStep, placeholder: 'One-line next step shown on the deal card' });
+      const listArea = (arr) => h('textarea.input', { rows: Math.min(8, Math.max(2, arr.length + 1)), value: arr.map((x) => '• ' + x).join('\n') });
+      const areas = {
+        discussionPoints: listArea(r.discussionPoints), painPoints: listArea(r.painPoints), requirements: listArea(r.requirements),
+        environment: listArea(r.environment), risks: listArea(r.risks), decisions: listArea(r.decisions),
+      };
+      const attendees = h('input.input', { value: r.attendees.map((a) => a.name + (a.organization ? ` (${a.organization})` : '')).join(', ') });
+      const competitors = h('input.input', { value: r.competitors.join(', ') });
+      const email = h('textarea.input.mono', { rows: 8, value: r.followUpEmail });
+
+      // --- Action items table
+      const itemsEl = h('div.action-items');
+      const paintItems = () => {
+        clear(itemsEl);
+        if (!model.items.length) itemsEl.appendChild(h('p.muted', 'No action items found.'));
+        model.items.forEach((it, i) => {
+          itemsEl.appendChild(h('div.action-item' + (it.include ? '' : '.is-excluded'),
+            h('input', { type: 'checkbox', checked: it.include, title: 'Create task', onchange: (e) => { it.include = e.target.checked; paintItems(); } }),
+            h('input.input.ai-title', { value: it.title, oninput: (e) => (it.title = e.target.value) }),
+            ui.ownerSelect(it.owner, { onchange: (e) => (it.owner = e.target.value), title: 'Owner' }),
+            h('input.input.ai-owner', { value: it.ownerName, placeholder: 'Name', oninput: (e) => (it.ownerName = e.target.value) }),
+            h('input.input.input-date', { type: 'date', value: it.dueDate, onchange: (e) => (it.dueDate = e.target.value) }),
+            ui.prioritySelect(it.priority, { onchange: (e) => (it.priority = e.target.value) }),
+            h('button.icon-btn', { title: 'Remove', onclick: () => { model.items.splice(i, 1); paintItems(); } }, icon('x')),
+            it.details ? h('div.ai-details.muted.small', it.details) : null,
+          ));
+        });
+      };
+      paintItems();
+      paintAssoc();
+
+      const parseList = (ta) => ta.value.split('\n').map((l) => l.replace(/^\s*[•\-*]\s*/, '').trim()).filter(Boolean);
+
+      const save = async () => {
+        let accountId = acctSel.value;
+        const newAccountName = accountId === '__new__' ? newAcct.value.trim() : '';
+        if (accountId === '__new__') accountId = '';
+        if (!accountId && !newAccountName) return ui.toast('Choose which account this meeting belongs to', 'error');
+        let dealId = dealSel.value, newDealName = '';
+        if (dealId === '__new__') { newDealName = newDeal.value.trim(); dealId = ''; if (!newDealName) return ui.toast('Name the new opportunity', 'error'); }
+        const deal = store().deals.get(dealId);
+        const moveToStage = moveChk.checked && (deal || newDealName) ? moveSel.value : '';
+        const input = {
+          accountId, newAccountName, dealId, newDealName, moveToStage,
+          nextStep: nextStep.value.trim(),
+          competitors: competitors.value.split(',').map((s) => s.trim()).filter(Boolean),
+          meeting: {
+            title: title.value, date: date.value, summary: summary.value,
+            attendees: attendees.value.split(',').map((s) => s.trim()).filter(Boolean).map((s) => {
+              const m = s.match(/^(.*?)\s*\((.*)\)$/); return m ? { name: m[1], organization: m[2] } : { name: s };
+            }),
+            discussionPoints: parseList(areas.discussionPoints), painPoints: parseList(areas.painPoints),
+            requirements: parseList(areas.requirements), environment: parseList(areas.environment),
+            risks: parseList(areas.risks), decisions: parseList(areas.decisions),
+            competitors: competitors.value.split(',').map((s) => s.trim()).filter(Boolean),
+            followUpEmail: email.value, stageRationale: r.stageRationale,
+            rawNotes: state.notes, processedBy: engine,
+          },
+          tasks: model.items.filter((i) => i.include && i.title.trim()),
+        };
+        // If "moving" to a new deal, it starts in the chosen stage.
+        const res = await ui.run(() => store().meetings.ingest(input));
+        state.step = 'done';
+        p.close();
+        ui.toast(`Meeting saved · ${res.tasks.length} task(s) created${moveToStage && res.deal ? ' · moved to ' + S.stageById(res.deal.stage).short : ''}`, 'success', 5000);
+      };
+
+      const g = (label, el) => ui.field(label, el);
+      p.setBody(h('div.stack',
+        h('div.engine' + (engine === 'ai' ? '.engine-ai' : ''), icon(engine === 'ai' ? 'spark' : 'info'),
+          engine === 'ai' ? 'Analyzed by Claude — review and adjust before saving.' : engine === 'heuristic' ? 'Parsed offline — double-check the action items.' : 'Manual entry'),
+        h('div.card.stack',
+          h('h3', 'Where does this go?'),
+          h('div.form-grid', h('div', g('Account', acctSel), newAcct), h('label.field', h('span.field-label', 'Opportunity'), dealWrap)),
+          stageWrap,
+        ),
+        h('div.card.stack',
+          h('div.row', h('h3', `Next steps → tasks (${model.items.length})`), h('span.grow'),
+            h('button.btn.btn-ghost.btn-sm', { onclick: () => { model.items.push({ title: '', details: '', owner: 'me', ownerName: '', dueDate: U.addBusinessDays(date.value || U.todayISO(), 2), priority: 'medium', include: true }); paintItems(); itemsEl.lastChild.querySelector('.ai-title').focus(); } }, icon('plus'), 'Add')),
+          h('div.action-head.muted.small', h('span'), h('span', 'Action'), h('span', 'Owner'), h('span', 'Name'), h('span', 'Due'), h('span', 'Priority'), h('span')),
+          itemsEl,
+          g('Deal next step', nextStep),
+        ),
+        h('div.card.stack',
+          h('h3', 'Meeting record'),
+          h('div.form-grid', g('Title', title), g('Date', date)),
+          g('Summary', summary),
+          g('Attendees', attendees),
+          h('div.form-grid',
+            g('Pain points / drivers', areas.painPoints), g('Requirements / success criteria', areas.requirements),
+            g('Current environment', areas.environment), g('Risks / open questions', areas.risks),
+            g('Decisions', areas.decisions), g('Discussion points', areas.discussionPoints)),
+          g('Competitors', competitors),
+        ),
+        h('div.card.stack',
+          h('div.row', h('h3', 'Follow-up email draft'), h('span.grow'), h('button.btn.btn-ghost.btn-sm', { onclick: () => ui.copyText(email.value) }, icon('copy'), 'Copy')),
+          email),
+      ));
+      p.setFooter(h('div.row',
+        h('button.btn.btn-ghost', { onclick: () => renderCapture() }, '← Back to notes'),
+        h('span.grow'),
+        h('button.btn', { onclick: () => p.close() }, 'Cancel'),
+        h('button.btn.btn-primary', { onclick: save }, icon('check'), 'Save meeting & tasks'),
+      ));
+      p.el.querySelector('.panel-body').scrollTop = 0;
+    }
+
+    renderCapture();
+    return p;
+  }
+
+  // ------------------------------------------------------------ Meeting detail
+  function openMeeting(meetingId) {
+    return ui.liveDrawer({
+      title: 'Meeting',
+      exists: () => !!store().meetings.get(meetingId),
+      render: (panel) => {
+        const m = store().meetings.get(meetingId);
+        panel.setTitle(m.title);
+        const acct = store().accounts.get(m.accountId);
+        const deal = store().deals.get(m.dealId);
+        const tasks = store().tasks.list({ meetingId });
+        const rawToggle = h('details.raw', h('summary', 'Original notes'), h('pre.pre', m.rawNotes || '(none)'));
+        return h('div.stack',
+          h('div.row.wrap',
+            h('span.muted', icon('cal'), U.formatDate(m.date)),
+            acct ? h('a.link', { href: '#', onclick: (e) => { e.preventDefault(); ui.openAccountDrawer(acct.id); } }, acct.name) : null,
+            deal ? h('a.link', { href: '#', onclick: (e) => { e.preventDefault(); ui.openDealDrawer(deal.id); } }, deal.name) : null,
+            m.stageBefore && m.stageAfter && m.stageBefore !== m.stageAfter ? h('span.row', ui.stageBadge(m.stageBefore), '→', ui.stageBadge(m.stageAfter)) : null,
+            h('span.grow'),
+            h('button.btn.btn-sm', { onclick: () => ui.copyText(recapText(m, tasks)) }, icon('copy'), 'Copy recap'),
+            h('button.btn.btn-ghost.btn-sm.danger', {
+              onclick: async () => {
+                if (await ui.confirmDialog({ title: 'Delete meeting?', message: 'The meeting record is deleted. Tasks created from it are kept.', confirmLabel: 'Delete', danger: true })) {
+                  ui.run(() => store().meetings.remove(meetingId), 'Meeting deleted');
+                }
+              },
+            }, icon('trash')),
+          ),
+          m.summary ? ui.section('Summary', h('p.pre', m.summary)) : null,
+          ui.section('Action items', tasks.length ? h('div.task-list', tasks.map((t) => ui.taskRow(t, { showContext: false }))) : h('p.muted', 'No tasks were created.')),
+          m.attendees.length ? ui.section('Attendees', h('p', m.attendees.map((a) => a.name + (a.organization ? ` (${a.organization})` : '')).join(', '))) : null,
+          ui.section('Pain points / drivers', ui.list(m.painPoints)),
+          ui.section('Requirements / success criteria', ui.list(m.requirements)),
+          ui.section('Current environment', ui.list(m.environment)),
+          ui.section('Risks / open questions', ui.list(m.risks)),
+          ui.section('Decisions', ui.list(m.decisions)),
+          ui.section('Discussion', ui.list(m.discussionPoints)),
+          m.competitors.length ? ui.section('Competitors', h('p', m.competitors.join(', '))) : null,
+          m.stageRationale ? ui.section('Stage assessment', h('p.muted', m.stageRationale)) : null,
+          m.followUpEmail ? ui.section('Follow-up email', h('pre.pre.mono', m.followUpEmail), h('button.btn.btn-ghost.btn-sm', { onclick: () => ui.copyText(m.followUpEmail) }, icon('copy'), 'Copy')) : null,
+          rawToggle,
+        );
+      },
+    });
+  }
+
+  function recapText(m, tasks) {
+    const lines = [m.title + ' — ' + U.formatDate(m.date), '', m.summary, ''];
+    const add = (title, arr) => { if (arr.length) lines.push(title + ':', ...arr.map((x) => '• ' + x), ''); };
+    add('Pain points', m.painPoints); add('Requirements', m.requirements); add('Risks', m.risks); add('Decisions', m.decisions);
+    if (tasks.length) lines.push('Next steps:', ...tasks.map((t) => `• ${t.title} (${ui.ownerLabel(t.owner)}${t.ownerName ? ' – ' + t.ownerName : ''}) – due ${U.formatDate(t.dueDate)}`));
+    return lines.join('\n').trim();
+  }
+
+  NX.ui = Object.assign(NX.ui || {}, { openNewMeeting, openMeeting });
+})(globalThis.NX = globalThis.NX || {});
+
+/* ---- src/ui/views/pipeline.js ---- */
+/* Kanban pipeline: 7 stage columns with drag-and-drop between and within columns. */
+(function (NX) {
+  'use strict';
+  const { h, icon, clear } = NX.dom;
+  const U = NX.util;
+  const S = NX.schema;
+  const ui = NX.ui;
+  const store = () => NX.app.store;
+
+  const view = { filter: '', showClosed: true };
+
+  function dealCard(d) {
+    const acct = store().accounts.get(d.accountId);
+    const sum = store().queries.dealSummary(d.id);
+    const overdue = sum.nextTask && sum.nextTask.dueDate && sum.nextTask.dueDate < U.todayISO();
+    const card = h('article.deal-card', {
+      draggable: 'true', tabIndex: 0, dataset: { id: d.id },
+      'aria-label': `${d.name}, ${acct ? acct.name : ''}. Press Enter to open.`,
+      onclick: () => ui.openDealDrawer(d.id),
+      onkeydown: (e) => {
+        if (e.key === 'Enter') ui.openDealDrawer(d.id);
+        // Keyboard move: Alt/Option + arrow keys
+        if (e.altKey && (e.key === 'ArrowRight' || e.key === 'ArrowLeft')) {
+          const i = S.STAGE_IDS.indexOf(d.stage) + (e.key === 'ArrowRight' ? 1 : -1);
+          if (i >= 0 && i < S.STAGE_IDS.length) moveDeal(d.id, S.STAGE_IDS[i], null);
+        }
+      },
+    },
+      h('div.deal-card-account', acct ? acct.name : 'Unknown account'),
+      h('div.deal-card-name', d.name),
+      h('div.deal-card-meta',
+        d.amount ? h('span.amount', U.formatMoney(d.amount)) : null,
+        d.closeDate ? h('span.muted', icon('cal'), U.formatDate(d.closeDate, { month: 'short', day: 'numeric' })) : null,
+      ),
+      sum.nextTask ? h('div.deal-card-next' + (overdue ? '.is-overdue' : ''), { title: sum.nextTask.title },
+        h('span.clamp-1', sum.nextTask.title), h('span.due-inline', U.relativeDue(sum.nextTask.dueDate)))
+        : (d.nextStep ? h('div.deal-card-next.muted', h('span.clamp-1', d.nextStep)) : null),
+      h('div.deal-card-foot',
+        sum.openTasks ? h('span.pill', { title: 'Open tasks' }, icon('check'), sum.openTasks) : null,
+        sum.lastMeeting ? h('span.pill', { title: 'Last meeting ' + U.formatDate(sum.lastMeeting.date) }, icon('doc'), U.formatDate(sum.lastMeeting.date, { month: 'short', day: 'numeric' })) : null,
+        h('span.grow'),
+        h('button.icon-btn.sm', { title: 'New meeting for this deal', onclick: (e) => { e.stopPropagation(); ui.openNewMeeting({ accountId: d.accountId, dealId: d.id }); } }, icon('spark')),
+      ),
+    );
+    card.addEventListener('dragstart', (e) => {
+      e.dataTransfer.setData('text/plain', d.id);
+      e.dataTransfer.effectAllowed = 'move';
+      requestAnimationFrame(() => card.classList.add('is-dragging'));
+    });
+    card.addEventListener('dragend', () => { card.classList.remove('is-dragging'); document.querySelectorAll('.drop-marker').forEach((m) => m.remove()); });
+    return card;
+  }
+
+  async function moveDeal(id, stage, beforeId) {
+    const deal = store().deals.get(id);
+    if (!deal) return;
+    let lostReason;
+    if (stage === 'closed_lost' && deal.stage !== 'closed_lost') {
+      lostReason = await ui.promptDialog({ title: 'Closed lost', label: 'Why was this opportunity lost? (optional)', confirmLabel: 'Move to Closed Lost' });
+      if (lostReason === null) return; // cancelled
+    }
+    await ui.run(async () => {
+      await store().deals.move(id, stage, beforeId);
+      if (lostReason) await store().deals.update(id, { lostReason });
+    });
+    if (stage !== deal.stage) ui.toast(`Moved to ${S.stageById(stage).name}`, 'success', 2000);
+  }
+
+  /** Card the pointer is above, used to compute the insert position. */
+  function cardAfter(list, y) {
+    const cards = [...list.querySelectorAll('.deal-card:not(.is-dragging)')];
+    return cards.find((c) => { const r = c.getBoundingClientRect(); return y < r.top + r.height / 2; }) || null;
+  }
+
+  function column(stage, deals) {
+    const total = deals.reduce((s, d) => s + d.amount, 0);
+    const list = h('div.column-list', { dataset: { stage: stage.id } },
+      deals.length ? deals.map(dealCard) : h('div.column-empty', 'Drop deals here'));
+    const col = h('section.column', { style: { '--c': stage.color }, dataset: { stage: stage.id } },
+      h('header.column-head',
+        h('div.row', h('span.dot'), h('h3', stage.name), h('span.count', deals.length)),
+        h('div.column-sub', h('span', U.formatMoney(total)),
+          h('button.icon-btn.sm', { title: stage.definition, 'aria-label': 'Stage definition', onclick: (e) => { e.stopPropagation(); col.classList.toggle('show-def'); } }, icon('info'))),
+        h('p.column-def', stage.definition),
+      ),
+      list,
+      stage.open ? h('button.column-add', { onclick: () => ui.openDealEditor(null, { stage: stage.id }) }, icon('plus'), 'Add opportunity') : null,
+    );
+    col.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      col.classList.add('is-over');
+      const after = cardAfter(list, e.clientY);
+      let marker = document.querySelector('.drop-marker') || h('div.drop-marker');
+      if (after) list.insertBefore(marker, after); else list.appendChild(marker);
+    });
+    col.addEventListener('dragleave', (e) => { if (!col.contains(e.relatedTarget)) { col.classList.remove('is-over'); } });
+    col.addEventListener('drop', (e) => {
+      e.preventDefault();
+      col.classList.remove('is-over');
+      const id = e.dataTransfer.getData('text/plain');
+      const after = cardAfter(list, e.clientY);
+      document.querySelectorAll('.drop-marker').forEach((m) => m.remove());
+      if (id) moveDeal(id, stage.id, after ? after.dataset.id : null);
+    });
+    return col;
+  }
+
+  function render(root) {
+    const matches = (d) => {
+      const q = U.normalize(view.filter);
+      if (!q) return true;
+      const acct = store().accounts.get(d.accountId);
+      return U.normalize([d.name, acct && acct.name, d.partner, d.accountExec, d.products.join(' ')].join(' ')).includes(q);
+    };
+    const all = store().deals.list().filter(matches);
+    const open = all.filter((d) => S.stageById(d.stage).open);
+    const won = all.filter((d) => d.stage === 'closed_won');
+    const wonAmt = won.reduce((s, d) => s + d.amount, 0);
+    const openAmt = open.reduce((s, d) => s + d.amount, 0);
+    const overdue = store().tasks.list({ status: 'open' }).filter((t) => t.dueDate && t.dueDate < U.todayISO()).length;
+
+    const search = h('input.input.search', {
+      type: 'search', placeholder: 'Filter deals, accounts, partners…', value: view.filter,
+      oninput: (e) => { view.filter = e.target.value; paintBoard(); },
+    });
+    const board = h('div.board');
+    const paintBoard = () => {
+      const rows = store().deals.list().filter(matches);
+      clear(board).append(...S.STAGES.filter((s) => s.open || view.showClosed).map((s) => column(s, rows.filter((d) => d.stage === s.id))));
+    };
+    paintBoard();
+
+    clear(root).append(
+      h('div.page-head',
+        h('div.stats',
+          h('div.stat', h('span.stat-v', U.formatMoney(openAmt)), h('span.stat-l', `Open pipeline · ${open.length} deals`)),
+          h('div.stat', h('span.stat-v', U.formatMoney(wonAmt)), h('span.stat-l', `Closed won · ${won.length}`)),
+          h('div.stat' + (overdue ? '.stat-warn' : ''), { onclick: () => NX.app.navigate('tasks'), style: { cursor: 'pointer' } },
+            h('span.stat-v', overdue), h('span.stat-l', 'Overdue tasks')),
+        ),
+        h('div.row.wrap',
+          search,
+          h('label.toggle', h('input', { type: 'checkbox', checked: view.showClosed, onchange: (e) => { view.showClosed = e.target.checked; paintBoard(); } }), 'Show closed'),
+          h('button.btn', { onclick: () => ui.openDealEditor(null) }, icon('plus'), 'Opportunity'),
+        ),
+      ),
+      store().deals.list().length ? board : ui.emptyState('Your pipeline is empty',
+        'Add your first opportunity, or click "New meeting" and paste notes — the account and deal are created for you.',
+        h('div.row', h('button.btn.btn-primary', { onclick: () => ui.openNewMeeting() }, icon('spark'), 'New meeting'),
+          h('button.btn', { onclick: () => ui.openDealEditor(null) }, icon('plus'), 'Add opportunity'),
+          h('button.btn.btn-ghost', { onclick: () => NX.sample.load() }, 'Load sample data'))),
+    );
+  }
+
+  NX.views = NX.views || {};
+  NX.views.pipeline = { title: 'Pipeline', render };
+})(globalThis.NX = globalThis.NX || {});
+
+/* ---- src/ui/views/tasks.js ---- */
+/* Tasks & reminders: everything that needs doing, grouped by when it's due. */
+(function (NX) {
+  'use strict';
+  const { h, icon, clear } = NX.dom;
+  const U = NX.util;
+  const ui = NX.ui;
+  const store = () => NX.app.store;
+
+  const view = { owner: 'me', accountId: '', q: '', showDone: false };
+
+  function buckets(tasks) {
+    const today = U.todayISO();
+    const in7 = U.addDays(today, 7);
+    const groups = [
+      { id: 'overdue', title: 'Overdue', cls: 'grp-overdue', items: [] },
+      { id: 'today', title: 'Today', cls: 'grp-today', items: [] },
+      { id: 'week', title: 'Next 7 days', cls: '', items: [] },
+      { id: 'later', title: 'Later', cls: '', items: [] },
+      { id: 'nodate', title: 'No due date', cls: '', items: [] },
+    ];
+    for (const t of tasks) {
+      const g = !t.dueDate ? 'nodate' : t.dueDate < today ? 'overdue' : t.dueDate === today ? 'today' : t.dueDate <= in7 ? 'week' : 'later';
+      groups.find((x) => x.id === g).items.push(t);
+    }
+    return groups;
+  }
+
+  /** "Send sizing to Acme by Friday !" -> {title, dueDate, accountId, priority} */
+  function parseQuickAdd(text) {
+    let title = text.trim();
+    const dueDate = NX.ai.parseDueDate(title, U.todayISO());
+    const priority = /(^|\s)!(\s|$)|\burgent\b/i.test(title) ? 'high' : 'medium';
+    title = title.replace(/(^|\s)!(\s|$)/, ' ').trim();
+    const norm = ' ' + U.normalize(title) + ' ';
+    const acct = store().accounts.list().find((a) => norm.includes(' ' + U.normalize(a.name) + ' '));
+    return { title, dueDate: dueDate || U.addBusinessDays(U.todayISO(), 2), accountId: acct ? acct.id : '', priority };
+  }
+
+  function render(root) {
+    const listEl = h('div.task-groups');
+    const paint = () => {
+      const q = U.normalize(view.q);
+      let tasks = store().tasks.list();
+      if (view.owner === 'me') tasks = tasks.filter((t) => t.owner === 'me');
+      else if (view.owner === 'others') tasks = tasks.filter((t) => t.owner !== 'me');
+      if (view.accountId) tasks = tasks.filter((t) => t.accountId === view.accountId);
+      if (q) tasks = tasks.filter((t) => U.normalize(t.title + ' ' + t.details + ' ' + t.ownerName).includes(q));
+      const open = tasks.filter((t) => t.status === 'open');
+      const done = tasks.filter((t) => t.status === 'done').sort((a, b) => b.completedAt.localeCompare(a.completedAt));
+      clear(listEl);
+      if (!open.length && !done.length) {
+        listEl.appendChild(ui.emptyState('Nothing to do 🎉', store().tasks.list().length ? 'No tasks match these filters.' : 'Tasks are created automatically from meeting notes, or add one above.'));
+        return;
+      }
+      for (const g of buckets(open)) {
+        if (!g.items.length) continue;
+        listEl.appendChild(h('section.task-group.' + (g.cls || 'grp'),
+          h('h3.task-group-title', g.title, h('span.count', g.items.length)),
+          h('div.task-list', g.items.map((t) => ui.taskRow(t)))));
+      }
+      if (view.showDone && done.length) {
+        listEl.appendChild(h('section.task-group.grp-done',
+          h('h3.task-group-title', 'Completed', h('span.count', done.length)),
+          h('div.task-list', done.slice(0, 200).map((t) => ui.taskRow(t)))));
+      }
+    };
+
+    const quick = h('input.input.quick-add', {
+      placeholder: 'Quick add: "Send BOM to Acme by Friday !"  (dates & account names are detected, ! = high priority)',
+      onkeydown: async (e) => {
+        if (e.key !== 'Enter' || !quick.value.trim()) return;
+        const t = parseQuickAdd(quick.value);
+        await ui.run(() => store().tasks.create({ ...t, owner: 'me' }));
+        quick.value = '';
+        ui.toast(`Added · due ${U.relativeDue(t.dueDate)}`, 'success', 2000);
+      },
+    });
+    const seg = (id, label) => h('button.seg' + (view.owner === id ? '.is-active' : ''), { onclick: (e) => { view.owner = id; e.target.parentNode.querySelectorAll('.seg').forEach((b) => b.classList.toggle('is-active', b === e.target)); paint(); } }, label);
+    const remindersOn = store().settings.get().remindersEnabled && typeof Notification !== 'undefined' && Notification.permission === 'granted';
+
+    clear(root).append(
+      h('div.page-head',
+        h('div.row.wrap',
+          h('div.segmented', seg('me', 'My tasks'), seg('others', 'Others\' commitments'), seg('all', 'All')),
+          ui.accountSelect(view.accountId, { onchange: (e) => { view.accountId = e.target.value; paint(); } }, { allowEmpty: 'All accounts' }),
+          h('input.input.search', { type: 'search', placeholder: 'Search tasks…', value: view.q, oninput: (e) => { view.q = e.target.value; paint(); } }),
+          h('label.toggle', h('input', { type: 'checkbox', checked: view.showDone, onchange: (e) => { view.showDone = e.target.checked; paint(); } }), 'Show completed'),
+        ),
+        h('div.row.wrap',
+          typeof Notification !== 'undefined' ? h('button.btn.btn-ghost', {
+            title: 'Desktop notifications for tasks due today / overdue while the app is open',
+            onclick: () => NX.app.toggleReminders(),
+          }, icon('bell'), remindersOn ? 'Reminders on' : 'Enable reminders') : null,
+          h('button.btn', { onclick: () => ui.openTaskEditor(null) }, icon('plus'), 'Task'),
+        ),
+      ),
+      quick,
+      listEl,
+    );
+    paint();
+  }
+
+  NX.views = NX.views || {};
+  NX.views.tasks = { title: 'Tasks', render, parseQuickAdd };
+})(globalThis.NX = globalThis.NX || {});
+
+/* ---- src/ui/views/meetings.js ---- */
+/* Meetings log + Accounts list. */
+(function (NX) {
+  'use strict';
+  const { h, icon, clear } = NX.dom;
+  const U = NX.util;
+  const S = NX.schema;
+  const ui = NX.ui;
+  const store = () => NX.app.store;
+
+  // ---------------------------------------------------------------- Meetings
+  const mView = { accountId: '', q: '' };
+
+  function renderMeetings(root) {
+    const listEl = h('div.meeting-table');
+    const paint = () => {
+      const q = U.normalize(mView.q);
+      let rows = store().meetings.list(mView.accountId ? { accountId: mView.accountId } : undefined);
+      if (q) rows = rows.filter((m) => U.normalize([m.title, m.summary, m.rawNotes.slice(0, 5000)].join(' ')).includes(q));
+      clear(listEl);
+      if (!rows.length) {
+        listEl.appendChild(ui.emptyState('No meetings yet', 'Click "New meeting", paste your Zoom notes, and get a summary plus dated next steps.',
+          h('button.btn.btn-primary', { onclick: () => ui.openNewMeeting() }, icon('spark'), 'New meeting')));
+        return;
+      }
+      for (const m of rows) {
+        const acct = store().accounts.get(m.accountId);
+        const deal = store().deals.get(m.dealId);
+        const tasks = store().tasks.list({ meetingId: m.id });
+        const open = tasks.filter((t) => t.status === 'open').length;
+        listEl.appendChild(h('button.meeting-row', { onclick: () => ui.openMeeting(m.id) },
+          h('div.meeting-date', h('span.d', U.formatDate(m.date, { day: 'numeric' })), h('span.m', U.formatDate(m.date, { month: 'short' }))),
+          h('div.meeting-main',
+            h('div.row.wrap', h('strong', m.title), m.processedBy === 'ai' ? h('span.chip.chip-ai', icon('spark'), 'AI') : null),
+            h('div.muted.small', [acct && acct.name, deal && deal.name].filter(Boolean).join(' · ')),
+            m.summary ? h('div.clamp-2', m.summary) : null),
+          h('div.meeting-side', tasks.length ? h('span.pill', icon('check'), `${tasks.length - open}/${tasks.length}`) : null,
+            m.stageAfter && m.stageBefore !== m.stageAfter ? ui.stageBadge(m.stageAfter) : null),
+        ));
+      }
+    };
+    clear(root).append(
+      h('div.page-head',
+        h('div.row.wrap',
+          ui.accountSelect(mView.accountId, { onchange: (e) => { mView.accountId = e.target.value; paint(); } }, { allowEmpty: 'All accounts' }),
+          h('input.input.search', { type: 'search', placeholder: 'Search meetings & notes…', value: mView.q, oninput: (e) => { mView.q = e.target.value; paint(); } })),
+        h('button.btn.btn-primary', { onclick: () => ui.openNewMeeting() }, icon('spark'), 'New meeting'),
+      ),
+      listEl,
+    );
+    paint();
+  }
+
+  // ---------------------------------------------------------------- Accounts
+  const aView = { q: '' };
+
+  function renderAccounts(root) {
+    const grid = h('div.account-grid');
+    const paint = () => {
+      const q = U.normalize(aView.q);
+      const rows = store().accounts.list().filter((a) => !q || U.normalize(a.name + ' ' + a.partner + ' ' + a.industry).includes(q));
+      clear(grid);
+      if (!rows.length) {
+        grid.appendChild(ui.emptyState('No accounts', 'Accounts are created automatically from meetings, or add one manually.',
+          h('button.btn.btn-primary', { onclick: () => ui.openAccountEditor() }, icon('plus'), 'New account')));
+        return;
+      }
+      for (const a of rows) {
+        const deals = store().deals.list({ accountId: a.id });
+        const openDeals = deals.filter((d) => S.stageById(d.stage).open);
+        const tasks = store().tasks.list({ accountId: a.id, status: 'open' });
+        const overdue = tasks.filter((t) => t.dueDate && t.dueDate < U.todayISO()).length;
+        const last = store().meetings.list({ accountId: a.id })[0];
+        grid.appendChild(h('button.account-card', { onclick: () => ui.openAccountDrawer(a.id) },
+          h('div.account-name', a.name),
+          h('div.muted.small', [a.industry, a.partner && 'via ' + a.partner].filter(Boolean).join(' · ') || ' '),
+          h('div.account-stats',
+            h('span', h('strong', U.formatMoney(openDeals.reduce((s, d) => s + d.amount, 0))), ' open'),
+            h('span', h('strong', openDeals.length), ' deals'),
+            h('span' + (overdue ? '.text-danger' : ''), h('strong', tasks.length), ' tasks', overdue ? ` (${overdue} overdue)` : '')),
+          h('div.row.wrap', openDeals.slice(0, 3).map((d) => ui.stageBadge(d.stage))),
+          h('div.muted.small', last ? 'Last meeting ' + U.formatDate(last.date) : 'No meetings yet'),
+        ));
+      }
+    };
+    clear(root).append(
+      h('div.page-head',
+        h('input.input.search', { type: 'search', placeholder: 'Search accounts…', value: aView.q, oninput: (e) => { aView.q = e.target.value; paint(); } }),
+        h('button.btn', { onclick: () => ui.openAccountEditor() }, icon('plus'), 'Account'),
+      ),
+      grid,
+    );
+    paint();
+  }
+
+  NX.views = NX.views || {};
+  NX.views.meetings = { title: 'Meetings', render: renderMeetings };
+  NX.views.accounts = { title: 'Accounts', render: renderAccounts };
+})(globalThis.NX = globalThis.NX || {});
+
+/* ---- src/ui/views/settings.js ---- */
+/* Settings: profile, AI engine, storage / backup. */
+(function (NX) {
+  'use strict';
+  const { h, icon, clear } = NX.dom;
+  const U = NX.util;
+  const ui = NX.ui;
+  const store = () => NX.app.store;
+
+  function render(root) {
+    const s = store().settings.get();
+    const fs = NX.app.fileSync;
+    const fsState = fs.getState();
+
+    const userName = h('input.input', { value: s.userName, placeholder: 'e.g. Jordan Lee' });
+    const wsName = h('input.input', { value: s.workspaceName });
+    const apiKey = h('input.input', { type: 'password', value: s.apiKey, placeholder: 'sk-ant-…', autocomplete: 'off' });
+    const model = h('select.input', { value: s.model }, NX.ai.MODELS.map((m) => h('option', { value: m.id }, m.label)));
+    const effort = h('select.input', { value: s.effort }, ['low', 'medium', 'high'].map((e) => h('option', { value: e }, e[0].toUpperCase() + e.slice(1))));
+    const testOut = h('span.small');
+
+    const saveProfile = () => ui.run(() => store().settings.update({ userName: userName.value.trim(), workspaceName: wsName.value.trim() || 'My Workspace' }), 'Saved');
+    const saveAI = () => ui.run(() => store().settings.update({ apiKey: apiKey.value.trim(), model: model.value, effort: effort.value }), 'AI settings saved');
+
+    const c = store().workspace.counts();
+    const fileStatus = {
+      unsupported: 'This browser can\'t write files directly (use Chrome or Edge for auto-save to a file). Your data is saved in this browser — use Export regularly as a backup.',
+      disconnected: 'Not linked. Data is saved inside this browser on this PC. Link a file to also keep a live copy on disk.',
+      'needs-permission': `Linked to "${fsState.fileName}" — click Reconnect to resume auto-saving (browsers ask again after a restart).`,
+      saving: `Saving to "${fsState.fileName}"…`,
+      saved: `Auto-saving to "${fsState.fileName}"${fsState.lastSavedAt ? ' · last saved ' + new Date(fsState.lastSavedAt).toLocaleTimeString() : ''}.`,
+      error: `Could not write "${fsState.fileName}": ${fsState.error}`,
+    }[fsState.status];
+
+    const act = (fn, msg) => async () => { try { await fn(); if (msg) ui.toast(msg, 'success'); } catch (e) { if (e.name !== 'AbortError') ui.toast(e.message, 'error', 6000); } };
+
+    clear(root).append(h('div.settings',
+      h('section.card.stack',
+        h('h3', 'Profile'),
+        h('div.form-grid',
+          ui.field('Your name', userName, 'Used to recognise your own action items in notes.'),
+          ui.field('Workspace name', wsName)),
+        h('div.row.end', h('button.btn.btn-primary', { onclick: saveProfile }, 'Save profile')),
+      ),
+
+      h('section.card.stack',
+        h('h3', icon('spark'), 'AI meeting analysis (Claude)'),
+        h('p.muted', 'With an Anthropic API key, meeting notes are analyzed by Claude for far better summaries, owners and due dates. Without one, a built-in offline parser is used. ',
+          'Your key is stored only in this browser and is never included in exports or the save file. Notes are sent directly from your browser to api.anthropic.com — check your company\'s policy on customer data before enabling.'),
+        h('div.form-grid',
+          h('div.span-2', ui.field('Anthropic API key', apiKey, 'Create one at console.anthropic.com → API keys.')),
+          ui.field('Model', model), ui.field('Analysis effort', effort, 'Higher = more thorough, slower.')),
+        h('div.row.wrap',
+          h('button.btn', {
+            onclick: async () => {
+              testOut.textContent = 'Testing…'; testOut.className = 'small muted';
+              try { const m = await NX.ai.testConnection({ apiKey: apiKey.value.trim(), model: model.value }); testOut.textContent = '✓ Connected (' + m + ')'; testOut.className = 'small text-success'; }
+              catch (e) { testOut.textContent = '✗ ' + e.message; testOut.className = 'small text-danger'; }
+            },
+          }, 'Test connection'),
+          testOut, h('span.grow'),
+          h('button.btn.btn-primary', { onclick: saveAI }, 'Save AI settings')),
+      ),
+
+      h('section.card.stack',
+        h('h3', icon('save'), 'Storage & backup'),
+        h('p', `${c.accounts} accounts · ${c.deals} opportunities · ${c.meetings} meetings · ${c.tasks} tasks`),
+        h('div.storage-status.status-' + fsState.status, fileStatus),
+        h('div.row.wrap',
+          fs.supported && fsState.status === 'needs-permission' ? h('button.btn.btn-primary', { onclick: act(() => fs.reconnect(), 'Reconnected') }, 'Reconnect save file') : null,
+          fs.supported ? h('button.btn', { onclick: act(() => fs.createFile(), 'Auto-save file linked') }, icon('save'), fsState.fileName ? 'Save to a new file…' : 'Auto-save to a file…') : null,
+          fs.supported ? h('button.btn', { onclick: act(() => fs.openFile(), 'Workspace loaded from file') }, icon('upload'), 'Open workspace file…') : null,
+          fs.supported && fsState.fileName ? h('button.btn.btn-ghost', { onclick: act(() => fs.disconnect(), 'File unlinked') }, 'Unlink file') : null,
+        ),
+        h('div.row.wrap',
+          h('button.btn', { onclick: () => NX.files.downloadJSON(store().workspace.snapshot(), `se-pipeline-backup-${U.todayISO()}.json`) }, 'Export backup (.json)'),
+          h('button.btn', {
+            onclick: act(async () => {
+              const data = await NX.files.pickJSONFile(); if (!data) return;
+              const merge = await ui.confirmDialog({ title: 'Import workspace', message: 'Merge the file into your current workspace? Choose Cancel to stop — to fully replace your data use "Open workspace file" or erase first.', confirmLabel: 'Merge' });
+              if (merge) { await store().workspace.load(data, 'merge'); ui.toast('Imported', 'success'); }
+            }),
+          }, 'Import / merge backup…'),
+        ),
+      ),
+
+      h('section.card.stack',
+        h('h3', 'Demo & reset'),
+        h('div.row.wrap',
+          h('button.btn', { onclick: () => NX.sample.load() }, 'Load sample data'),
+          h('button.btn.btn-danger', {
+            onclick: async () => {
+              if (await ui.confirmDialog({ title: 'Erase workspace?', message: 'Deletes every account, opportunity, meeting and task in this browser (and the linked file on next save). Export a backup first!', confirmLabel: 'Erase everything', danger: true })) {
+                await ui.run(() => store().workspace.reset(), 'Workspace erased');
+              }
+            },
+          }, icon('trash'), 'Erase workspace'),
+        ),
+      ),
+      h('p.muted.small.center', 'SE Pipeline · data schema v' + NX.schema.SCHEMA_VERSION + ' · all data stays on this computer'),
+    ));
+  }
+
+  NX.views = NX.views || {};
+  NX.views.settings = { title: 'Settings', render };
+})(globalThis.NX = globalThis.NX || {});
+
+/* ---- src/ui/sample.js ---- */
+/* Demo workspace so a new user can see the app populated. */
+(function (NX) {
+  'use strict';
+  const U = NX.util;
+
+  function build() {
+    const t = U.todayISO();
+    const d = (n) => U.addDays(t, n);
+    const acc = (id, name, industry, partner) => ({ id, name, industry, partner, contacts: [] });
+    const accounts = [
+      acc('acc_demo_1', 'Contoso Health', 'Healthcare', 'CDW'),
+      acc('acc_demo_2', 'Fabrikam Manufacturing', 'Manufacturing', 'SHI'),
+      acc('acc_demo_3', 'Northwind University', 'Education', 'Presidio'),
+      acc('acc_demo_4', 'Tailspin Logistics', 'Transportation', 'WWT'),
+    ];
+    accounts[0].contacts = [{ name: 'Dana Whitfield', title: 'Director of Infrastructure', email: 'dana@contoso.example', role: 'Champion' }];
+    const deal = (id, accountId, name, stage, amount, closeDate, extra) => ({ id, accountId, name, stage, amount, closeDate, position: Number(id.slice(-1)) * 1000, ...extra });
+    const deals = [
+      deal('deal_demo_1', 'acc_demo_1', 'VMware exit – 3 site AHV migration', 'tech_diff', 850000, d(60), { products: ['NCI Pro', 'Prism Central', 'Move'], competitors: ['VMware', 'Azure Local'], partner: 'CDW', successCriteria: 'Epic ODB performance parity; <15 min failover in DR test', nextStep: 'Finalize POC success criteria sign-off' }),
+      deal('deal_demo_2', 'acc_demo_2', 'Plant floor edge refresh', 'discovery', 240000, d(120), { products: ['NCI Starter'], competitors: ['Dell VxRail'], nextStep: 'Quantify downtime cost with plant ops' }),
+      deal('deal_demo_3', 'acc_demo_3', 'VDI for research labs', 'develop', 410000, d(90), { products: ['NCI', 'Omnissa Horizon'], nextStep: 'Stakeholder workshop with CIO office' }),
+      deal('deal_demo_4', 'acc_demo_4', 'NC2 on AWS DR', 'identified', 180000, d(150), { products: ['NC2'], nextStep: 'Review with manager' }),
+      deal('deal_demo_5', 'acc_demo_1', 'Nutanix Files for PACS archive', 'tech_win', 320000, d(20), { products: ['NUS Files'], nextStep: 'AE to deliver final quote' }),
+      deal('deal_demo_6', 'acc_demo_2', 'NDB database modernization', 'closed_lost', 150000, d(-30), { lostReason: 'Budget moved to FY27' }),
+    ];
+    const meetings = [{
+      id: 'mtg_demo_1', accountId: 'acc_demo_1', dealId: 'deal_demo_1', title: 'Contoso Health – POC planning', date: d(-2),
+      attendees: [{ name: 'Dana Whitfield', organization: 'Contoso Health' }, { name: 'Sam Ortiz', organization: 'CDW' }],
+      summary: 'Reviewed the POC scope for migrating the primary data center off vSphere ahead of the Broadcom renewal in Q2. Contoso wants proof that Epic ODB performs at parity on AHV and that DR failover meets a 15 minute RTO. Agreed on a 3-node POC in the Dallas DC starting in two weeks.',
+      painPoints: ['VMware renewal quote up 3.2x after Broadcom licensing change', 'Manual DR runbooks; last failover test took 6 hours'],
+      requirements: ['Epic ODB latency parity', 'RTO < 15 minutes, RPO < 1 hour', 'Integration with existing Commvault backups'],
+      risks: ['CFO has not yet approved budget for FY26'],
+      decisions: ['3-node NX POC in Dallas DC'],
+      processedBy: 'manual', stageBefore: 'develop', stageAfter: 'tech_diff',
+    }];
+    const task = (title, dueDate, extra) => ({ title, dueDate, owner: 'me', priority: 'medium', ...extra });
+    const tasks = [
+      task('Send POC success criteria document to Dana', d(-1), { accountId: 'acc_demo_1', dealId: 'deal_demo_1', meetingId: 'mtg_demo_1', priority: 'high' }),
+      task('Ship POC nodes to Dallas DC', d(3), { accountId: 'acc_demo_1', dealId: 'deal_demo_1', meetingId: 'mtg_demo_1', owner: 'partner', ownerName: 'Sam Ortiz' }),
+      task('Provide Epic ODB performance baseline', d(5), { accountId: 'acc_demo_1', dealId: 'deal_demo_1', meetingId: 'mtg_demo_1', owner: 'customer', ownerName: 'Dana Whitfield' }),
+      task('Build downtime cost model for plant ops', d(0), { accountId: 'acc_demo_2', dealId: 'deal_demo_2', priority: 'high' }),
+      task('Prep deck for CIO stakeholder workshop', d(6), { accountId: 'acc_demo_3', dealId: 'deal_demo_3' }),
+      task('Review NC2 DR opportunity with manager', d(2), { accountId: 'acc_demo_4', dealId: 'deal_demo_4' }),
+      task('Confirm final Files BOM with AE', d(1), { accountId: 'acc_demo_1', dealId: 'deal_demo_5', owner: 'account_exec' }),
+    ].map((x, i) => ({ id: 'task_demo_' + i, ...x }));
+    return { schemaVersion: NX.schema.SCHEMA_VERSION, savedAt: new Date().toISOString(), accounts, deals, meetings, tasks, settings: {} };
+  }
+
+  async function load() {
+    const store = NX.app.store;
+    const c = store.workspace.counts();
+    if (c.deals + c.accounts > 0 && !(await NX.ui.confirmDialog({ title: 'Load sample data?', message: 'Sample accounts, deals and tasks will be added alongside your existing data.', confirmLabel: 'Add samples' }))) return;
+    await NX.ui.run(() => store.workspace.load(build(), 'merge'), 'Sample data loaded');
+  }
+
+  NX.sample = { build, load };
+})(globalThis.NX = globalThis.NX || {});
+
+/* ---- src/app.js ---- */
+/* Application shell: bootstrap, routing, header, save status, reminders. */
+(function (NX) {
+  'use strict';
+  const { h, icon, clear } = NX.dom;
+  const U = NX.util;
+
+  const ROUTES = ['pipeline', 'tasks', 'meetings', 'accounts', 'settings'];
+  const app = (NX.app = { store: null, fileSync: null, route: 'pipeline' });
+
+  function currentRoute() {
+    const r = (location.hash || '').replace(/^#\/?/, '');
+    return ROUTES.includes(r) ? r : 'pipeline';
+  }
+  app.navigate = (r) => { location.hash = '#/' + r; };
+
+  // ------------------------------------------------------------ Header
+  function renderHeader() {
+    const hdr = document.getElementById('app-header');
+    const overdue = app.store.tasks.list({ status: 'open', owner: 'me' }).filter((t) => t.dueDate && t.dueDate <= U.todayISO()).length;
+    const nav = ROUTES.map((r) => h('a.nav-link' + (app.route === r ? '.is-active' : ''), { href: '#/' + r },
+      NX.views[r].title, r === 'tasks' && overdue ? h('span.nav-badge', { title: 'Due today or overdue' }, overdue) : null));
+    clear(hdr).append(
+      h('div.brand', h('span.logo', 'SE'), h('div', h('div.brand-name', 'Pipeline'), h('div.brand-ws', app.store.settings.get().workspaceName))),
+      h('nav.nav', nav),
+      h('div.header-actions', saveIndicator(),
+        h('button.btn.btn-primary', { onclick: () => NX.ui.openNewMeeting(), title: 'New meeting (N)' }, icon('spark'), h('span.hide-sm', 'New meeting'))),
+    );
+  }
+
+  function saveIndicator() {
+    const s = app.fileSync.getState();
+    const map = {
+      unsupported: ['ok', 'Saved on this PC (browser)'],
+      disconnected: ['ok', 'Saved on this PC (browser)'],
+      saving: ['busy', 'Saving to ' + s.fileName + '…'],
+      saved: ['ok', 'Auto-saved to ' + s.fileName],
+      'needs-permission': ['warn', 'Click to resume file auto-save'],
+      error: ['err', 'File save failed — click for details'],
+    };
+    const [cls, text] = map[s.status];
+    return h('button.save-ind.save-' + cls, {
+      title: text,
+      onclick: async () => {
+        if (s.status === 'needs-permission') {
+          try { await app.fileSync.reconnect(); NX.ui.toast('File auto-save resumed', 'success'); } catch (e) { NX.ui.toast(e.message, 'error'); }
+        } else app.navigate('settings');
+      },
+    }, h('span.save-dot'), h('span.hide-sm', text));
+  }
+
+  // ------------------------------------------------------------ Rendering
+  let raf = 0;
+  function scheduleRender() {
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(render);
+  }
+
+  function render() {
+    app.route = currentRoute();
+    const main = document.getElementById('app-main');
+    // Preserve focus/caret on inputs across re-renders triggered by data changes.
+    const active = document.activeElement;
+    const focusKey = active && main.contains(active) && active.placeholder ? active.placeholder : null;
+    const scroll = main.querySelector('.board') ? main.querySelector('.board').scrollLeft : 0;
+    renderHeader();
+    main.dataset.route = app.route;
+    NX.views[app.route].render(main);
+    document.title = NX.views[app.route].title + ' · SE Pipeline';
+    if (scroll && main.querySelector('.board')) main.querySelector('.board').scrollLeft = scroll;
+    if (focusKey) { const el = [...main.querySelectorAll('input,textarea')].find((x) => x.placeholder === focusKey); if (el) el.focus(); }
+  }
+
+  // ------------------------------------------------------------ Reminders
+  const NOTIFIED_KEY = 'se-pipeline-notified';
+  function checkReminders() {
+    if (!app.store.settings.get().remindersEnabled || typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+    const today = U.todayISO();
+    let seen = {};
+    try { seen = JSON.parse(localStorage.getItem(NOTIFIED_KEY) || '{}'); } catch { /* storage unavailable */ }
+    const due = app.store.tasks.list({ status: 'open', owner: 'me' }).filter((t) => t.dueDate && t.dueDate <= today && seen[t.id] !== today);
+    if (!due.length) return;
+    const n = new Notification(due.length === 1 ? 'Task due: ' + due[0].title : `${due.length} tasks due today or overdue`, {
+      body: due.slice(0, 4).map((t) => '• ' + t.title).join('\n'), tag: 'se-pipeline-due',
+    });
+    n.onclick = () => { window.focus(); app.navigate('tasks'); };
+    due.forEach((t) => (seen[t.id] = today));
+    try { localStorage.setItem(NOTIFIED_KEY, JSON.stringify(seen)); } catch { /* ignore */ }
+  }
+
+  app.toggleReminders = async () => {
+    const on = app.store.settings.get().remindersEnabled && Notification.permission === 'granted';
+    if (on) { await app.store.settings.update({ remindersEnabled: false }); NX.ui.toast('Reminders off'); return; }
+    const perm = await Notification.requestPermission();
+    if (perm !== 'granted') { NX.ui.toast('Notifications are blocked for this page in your browser settings', 'error', 6000); return; }
+    await app.store.settings.update({ remindersEnabled: true });
+    NX.ui.toast('Reminders on — you\'ll be notified about due tasks while this page is open', 'success', 5000);
+    checkReminders();
+  };
+
+  // ------------------------------------------------------------ Boot
+  async function boot() {
+    const adapter = await NX.db.openDatabase();
+    app.store = await NX.createStore(adapter).init();
+    app.fileSync = NX.createFileSync(app.store);
+
+    // Keep other open tabs of this app in sync.
+    const channel = typeof BroadcastChannel !== 'undefined' ? new BroadcastChannel('se-pipeline') : null;
+    let fromPeer = false;
+    if (channel) channel.onmessage = async () => { fromPeer = true; await app.store.init(); fromPeer = false; scheduleRender(); };
+
+    app.store.on((evt) => {
+      if (!fromPeer && !(evt && evt.local)) app.fileSync.notifyChange();
+      if (channel && !fromPeer) channel.postMessage(evt.type);
+      scheduleRender();
+    });
+    app.fileSync.onChange(() => renderHeader());
+    await app.fileSync.init().catch((e) => console.warn('File sync init failed', e));
+
+    if (adapter.kind === 'memory') NX.ui.toast('This browser blocked local storage — changes will be lost on close. Use Export in Settings.', 'error', 12000);
+    if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+
+    window.addEventListener('hashchange', render);
+    window.addEventListener('beforeunload', () => app.fileSync.flush());
+    document.addEventListener('keydown', (e) => {
+      const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(e.target.tagName) || e.target.isContentEditable;
+      if (typing || e.metaKey || e.ctrlKey || e.altKey || document.querySelector('.backdrop')) return;
+      if (e.key === 'n') { e.preventDefault(); NX.ui.openNewMeeting(); }
+      else if (e.key === 't') { e.preventDefault(); NX.ui.openTaskEditor(null); }
+      else if (/^[1-5]$/.test(e.key)) app.navigate(ROUTES[Number(e.key) - 1]);
+    });
+
+    render();
+    document.getElementById('app-loading')?.remove();
+    checkReminders();
+    setInterval(checkReminders, 15 * 60 * 1000);
+    // Refresh relative dates ("Today", "overdue") when the day rolls over.
+    let day = U.todayISO();
+    setInterval(() => { if (U.todayISO() !== day) { day = U.todayISO(); render(); } }, 60 * 1000);
+  }
+
+  boot().catch((err) => {
+    console.error(err);
+    const el = document.getElementById('app-loading');
+    if (el) el.textContent = 'Could not start: ' + err.message;
+  });
+})(globalThis.NX = globalThis.NX || {});
+
+</script>
+</body>
+</html>

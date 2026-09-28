@@ -1,0 +1,14 @@
+{
+  "name": "se-pipeline",
+  "version": "1.0.0",
+  "description": "Deal pipeline, AI meeting-notes processing and task reminders for Nutanix Systems Engineers — ships as a single offline HTML file.",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "dev": "node build.mjs --watch",
+    "test": "node --test tests/*.test.mjs"
+  },
+  "engines": { "node": ">=18" },
+  "license": "UNLICENSED"
+}
