@@ -30,7 +30,7 @@
         listEl.appendChild(h('button.meeting-row', { onclick: () => ui.openMeeting(m.id) },
           h('div.meeting-date', h('span.d', U.formatDate(m.date, { day: 'numeric' })), h('span.m', U.formatDate(m.date, { month: 'short' }))),
           h('div.meeting-main',
-            h('div.row.wrap', h('strong', m.title), m.processedBy === 'ai' ? h('span.chip.chip-ai', icon('spark'), 'AI') : null),
+            h('div.row.wrap', h('strong', m.title), m.processedBy !== 'manual' ? h('span.chip.chip-ai', icon('spark'), 'Auto') : null),
             h('div.muted.small', [acct && acct.name, deal && deal.name].filter(Boolean).join(' · ')),
             m.summary ? h('div.clamp-2', m.summary) : null),
           h('div.meeting-side', tasks.length ? h('span.pill', icon('check'), `${tasks.length - open}/${tasks.length}`) : null,

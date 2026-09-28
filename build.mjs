@@ -14,7 +14,7 @@ export const JS_FILES = [
   'src/core/db.js',
   'src/core/store.js',
   'src/core/filesync.js',
-  'src/core/ai.js',
+  'src/core/analyzer.js',
   'src/ui/dom.js',
   'src/ui/components/overlay.js',
   'src/ui/components/common.js',

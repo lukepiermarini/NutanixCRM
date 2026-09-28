@@ -1,0 +1,24 @@
+Meeting summary for Contoso Health / Nutanix POC Planning (09/25/2026)
+
+Quick recap
+
+Jordan and the Contoso Health infrastructure team reviewed the plan to move off VMware ahead of the Broadcom renewal in March, which came in at roughly 3x last year's cost. The team agreed to run a three-node AHV proof of concept in the Dallas data center focused on Epic ODB performance and DR failover. Budget approval from the CFO is still pending and is the main risk to the timeline.
+
+Next steps
+
+- Jordan to send the POC success criteria document to Dana by Wednesday.
+- Dana Whitfield will provide the Epic ODB performance baseline next week.
+- Sam (CDW) to ship three NX-8155 nodes to Dallas ASAP.
+- Contoso team to confirm rack space and network ports for the POC.
+- Priya to schedule a Prism Central demo for the ops team.
+
+Summary
+
+VMware Renewal and Cost Pressure
+Dana explained that the Broadcom renewal quote was roughly 3x last year and leadership wants an exit plan before the March renewal date. They currently run 14 ESXi hosts on Dell R740s with a Pure FlashArray and about 600 VMs.
+
+POC Scope and Success Criteria
+The POC must demonstrate Epic ODB latency parity with the current environment and a DR failover with an RTO under 15 minutes. Jordan will draft the success criteria and share them for sign-off.
+
+Budget and Decision Process
+The CFO has not yet approved the FY27 budget and Dana is concerned the approval could slip into Q1. They are also looking at Azure Local as an alternative.

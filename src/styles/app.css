@@ -279,3 +279,4 @@ details.raw summary { cursor: pointer; color: var(--muted); font-weight: 600; fo
   .page-head select.input { max-width: none; width: 100%; }
 }
 @media print { .app-header, .page-head { display: none; } }
+.stack-sm { display: flex; flex-direction: column; gap: 6px; }

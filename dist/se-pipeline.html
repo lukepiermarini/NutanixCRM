@@ -288,6 +288,7 @@ details.raw summary { cursor: pointer; color: var(--muted); font-weight: 600; fo
   .page-head select.input { max-width: none; width: 100%; }
 }
 @media print { .app-header, .page-head { display: none; } }
+.stack-sm { display: flex; flex-direction: column; gap: 6px; }
 
 </style>
 </head>
@@ -296,7 +297,7 @@ details.raw summary { cursor: pointer; color: var(--muted); font-weight: 600; fo
 <main id="app-main" class="app-main"><div id="app-loading" class="loading">Loading your workspace…</div></main>
 <noscript>This app needs JavaScript enabled.</noscript>
 <script>
-/* SE Pipeline v1.0.0 · built 2026-09-28T16:06:46.263Z */
+/* SE Pipeline v1.0.0 · built 2026-09-28T16:47:27.971Z */
 /* ---- src/core/util.js ---- */
 /* Shared, dependency-free helpers. Pure functions only — safe to load in Node for tests. */
 (function (NX) {
@@ -536,7 +537,7 @@ details.raw summary { cursor: pointer; color: var(--muted); font-weight: 600; fo
         stageAfter: oneOf(m.stageAfter, STAGE_IDS, ''),
         stageRationale: str(m.stageRationale, 2000),
         rawNotes: str(m.rawNotes, 500000),
-        processedBy: oneOf(m.processedBy, ['ai', 'heuristic', 'manual'], 'manual'),
+        processedBy: oneOf(m.processedBy, ['auto', 'manual', 'ai', 'heuristic'], 'manual'),
       };
     },
 
@@ -718,13 +719,11 @@ details.raw summary { cursor: pointer; color: var(--muted); font-weight: 600; fo
   const SETTINGS_DEFAULTS = {
     userName: '',
     workspaceName: 'My Workspace',
-    apiKey: '',
-    model: 'claude-opus-5',
-    effort: 'high',
     remindersEnabled: false,
   };
-  // Secrets never leave the browser via export / file sync.
-  const PRIVATE_SETTINGS = ['apiKey'];
+  // Device-local settings never leave the browser via export / file sync.
+  const PRIVATE_SETTINGS = ['remindersEnabled'];
+  const LEGACY_SETTINGS = ['apiKey', 'model', 'effort'];
 
   function createStore(adapter) {
     const cache = { accounts: new Map(), deals: new Map(), meetings: new Map(), tasks: new Map() };
@@ -953,6 +952,7 @@ details.raw summary { cursor: pointer; color: var(--muted); font-weight: 600; fo
         for (const c of Object.keys(merged)) cache[c] = new Map(merged[c].map((r) => [r.id, r]));
         const keep = {}; PRIVATE_SETTINGS.forEach((k) => (keep[k] = settings[k]));
         settings = { ...SETTINGS_DEFAULTS, ...settings, ...snap.settings, ...keep };
+        LEGACY_SETTINGS.forEach((k) => delete settings[k]);
         await adapter.setMeta('settings', settings);
         await adapter.setMeta('lastChangeAt', raw.savedAt || nowISO());
         emit({ type: 'workspace.load' });
@@ -979,6 +979,7 @@ details.raw summary { cursor: pointer; color: var(--muted); font-weight: 600; fo
       async init() {
         for (const c of Object.keys(cache)) cache[c] = new Map((await adapter.getAll(c)).map((r) => [r.id, r]));
         settings = { ...SETTINGS_DEFAULTS, ...((await adapter.getMeta('settings')) || {}) };
+        LEGACY_SETTINGS.forEach((k) => delete settings[k]);
         return this;
       },
       on(fn) { listeners.add(fn); return () => listeners.delete(fn); },
@@ -1133,223 +1134,120 @@ details.raw summary { cursor: pointer; color: var(--muted); font-weight: 600; fo
   NX.files = { downloadJSON, pickJSONFile };
 })(globalThis.NX = globalThis.NX || {});
 
-/* ---- src/core/ai.js ---- */
-/* Meeting-notes intelligence.
+/* ---- src/core/analyzer.js ---- */
+/* Meeting-notes analyzer — runs entirely in the browser, no API keys, no network.
  *
- * processNotes() turns raw Zoom transcripts / AI Companion summaries / scribbled
- * notes into a structured meeting record + dated action items + a stage
- * recommendation. Two engines share one output contract:
- *   - Claude (Anthropic Messages API, structured JSON output) when an API key is set
- *   - an offline heuristic parser otherwise (or if the API call fails)
+ * Input:  whatever the SE pastes — a Zoom AI Companion summary, a Zoom transcript
+ *         (.vtt / .txt / copied from the web player), or rough notes.
+ * Output: a structured meeting record (summary, topics, pain points, requirements,
+ *         environment, risks, decisions, competitors), dated action items with owners,
+ *         the matching account / opportunity, a stage recommendation and a
+ *         follow-up email draft.
  *
- * Raw fetch is used on purpose: the app ships as a single dependency-free HTML
- * file with no build-time package manager, so the SDK can't be bundled. */
+ * Pipeline:  clean → detect format → segment into sections/topics/utterances
+ *            → extract actions → classify sentences → summarize → match & recommend. */
 (function (NX) {
   'use strict';
   const { STAGES, STAGE_IDS, OWNER_IDS, PRIORITIES } = NX.schema;
   const U = NX.util;
 
-  const API_URL = 'https://api.anthropic.com/v1/messages';
-  const MODELS = [
-    { id: 'claude-opus-5', label: 'Claude Opus 5 (recommended)' },
-    { id: 'claude-sonnet-5', label: 'Claude Sonnet 5 (faster, lower cost)' },
-    { id: 'claude-haiku-4-5', label: 'Claude Haiku 4.5 (fastest)' },
-  ];
-
-  // ---------------------------------------------------------------------------
-  // Output contract (also the JSON schema sent to Claude)
-  // ---------------------------------------------------------------------------
-  const strArr = { type: 'array', items: { type: 'string' } };
-  const RESULT_SCHEMA = {
-    type: 'object',
-    additionalProperties: false,
-    required: ['title', 'meetingDate', 'matchedAccountId', 'suggestedAccountName', 'matchedDealId', 'suggestedDealName',
-      'attendees', 'summary', 'discussionPoints', 'painPoints', 'requirements', 'environment', 'competitors', 'risks',
-      'decisions', 'actionItems', 'suggestedStage', 'stageRationale', 'dealNextStep', 'followUpEmail'],
-    properties: {
-      title: { type: 'string', description: 'Short meeting title, e.g. "Acme – NC2 on AWS POC kickoff"' },
-      meetingDate: { type: 'string', description: 'YYYY-MM-DD if stated or inferable, else empty string' },
-      matchedAccountId: { type: 'string', description: 'id of the existing account this meeting is about, or empty string' },
-      suggestedAccountName: { type: 'string', description: 'Customer organization name as it appears in the notes' },
-      matchedDealId: { type: 'string', description: 'id of the existing deal this meeting is about, or empty string' },
-      suggestedDealName: { type: 'string', description: 'If no deal matches, a concise opportunity name; else empty string' },
-      attendees: {
-        type: 'array',
-        items: {
-          type: 'object', additionalProperties: false, required: ['name', 'organization', 'role'],
-          properties: { name: { type: 'string' }, organization: { type: 'string' }, role: { type: 'string' } },
-        },
-      },
-      summary: { type: 'string', description: '3-5 sentence executive summary of what happened and why it matters' },
-      discussionPoints: strArr,
-      painPoints: { ...strArr, description: 'Customer pain / gain / risk statements, business drivers, metrics' },
-      requirements: { ...strArr, description: 'Technical requirements, sizing, success criteria' },
-      environment: { ...strArr, description: 'Current environment facts: hypervisor, hardware, workloads, versions, renewal dates' },
-      competitors: strArr,
-      risks: { ...strArr, description: 'Deal risks, blockers, open questions' },
-      decisions: strArr,
-      actionItems: {
-        type: 'array',
-        items: {
-          type: 'object', additionalProperties: false,
-          required: ['title', 'details', 'owner', 'ownerName', 'dueDate', 'priority'],
-          properties: {
-            title: { type: 'string', description: 'Imperative, specific action (starts with a verb)' },
-            details: { type: 'string' },
-            owner: { type: 'string', enum: OWNER_IDS },
-            ownerName: { type: 'string' },
-            dueDate: { type: 'string', description: 'YYYY-MM-DD' },
-            priority: { type: 'string', enum: PRIORITIES },
-          },
-        },
-      },
-      suggestedStage: { type: 'string', enum: [...STAGE_IDS, 'no_change'] },
-      stageRationale: { type: 'string' },
-      dealNextStep: { type: 'string', description: 'One-line next step for the deal card' },
-      followUpEmail: { type: 'string', description: 'Ready-to-send recap email to the customer (plain text)' },
-    },
-  };
-
-  function systemPrompt() {
-    const stages = STAGES.map((s) => `- ${s.id} = "${s.name}": ${s.definition}`).join('\n');
-    return `You are the meeting-notes analyst for a Nutanix Systems Engineer (SE). The SE pastes raw, unformatted meeting notes — usually Zoom auto-transcripts or Zoom AI Companion summaries — and you turn them into an accurate CRM record they can act on.
-
-Nutanix context: the SE works alongside an Account Executive and channel partners, selling Nutanix Cloud Platform (AHV, AOS/NCI, Prism Central, NC2 on AWS/Azure, Nutanix Unified Storage/Files/Objects, NDB, NKP/Kubernetes, Flow, Data Lens, Move for migrations). Common drivers: VMware/Broadcom licensing changes, hardware refreshes, consolidation, DR, VDI/EUC, databases, hybrid cloud.
-
-Pipeline stages (use the id values):
-${stages}
-
-How to work:
-- Only record facts present in the notes. Never invent names, numbers, dates or commitments. If something is unclear, say so in risks rather than guessing.
-- Action items are the most important output. Capture every commitment anyone made, and add the obvious SE follow-ups the notes imply (e.g. send recap, schedule next meeting, prepare sizing). Each must be concrete and start with a verb.
-- owner: "me" = the SE (the person the notes belong to), "account_exec" = the Nutanix AE/sales rep, "customer", "partner", "nutanix_other" (SA, specialists, support). Put the person's name in ownerName when known.
-- Every action item needs a dueDate (YYYY-MM-DD). Resolve relative dates ("by Friday", "next week", "EOM") against the meeting date. If no date was stated, pick a realistic one: recap/follow-up emails within 1 business day, internal prep before the next scheduled meeting, otherwise 3-5 business days. Never pick a weekend.
-- priority: high = blocks deal progress or was promised to the customer with a date; low = nice to have.
-- suggestedStage: recommend moving the deal only when the notes clearly show the exit criteria of the current stage are met (or the deal was won/lost); otherwise "no_change". Explain your reasoning in stageRationale by referencing the stage definition.
-- matchedAccountId / matchedDealId: choose only from the provided lists, match on customer name (allow abbreviations/typos). Leave empty if nothing matches.
-- followUpEmail: concise, professional recap addressed to the customer attendees: thanks, key takeaways, agreed next steps with owners and dates. No subject line placeholder brackets.`;
-  }
-
-  function userPrompt(notes, ctx) {
-    const context = {
-      today: U.todayISO(),
-      meetingDateHint: ctx.meetingDate || '',
-      seName: ctx.userName || '(the SE)',
-      preselectedAccountId: ctx.accountId || '',
-      preselectedDealId: ctx.dealId || '',
-      accounts: ctx.accounts.map((a) => ({ id: a.id, name: a.name, partner: a.partner })),
-      deals: ctx.deals.map((d) => ({ id: d.id, accountId: d.accountId, name: d.name, stage: d.stage })),
-    };
-    return `<context>\n${JSON.stringify(context, null, 1)}\n</context>\n\n<meeting_notes>\n${notes}\n</meeting_notes>\n\nAnalyze these meeting notes and return the JSON record.`;
-  }
-
-  class AIError extends Error {
-    constructor(message, { status, retryable } = {}) { super(message); this.name = 'AIError'; this.status = status; this.retryable = !!retryable; }
-  }
-
-  async function callClaude({ apiKey, model, effort, notes, ctx, signal, _noFallback }) {
-    const useFallbacks = !_noFallback && /^claude-(opus-5|fable-5)/.test(model);
-    const body = {
-      model,
-      max_tokens: 16000,
-      system: systemPrompt(),
-      messages: [{ role: 'user', content: userPrompt(notes, ctx) }],
-      output_config: { format: { type: 'json_schema', schema: RESULT_SCHEMA } },
-    };
-    if (effort && !/haiku/.test(model)) body.output_config.effort = effort;
-    if (useFallbacks) body.fallbacks = 'default';
-
-    const headers = {
-      'content-type': 'application/json',
-      'x-api-key': apiKey,
-      'anthropic-version': '2023-06-01',
-      // Required for calling the API straight from a browser page.
-      'anthropic-dangerous-direct-browser-access': 'true',
-    };
-    if (useFallbacks) headers['anthropic-beta'] = 'server-side-fallback-2026-07-01';
-
-    let res;
-    try {
-      res = await fetch(API_URL, { method: 'POST', headers, body: JSON.stringify(body), signal });
-    } catch (err) {
-      if (err.name === 'AbortError') throw err;
-      throw new AIError('Could not reach the Claude API (network/firewall?). ' + err.message, { retryable: true });
-    }
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      const msg = (data.error && data.error.message) || res.statusText;
-      if (res.status === 400 && useFallbacks && /fallback/i.test(msg)) {
-        return callClaude({ apiKey, model, effort, notes, ctx, signal, _noFallback: true });
-      }
-      if (res.status === 401) throw new AIError('Invalid API key — check Settings.', { status: 401 });
-      if (res.status === 403) throw new AIError('API key lacks permission: ' + msg, { status: 403 });
-      if (res.status === 404) throw new AIError(`Model "${model}" not available to this key: ${msg}`, { status: 404 });
-      if (res.status === 429) throw new AIError('Rate limited by the Claude API — try again in a minute.', { status: 429, retryable: true });
-      if (res.status >= 500) throw new AIError('Claude API is temporarily unavailable (' + res.status + ').', { status: res.status, retryable: true });
-      throw new AIError('Claude API error: ' + msg, { status: res.status });
-    }
-    if (data.stop_reason === 'refusal') throw new AIError('Claude declined to process these notes.', { status: 200 });
-    if (data.stop_reason === 'max_tokens') throw new AIError('The notes produced too long a response. Try splitting them.', { status: 200 });
-    const text = (data.content || []).filter((b) => b.type === 'text').map((b) => b.text).join('');
-    try {
-      return JSON.parse(text);
-    } catch {
-      throw new AIError('Claude returned an unreadable response.', { status: 200, retryable: true });
-    }
-  }
-
-  // ---------------------------------------------------------------------------
-  // Offline heuristic engine
-  // ---------------------------------------------------------------------------
+  // =========================================================================
+  // Vocabulary
+  // =========================================================================
   const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
   const MONTHS = ['january', 'february', 'march', 'april', 'may', 'june', 'july', 'august', 'september', 'october', 'november', 'december'];
-  const COMPETITORS = ['VMware', 'Broadcom', 'vSAN', 'VxRail', 'Dell APEX', 'HPE', 'SimpliVity', 'Azure Stack HCI', 'Azure Local', 'Hyper-V',
-    'Pure Storage', 'NetApp', 'HyperFlex', 'Proxmox', 'OpenShift', 'Red Hat', 'Scale Computing', 'Citrix', 'Omnissa', 'Cohesity', 'Rubrik'];
 
-  /** Strips WebVTT/SRT scaffolding so transcripts read as "Speaker: text" lines. */
-  function cleanTranscript(raw) {
-    return String(raw || '')
-      .replace(/\r\n?/g, '\n')
-      .replace(/^WEBVTT.*$/m, '')
-      .split('\n')
-      .filter((l) => !/^\s*\d+\s*$/.test(l) && !/-->/.test(l))
-      .map((l) => l.replace(/^\s*\[?\d{1,2}:\d{2}(:\d{2})?(\.\d+)?\]?\s*/, '').trimEnd())
-      .join('\n')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
-  }
+  const COMPETITORS = ['VMware', 'Broadcom', 'vSAN', 'VCF', 'VxRail', 'Dell APEX', 'PowerFlex', 'HPE SimpliVity', 'SimpliVity', 'GreenLake', 'Azure Stack HCI',
+    'Azure Local', 'Hyper-V', 'Pure Storage', 'NetApp', 'HyperFlex', 'Proxmox', 'OpenShift', 'Red Hat', 'Scale Computing', 'Citrix',
+    'Omnissa', 'Cohesity', 'Rubrik', 'StarWind', 'Platform9', 'Oracle OLVM'];
 
+  const PARTNERS = ['cdw', 'shi', 'wwt', 'world wide technology', 'presidio', 'insight', 'carahsoft', 'eplus', 'optiv', 'sirius', 'converge',
+    'trace3', 'ahead', 'softchoice', 'connection', 'zones', 'computacenter', 'softwareone', 'crayon', 'logicalis', 'dataprise', 'tdsynnex', 'td synnex', 'arrow'];
+
+  // Topic labels used to describe what a meeting was about (and to name new opportunities).
+  const TOPICS = [
+    { label: 'VMware / Broadcom exit', deal: 'VMware migration', re: /\b(vmware|broadcom|vsphere|esxi|vcenter|vsan|vcf)\b/i },
+    { label: 'POC planning', deal: 'POC', re: /\b(poc|proof of concept|pilot|test ?drive)\b/i },
+    { label: 'migration planning', deal: 'Migration', re: /\b(migrat\w*|nutanix move|cutover|move tool)\b/i },
+    { label: 'disaster recovery', deal: 'DR solution', re: /\b(dr|disaster recovery|failover|rpo|rto|replication|metro|business continuity)\b/i },
+    { label: 'hardware refresh', deal: 'Infrastructure refresh', re: /\b(refresh|end of life|eol|end of support|aging hardware|out of warranty)\b/i },
+    { label: 'pricing & licensing', deal: '', re: /\b(pricing|price|quote|licens\w*|cost|budget|tco|roi|subscription)\b/i },
+    { label: 'timeline & decision process', deal: '', re: /\b(timeline|deadline|fiscal|fy\d\d|q[1-4]|procurement|approval|sign[- ]?off|decision makers?|renewal date)\b/i },
+    { label: 'hybrid cloud (NC2)', deal: 'NC2 hybrid cloud', re: /\b(nc2|aws|azure|gcp|hybrid cloud|public cloud|cloud clusters)\b/i },
+    { label: 'databases (NDB)', deal: 'Database platform (NDB)', re: /\b(ndb|database|sql server|oracle|postgres\w*|mysql|mongodb)\b/i },
+    { label: 'VDI / EUC', deal: 'VDI', re: /\b(vdi|citrix|horizon|omnissa|euc|virtual desktops?)\b/i },
+    { label: 'Kubernetes / containers', deal: 'Kubernetes platform', re: /\b(kubernetes|k8s|nkp|containers?|openshift)\b/i },
+    { label: 'unified storage (Files/Objects)', deal: 'Unified storage', re: /\b(nutanix files|objects|file shares?|nas|s3|unified storage|nus)\b/i },
+    { label: 'backup & security', deal: '', re: /\b(backup|ransomware|security|flow|microsegmentation|veeam|commvault|rubrik|cohesity|immutable)\b/i },
+    { label: 'sizing & architecture', deal: '', re: /\b(sizing|bom|bill of materials|nodes?|cores|capacity|architecture|design|collector|rvtools|lift)\b/i },
+    { label: 'AI / GPU workloads', deal: 'GPT-in-a-Box / AI', re: /\b(gpu|gpt[- ]in[- ]a[- ]box|llm|genai|ai workloads?|inference)\b/i },
+    { label: 'edge / ROBO sites', deal: 'Edge / ROBO', re: /\b(edge|robo|remote (sites|offices)|branch(es)?|plants?|stores)\b/i },
+  ];
+
+  const SECTION_HEADINGS = [
+    ['recap', /^(quick recap|recap|tl;?dr|overview|executive summary|meeting summary|summary of (the )?meeting|meeting overview)$/],
+    ['summary', /^(summary|details|discussion|discussion points|discussion summary|notes|meeting notes|key (points|takeaways)|highlights|topics( discussed)?|agenda)$/],
+    ['actions', /^(next steps?|action items?|actions?|follow[- ]?ups?|to ?-?dos?|tasks|takeaways and next steps|open action items|assignments|owners)$/],
+    ['decisions', /^(decisions?( made)?|agreements?|agreed|outcomes?)$/],
+    ['risks', /^(risks?|concerns?|blockers?|open (questions|items|issues)|issues|objections|questions)$/],
+    ['pain', /^(pain points?|challenges?|business (drivers?|challenges?|problems?)|drivers|problems?|why change|why now)$/],
+    ['requirements', /^((technical )?requirements?|success criteria|scope|use cases?|goals?|objectives?)$/],
+    ['environment', /^(current (environment|state|infrastructure|setup)|environment|infrastructure|as-?is)$/],
+    ['attendees', /^(attendees|participants|present|who attended|invitees|people)$/],
+    ['competition', /^(competition|competitors|competitive( landscape)?)$/],
+  ];
+
+  const ACTION_VERBS = 'send|share|provide|get|set ?up|schedule|follow up|put together|prepare|draft|review|reach out|loop in|connect|book|confirm|check|look into|find out|update|build|run|create|work on|circle back|coordinate|test|validate|ship|deliver|order|quote|price|size|write|document|email|call|ping|introduce|arrange|organize|finalize|kick off|start|deploy|install|configure|migrate|demo|present|walk (?:them |you |us )?through|gather|collect|pull|export|upload|submit|sign|approve|evaluate|investigate|research|escalate|open|file|engage|invite|align|compile|summarize|forward|clarify|verify|identify|determine|define|finish|complete|go over|dig into|double[- ]check|touch base|sync|bring|ask|request|let (?:you|them|us|everyone) know|follow|return|obtain|secure|socialize|present|plan|draft|model|calculate|estimate|benchmark|assess|audit|map|outline|propose|recommend|set';
+  const VERBS_RE = `(?:${ACTION_VERBS})`;
+  const NAME_RE = "[A-Z][\\w'’.&-]*(?:\\s+(?:[A-Z][\\w'’.&-]*|de|van|von|da|di|la|le))*";
+  const PRONOUNS = /^(i|we|you|they|he|she|it|this|that|there|here|these|those|everyone|someone|somebody|anyone|all|the|a|an|so|and|but|then|also|okay|ok|yes|yeah|great|thanks|thank|let's|lets|monday|tuesday|wednesday|thursday|friday|saturday|sunday|today|tomorrow|next|january|february|march|april|may|june|july|august|september|october|november|december|q[1-4]|fy\d*|poc|dr|nc2|ahv|aos|vmware|nutanix|prism|epic|aws|azure)$/i;
+
+  const NOT_ACTION = /\b(can you (hear|see)|see my screen|share my screen|sharing my screen|stop sharing|on mute|i'll be honest|i will say|i'll say|we'll see|we will see|let me (know|think|see|just|pull (that |it )?up|introduce|start|jump|go back|share my|take a look at this|show you)|i can see|i can hear|i'll let you|let's get started|i'll hand it|i will hand|already (sent|did|done|shared|provided))\b/i;
+  const FIRST_PERSON_RE = new RegExp(`\\b(i|we)(?:'ll| will| can| am going to|'m going to| are going to|'re going to| need to| should| have to| owe| plan to| want to| would like to| are to)\\s+(?:go ahead and |try to |also |then |just |quickly |definitely |probably |make sure to |get you |get )?${VERBS_RE}\\b`, 'i');
+  const LET_ME_RE = new RegExp(`\\blet me\\s+(?:go ahead and |also |just )?${VERBS_RE}\\b`, 'i');
+  const THIRD_RE = new RegExp(`\\b(${NAME_RE})(?:\\s*\\(([^)]+)\\))?\\s+(?:will|to|shall|should|needs? to|has to|have to|is going to|are going to|agreed to|committed to|volunteered to|offered to|plans? to|is to|are to|owes?)\\s+(?:go ahead and |also |then |try to |get )?${VERBS_RE}\\b`);
+  const REQUEST_RE = new RegExp(`\\b(?:can|could|would) you(?: please| guys| all| folks)?\\s+(?:also |just )?${VERBS_RE}\\b|\\bplease\\s+${VERBS_RE}\\b`, 'i');
+  const IMPERATIVE_RE = new RegExp(`^(?:(?:we |i )?(?:need|needs|have|has) to |must |should |todo:?\\s*|to-?do:?\\s*|follow[- ]up:?\\s+(?:on |with )?)?${VERBS_RE}\\b`, 'i');
+  const MARKER_RE = /^(?:action items?|next steps?|to-?do|todo|ai|follow[- ]?up|task|owner)\s*[:\-–]\s*/i;
+
+  // =========================================================================
+  // Dates
+  // =========================================================================
   /** Resolves natural-language due dates relative to baseDate (YYYY-MM-DD). Returns '' if none found. */
   function parseDueDate(text, baseDate) {
     const t = ' ' + String(text).toLowerCase() + ' ';
     const base = baseDate || U.todayISO();
     const baseDow = U.parseISODate(base).getDay();
-    // Next occurrence of a weekday (today counts as a week away); nextWeek skips into the following week.
     const nextDow = (dow, nextWeek) => {
       const diff = (dow - baseDow + 7) % 7 || 7;
       return U.addDays(base, nextWeek && diff < 7 ? diff + 7 : diff);
     };
     const fridayOffset = (5 - baseDow + 7) % 7;
+    const mondayNext = (1 - baseDow + 7) % 7 || 7;
     let m;
-    if (/\b(today|eod|end of (the )?day|asap|immediately)\b/.test(t)) return base;
+    if (/\b(today|tonight|eod|cob|end of (the )?day|asap|immediately|right away)\b/.test(t)) return base;
     if (/\btomorrow\b/.test(t)) return U.addBusinessDays(base, 1);
-    if ((m = t.match(/\bin (\d+|a|one|two|three) (business )?(day|week)s?\b/))) {
-      const n = { a: 1, one: 1, two: 2, three: 3 }[m[1]] || Number(m[1]);
+    if ((m = t.match(/\bin (\d+|a|one|two|three|a couple(?: of)?) (business |working )?(day|week)s?\b/))) {
+      const n = { a: 1, one: 1, two: 2, three: 3, 'a couple': 2, 'a couple of': 2 }[m[1]] || Number(m[1]);
       return m[3] === 'week' ? U.addDays(base, n * 7) : (m[2] ? U.addBusinessDays(base, n) : U.addDays(base, n));
     }
+    if (/\blater this week\b/.test(t)) return U.addDays(base, baseDow >= 4 && baseDow <= 5 ? fridayOffset : Math.max(0, (4 - baseDow + 7) % 7));
     if (/\b(eow|end of (the )?week|this week)\b/.test(t)) return U.addDays(base, baseDow === 6 ? 6 : fridayOffset);
+    if (/\bearly next week\b/.test(t)) return U.addDays(base, mondayNext + 1);
     if (/\bnext week\b/.test(t)) return U.addDays(base, baseDow === 0 || baseDow === 6 ? fridayOffset : fridayOffset + 7);
     if (/\b(eom|end of (the )?month)\b/.test(t)) {
       const d = U.parseISODate(base); return U.toLocalISODate(new Date(d.getFullYear(), d.getMonth() + 1, 0));
     }
-    if ((m = t.match(/\bnext (monday|tuesday|wednesday|thursday|friday|saturday|sunday)\b/))) return nextDow(WEEKDAYS.indexOf(m[1]), true);
-    if ((m = t.match(/\b(?:by|on|before|until|this|due) (monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tue|wed|thu|fri)\b/))) {
-      const idx = WEEKDAYS.findIndex((w) => w.startsWith(m[1]));
+    if (/\bnext month\b/.test(t)) return U.addDays(base, 30);
+    if ((m = t.match(/\bnext (monday|tuesday|wednesday|thursday|friday)\b/))) return nextDow(WEEKDAYS.indexOf(m[1]), true);
+    if ((m = t.match(/\b(?:by|on|before|until|this|due|for|next) (monday|tuesday|wednesday|thursday|friday|saturday|sunday|mon|tues?|wed|thur?s?|fri)\b/)) ||
+        (m = t.match(/\b(monday|tuesday|wednesday|thursday|friday)\b/))) {
+      const idx = WEEKDAYS.findIndex((w) => w.startsWith(m[1].slice(0, 3)));
       return nextDow(idx, false);
     }
     if ((m = t.match(/\b(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\b/))) {
       const b = U.parseISODate(base);
-      let y = m[3] ? Number(m[3].length === 2 ? '20' + m[3] : m[3]) : b.getFullYear();
+      const y = m[3] ? Number(m[3].length === 2 ? '20' + m[3] : m[3]) : b.getFullYear();
       let d = new Date(y, Number(m[1]) - 1, Number(m[2]));
       if (!m[3] && d < b) d = new Date(y + 1, Number(m[1]) - 1, Number(m[2]));
       if (!isNaN(d) && d.getMonth() === Number(m[1]) - 1) return U.toLocalISODate(d);
@@ -1365,182 +1263,695 @@ How to work:
     return '';
   }
 
-  const HEADINGS = [
-    ['summary', /^(quick recap|summary|meeting summary|overview|recap|tl;?dr)$/],
-    ['actions', /^(next steps?|action items?|actions|follow[- ]?ups?|to ?dos?|takeaways and next steps)$/],
-    ['decisions', /^(decisions?( made)?|agreements?|agreed)$/],
-    ['risks', /^(risks?|concerns?|blockers?|open (questions|items|issues)|issues)$/],
-    ['pain', /^(pain points?|challenges?|business drivers?|drivers|problems?)$/],
-    ['requirements', /^(requirements?|technical requirements?|success criteria|scope)$/],
-    ['environment', /^(current environment|environment|current state|infrastructure)$/],
-    ['attendees', /^(attendees|participants|present|who attended)$/],
-  ];
+  const DATE_PHRASE_RE = new RegExp('\\s*,?\\s*\\b(?:by|before|on|no later than|due|until|for|sometime)?\\s*(?:the\\s+)?(?:' + [
+    'end of (?:the )?(?:day|week|month)', 'eod', 'eow', 'eom', 'cob', 'asap', 'today', 'tonight', 'tomorrow', 'right away',
+    '(?:early |later |sometime )?(?:next|this) (?:week|month)', 'next (?:mon|tues|wednes|thurs|fri)day', '(?:mon|tues|wednes|thurs|fri)day',
+    'in (?:\\d+|a|one|two|three|a couple(?: of)?) (?:business |working )?(?:days?|weeks?)',
+    '(?:jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)[a-z]*\\.? \\d{1,2}(?:st|nd|rd|th)?', '\\d{1,2}\\/\\d{1,2}(?:\\/\\d{2,4})?',
+  ].join('|') + ')\\b', 'gi');
+
+  const HAS_DATE_RE = new RegExp(DATE_PHRASE_RE.source, 'i');
+
+  // =========================================================================
+  // Text preparation
+  // =========================================================================
+  const isNameLike = (s) => new RegExp(`^${NAME_RE}$`).test(s) && s.split(/\s+/).length <= 4 && !detectHeading(s) && !PRONOUNS.test(s);
+
+  /** Normalizes Zoom transcript layouts (WebVTT, "Name 00:01:23", "00:01:23 Name: text", chat) to "Speaker: text" lines. */
+  function cleanTranscript(raw) {
+    const src = String(raw || '').replace(/\r\n?/g, '\n').replace(/ /g, ' ')
+      .replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/…/g, '...');
+    const TS_ONLY = /^\[?\(?\d{1,2}:\d{2}(?::\d{2})?(?:[.,]\d+)?\)?\]?$/;
+    const out = [];
+    let pending = null;
+    for (let line of src.split('\n')) {
+      line = line.trim();
+      if (/^WEBVTT/.test(line) || /^NOTE\b/.test(line) || /-->/.test(line) || /^\d+$/.test(line)) continue;
+      line = line.replace(/<v\s+([^>]+)>/g, '$1: ').replace(/<\/?[a-z][^>]*>/gi, '').trim();
+      if (!line) { pending = null; out.push(''); continue; }
+      if (TS_ONLY.test(line)) {
+        if (out.length && isNameLike(out[out.length - 1])) pending = out.pop();
+        continue;
+      }
+      let m = line.match(new RegExp(`^\\[?(${NAME_RE})\\]?\\s+\\(?\\[?\\d{1,2}:\\d{2}(?::\\d{2})?\\]?\\)?$`));
+      if (m && m[1].split(/\s+/).length <= 4) { pending = m[1]; continue; }
+      m = line.match(/^\[?\d{1,2}:\d{2}(?::\d{2})?(?:[.,]\d+)?\]?\s+(?:From\s+)?([^:]{2,60}?)(?:\s+to\s+[^:]+)?\s*:\s+(.*)$/);
+      if (m) { out.push(`${m[1].trim()}: ${m[2]}`); pending = null; continue; }
+      line = line.replace(/^\[?\d{1,2}:\d{2}(?::\d{2})?(?:[.,]\d+)?\]?\s*[-–]?\s*/, '');
+      out.push(pending ? `${pending}: ${line}` : line);
+    }
+    return out.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  }
+
+  /** Removes verbal filler from spoken transcript text. */
+  function deFiller(s) {
+    return String(s)
+      .replace(/\b(um+|uh+|erm+|hmm+|mhm|uh-huh)\b[,.]?/gi, '')
+      .replace(/\b(you know|i mean|sort of|kind of|basically|literally)\b,?/gi, '')
+      .replace(/(^|[,.]\s*)(so|okay|ok|yeah|yes|right|well|and)[,\s]+(?=\w)/gi, '$1')
+      .replace(/\blike,\s*/gi, '')
+      .replace(/\b(\w+)(\s+\1\b)+/gi, '$1')
+      .replace(/\s+([,.!?])/g, '$1').replace(/,{2,}/g, ',').replace(/\s{2,}/g, ' ')
+      .replace(/^[,.\s]+/, '').trim()
+      .replace(/^\w/, (c) => c.toUpperCase())
+      .replace(/([.!?]\s+)([a-z])/g, (m0, a, b) => a + b.toUpperCase());
+  }
+
+  const stripBullet = (l) => String(l).replace(/^\s*(?:[-*•●◦▪▫‣⁃–—>]+|\d{1,2}[.)]|[a-z][.)](?=\s)|\[[ xX]?\]|☐|☑|✅|✔)\s*/, '').trim();
+  const isBullet = (l) => /^\s*(?:[-*•●◦▪▫‣⁃–—]|\d{1,2}[.)]|\[[ xX]?\]|☐|☑|✅|✔)\s*/.test(l);
+  const stripMd = (l) => String(l).replace(/^#{1,6}\s*/, '').replace(/\*\*|__|`/g, '').trim();
 
   function detectHeading(line) {
-    const l = line.replace(/^#+\s*|\*\*|__/g, '').replace(/[:\s]+$/, '').trim().toLowerCase();
-    if (!l || l.split(/\s+/).length > 5) return null;
-    const hit = HEADINGS.find(([, re]) => re.test(l));
+    const l = stripMd(line).replace(/[:\s]+$/, '').trim().toLowerCase();
+    if (!l || l.split(/\s+/).length > 6) return null;
+    const hit = SECTION_HEADINGS.find(([, re]) => re.test(l));
     return hit ? hit[0] : null;
   }
 
-  const bulletText = (l) => l.replace(/^\s*([-*•●◦▪]|\d+[.)]|\[[ x]\])\s*/i, '').trim();
+  function splitSentences(text) {
+    return String(text).replace(/\s+/g, ' ').trim()
+      .split(/(?<=[.!?])\s+(?=["(\[]?[A-Z0-9])/)
+      .map((s) => s.trim()).filter((s) => s.length > 1);
+  }
 
-  function heuristicParse(rawNotes, ctx) {
-    const notes = cleanTranscript(rawNotes);
-    const lines = notes.split('\n').map((l) => l.trim()).filter(Boolean);
-    const meetingDate = ctx.meetingDate || U.todayISO();
-    const sections = { summary: [], actions: [], decisions: [], risks: [], pain: [], requirements: [], environment: [], attendees: [], body: [] };
-    let current = 'body';
-    for (const line of lines) {
-      const h = detectHeading(line);
-      if (h) { current = h; continue; }
-      // Inline "Heading: content"
-      const inline = line.match(/^([A-Za-z ]{3,30}):\s+(.+)$/);
-      if (inline && detectHeading(inline[1])) { sections[detectHeading(inline[1])].push(inline[2]); continue; }
-      sections[current].push(line);
-    }
+  const words = (s) => String(s).trim().split(/\s+/).filter(Boolean);
+  const STOP = new Set(('the a an and or to of for in on at by with from we i you they them these those it is are be will this that our your their as so up out over about into ' +
+    'send share draft provide get set make put together follow review also well').split(' '));
+  const tokens = (s) => new Set(U.normalize(s).split(' ').filter((w) => w.length > 2 && !STOP.has(w)));
+  function similarity(a, b) {
+    const A = tokens(a), B = tokens(b);
+    if (!A.size || !B.size) return 0;
+    let inter = 0; for (const w of A) if (B.has(w)) inter++;
+    return inter / Math.min(A.size, B.size);
+  }
+  const uniqueBy = (items, key, threshold = 0.75) => {
+    const out = [];
+    for (const it of items) if (!out.some((o) => similarity(key(o), key(it)) >= threshold)) out.push(it);
+    return out;
+  };
+  const trimTo = (s, n) => (s.length <= n ? s : s.slice(0, n).replace(/\s+\S*$/, '') + '…');
 
-    // Attendees: explicit list, or speaker labels "Name: text"
-    const speakers = new Map();
-    for (const l of lines) {
-      const m = l.match(/^([A-Z][\w'.-]+(?: [A-Z][\w'.-]+){0,3})\s*:\s+\S/);
-      if (m && !detectHeading(m[1]) && !/^(Note|Action|Todo|Next|Summary|Decision|Risk|Re|Subject|Date|Time|Topic)/i.test(m[1])) {
-        speakers.set(m[1], (speakers.get(m[1]) || 0) + 1);
+  // =========================================================================
+  // Segmentation
+  // =========================================================================
+  function isTopicTitle(line, next) {
+    const s = stripMd(line);
+    const w = words(s);
+    if (w.length < 2 || w.length > 10 || s.length > 80 || /[.!?,;]$/.test(s) || !/^[A-Z0-9]/.test(s)) return false;
+    if (/^#{1,6}\s/.test(line) || /^\*\*.+\*\*:?$/.test(line.trim())) return true;
+    if (!next || stripMd(next).length < Math.max(40, s.length + 10)) return false;
+    const caps = w.filter((x) => x.length > 3).filter((x) => /^[A-Z0-9]/.test(x)).length;
+    const long = w.filter((x) => x.length > 3).length || 1;
+    return caps / long >= 0.6;
+  }
+
+  function isAssigneeHeader(line, next) {
+    const s = stripMd(line).replace(/:$/, '').trim();
+    if (!next || s.length > 50) return false;
+    return new RegExp(`^(?:${NAME_RE})(?:\\s*\\([^)]*\\))?(?:\\s+(?:team|side))?$`).test(s) && s.split(/\s+/).length <= 5 && !PRONOUNS.test(s);
+  }
+
+  const SPEAKER_LINE = new RegExp(`^(${NAME_RE}|[A-Z]{2,}[\\w ]{0,30})\\s*:\\s+(.+)$`);
+
+  function segment(text) {
+    const lines = text.split('\n');
+    const doc = { title: '', titleDate: '', format: 'notes', sections: {}, topics: [], actionLines: [], utterances: [], attendees: [],
+      headLines: lines.filter((l) => l.trim()).slice(0, 4) };
+    const nonEmpty = lines.filter((l) => l.trim());
+    const speakerCount = nonEmpty.filter((l) => {
+      const m = l.match(SPEAKER_LINE); return m && !detectHeading(m[1]) && m[1].split(/\s+/).length <= 4;
+    }).length;
+    const isTranscript = nonEmpty.length >= 4 && speakerCount / nonEmpty.length >= 0.5;
+    const nextLine = (i) => { for (let j = i + 1; j < lines.length; j++) if (lines[j].trim()) return lines[j].trim(); return ''; };
+    const push = (sec, v) => (doc.sections[sec] = doc.sections[sec] || []).push(v);
+
+    let section = 'body', topic = null, assignee = '';
+    for (let i = 0; i < lines.length; i++) {
+      const raw = lines[i];
+      const line = raw.trim();
+      if (!line) continue;
+      const next = nextLine(i);
+
+      const titleM = stripMd(line).match(/^meeting (?:summary|notes|recap) (?:for|with|[-–:])\s*(.+)$/i);
+      if (titleM && !doc.title) {
+        let t = titleM[1];
+        const dm = t.match(/\(?\b(\d{1,2}\/\d{1,2}\/\d{2,4}|(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.? \d{1,2},? \d{4})\b\)?/i);
+        if (dm) { doc.titleDate = dm[1]; t = t.replace(dm[0], ''); }
+        doc.title = t.replace(/[\s\-–:|]+$/, '').trim();
+        continue;
       }
-    }
-    let attendees = sections.attendees.flatMap((l) => bulletText(l).split(/[,;]/)).map((n) => n.trim()).filter(Boolean)
-      .map((n) => { const [name, org] = n.split(/\s*[(\-–]\s*/); return { name: name.trim(), organization: (org || '').replace(')', '').trim(), role: '' }; });
-    if (!attendees.length) attendees = [...speakers.keys()].map((name) => ({ name, organization: '', role: '' }));
-
-    // Action items
-    const ACTION_RE = /\b(action item|todo|to-do|follow[- ]up|will (send|schedule|share|provide|set ?up|review|follow|get|reach|connect|prepare|put together|draft|confirm|check|look|build|run|book|update|loop)|need(s)? to|going to (send|schedule|share|provide)|i'll|we'll|let me|next step)\b/i;
-    const candidates = [...sections.actions.map(bulletText)];
-    for (const l of [...sections.body, ...sections.summary]) if (ACTION_RE.test(l) && l.length < 400) candidates.push(bulletText(l));
-    const userFirst = U.normalize(ctx.userName || '').split(' ')[0];
-    const seen = new Set();
-    const actionItems = [];
-    for (let c of candidates) {
-      c = c.replace(/^(action items?|next steps?|todo|ai)\s*[:\-]\s*/i, '').trim();
-      if (c.length < 6) continue;
-      const key = U.normalize(c).slice(0, 60);
-      if (seen.has(key)) continue;
-      seen.add(key);
-      let owner = 'me', ownerName = '';
-      const speaker = c.match(/^([A-Z][\w'.-]+(?: [A-Z][\w'.-]+)?)\s*:\s*(.+)$/);
-      if (speaker) { ownerName = speaker[1]; c = speaker[2]; }
-      const who = c.match(/^([A-Z][\w'.-]+(?: [A-Z][\w'.-]+)?)\s+(will|to|should|needs to|is going to)\b/);
-      if (who && !/^(We|I|They|Team|Customer|Partner|Nutanix)$/.test(who[1])) { ownerName = who[1]; c = c.slice(who[0].length).trim(); }
-      const lower = c.toLowerCase();
-      if (/^(i|i'll|we|we'll|let me)\b/i.test(c) || (userFirst && U.normalize(ownerName).startsWith(userFirst))) owner = 'me';
-      else if (/\b(customer|client|they will|their team)\b/.test(lower)) owner = 'customer';
-      else if (/\bpartner\b/.test(lower)) owner = 'partner';
-      else if (/\b(ae|account exec|account executive|sales rep)\b/.test(lower)) owner = 'account_exec';
-      else if (ownerName) owner = 'customer';
-      const priority = /\b(asap|urgent|critical|blocker|must|immediately|today|tomorrow)\b/i.test(c) ? 'high'
-        : /\b(nice to have|eventually|when possible|at some point)\b/i.test(c) ? 'low' : 'medium';
-      const title = c.replace(/^(i'll|i will|we'll|we will|let me)\s+/i, '').replace(/^\w/, (x) => x.toUpperCase()).replace(/[.;]\s*$/, '');
-      const due = parseDueDate(c, meetingDate) || U.addBusinessDays(meetingDate, priority === 'high' ? 1 : priority === 'low' ? 10 : 3);
-      actionItems.push({ title: title.slice(0, 240), details: '', owner, ownerName, dueDate: due, priority });
-    }
-    if (!actionItems.some((a) => /recap|summary|follow[- ]?up email/i.test(a.title))) {
-      actionItems.unshift({ title: 'Send meeting recap and next steps to attendees', details: '', owner: 'me', ownerName: ctx.userName || '', dueDate: U.addBusinessDays(meetingDate, 1), priority: 'high' });
-    }
-
-    const body = [...sections.body, ...sections.summary];
-    const grab = (re) => [...new Set(body.filter((l) => re.test(l)).map(bulletText))].slice(0, 8);
-    const painPoints = [...sections.pain.map(bulletText), ...grab(/\b(pain|challeng|struggl|frustrat|problem|issue|too (slow|expensive)|cost|renewal|end of (life|support)|eol|licens|broadcom|price increase)\b/i)];
-    const risks = [...sections.risks.map(bulletText), ...grab(/\b(risk|concern|blocker|worried|budget|not sure|unclear|delay|push(ed)? out|competit)\b/i)];
-    const requirements = [...sections.requirements.map(bulletText), ...grab(/\b(require|must have|need(s)? (to support|to have)|success criteria|rpo|rto|tb|cores|vms?\b|nodes?)\b/i)];
-    const environment = [...sections.environment.map(bulletText), ...grab(/\b(currently|today they|running on|vsphere|esxi|vcenter|hyper-v|dell|hpe|cisco|lenovo|san|netapp|pure)\b/i)];
-    const decisions = [...sections.decisions.map(bulletText), ...grab(/\b(agreed|decided|decision|approved|signed off)\b/i)];
-    const competitors = COMPETITORS.filter((c) => new RegExp('\\b' + c.replace(/\s+/g, '\\s+') + '\\b', 'i').test(notes));
-
-    const summarySrc = sections.summary.length ? sections.summary.join(' ') : body.slice(0, 6).join(' ');
-    const summary = summarySrc.split(/(?<=[.!?])\s+/).slice(0, 5).join(' ').slice(0, 1200);
-
-    // Account / deal matching by name frequency
-    const normNotes = ' ' + U.normalize(notes) + ' ';
-    let matchedAccountId = ctx.accountId || '';
-    if (!matchedAccountId) {
-      let best = 0;
-      for (const a of ctx.accounts) {
-        const n = U.normalize(a.name);
-        if (!n) continue;
-        const count = normNotes.split(' ' + n + ' ').length - 1;
-        if (count > best) { best = count; matchedAccountId = a.id; }
+      const hd = detectHeading(line);
+      if (hd) { section = hd; topic = null; assignee = ''; continue; }
+      const inline = stripMd(line).match(/^([A-Za-z][A-Za-z /&-]{2,30}):\s+(.+)$/);
+      if (inline && detectHeading(inline[1])) {
+        const sec = detectHeading(inline[1]);
+        if (sec === 'actions') doc.actionLines.push({ text: inline[2], assignee: '' });
+        else push(sec, inline[2]);
+        continue;
       }
-    }
-    let matchedDealId = ctx.dealId || '';
-    if (!matchedDealId && matchedAccountId) {
-      const acctDeals = ctx.deals.filter((d) => d.accountId === matchedAccountId && STAGES.find((s) => s.id === d.stage).open);
-      // Score each open deal by how many of its distinctive name words appear in the notes.
-      const scored = acctDeals.map((d) => {
-        const words = [...new Set(U.normalize(d.name).split(' ').filter((w) => w.length > 2))];
-        return { d, score: words.filter((w) => normNotes.includes(' ' + w + ' ')).length };
-      }).sort((a, b) => b.score - a.score);
-      const best = scored[0] && scored[0].score >= 2 && (!scored[1] || scored[1].score < scored[0].score) ? scored[0].d : null;
-      matchedDealId = (best || (acctDeals.length === 1 ? acctDeals[0] : null) || {}).id || '';
-    }
 
-    // Stage suggestion from strong keyword signals only
-    const deal = ctx.deals.find((d) => d.id === matchedDealId);
-    const currentOrder = deal ? STAGES.find((s) => s.id === deal.stage).order : 0;
-    const SIGNALS = [
-      ['closed_won', /\b(po (received|issued)|purchase order (received|issued|signed)|signed the (order|contract|quote)|closed won)\b/i],
-      ['closed_lost', /\b(went with|chose|selected) (vmware|broadcom|dell|hpe|microsoft|azure|another vendor|a competitor)|\bclosed lost\b|no longer (moving forward|pursuing)/i],
-      ['tech_win', /\b(technical win|tech win|approved the (design|config|configuration|architecture)|signed off on the (design|config|bom)|poc (was )?successful|met (all )?(the )?success criteria)\b/i],
-      ['tech_diff', /\b(poc|proof of concept|pilot|success criteria|sizing|bom|bill of materials|configuration|test drive)\b/i],
-      ['develop', /\b(stakeholders?|decision makers?|timeline|budget (approved|cycle)|requirements (gathering|workshop)|procurement)\b/i],
-      ['discovery', /\b(pain points?|metrics|business case|why change|current costs?|tco|roi)\b/i],
-    ];
-    let suggestedStage = 'no_change', stageRationale = 'No clear exit-criteria signals found in the notes.';
-    for (const [stage, re] of SIGNALS) {
-      const m = notes.match(re);
-      const order = STAGES.find((s) => s.id === stage).order;
-      if (m && deal && (order > currentOrder || stage === 'closed_lost')) {
-        if (stage === deal.stage) break;
-        suggestedStage = stage;
-        stageRationale = `Notes mention "${m[0]}", which matches the ${STAGES.find((s) => s.id === stage).name} stage criteria. Please verify before moving.`;
-        break;
+      if (section === 'actions') {
+        if (!isBullet(raw) && isAssigneeHeader(line, next) && (isBullet(next) || !isAssigneeHeader(next, 'x'))) {
+          assignee = stripMd(line).replace(/:$/, '').trim(); continue;
+        }
+        doc.actionLines.push({ text: stripMd(line), assignee });
+        continue;
       }
+      if (section === 'attendees') { doc.attendees.push(...stripBullet(line).split(/[,;]/).map((x) => x.trim()).filter(Boolean)); continue; }
+
+      if (isTranscript) {
+        const m = line.match(SPEAKER_LINE);
+        if (m && !detectHeading(m[1])) {
+          const last = doc.utterances[doc.utterances.length - 1];
+          if (last && last.speaker === m[1]) last.text += ' ' + m[2];
+          else doc.utterances.push({ speaker: m[1], text: m[2] });
+          continue;
+        }
+        if (doc.utterances.length && section === 'body') { doc.utterances[doc.utterances.length - 1].text += ' ' + line; continue; }
+      }
+
+      if ((section === 'summary' || section === 'body') && !isBullet(raw) && isTopicTitle(line, next)) {
+        topic = { title: stripMd(line).replace(/:$/, ''), lines: [] };
+        doc.topics.push(topic);
+        continue;
+      }
+      if (topic && (section === 'summary' || section === 'body')) topic.lines.push(stripBullet(stripMd(line)));
+      push(section, stripBullet(stripMd(line)));
+    }
+    const hasZoomShape = doc.sections.recap || (doc.actionLines.length && (doc.topics.length || doc.sections.summary));
+    doc.format = isTranscript ? 'transcript' : hasZoomShape ? 'summary' : 'notes';
+    return doc;
+  }
+
+  // =========================================================================
+  // People & owners
+  // =========================================================================
+  function buildPeople(doc, ctx) {
+    const people = new Map(); // normalized name -> { name, organization, side }
+    const acct = ctx.account;
+    const partnerNames = [...PARTNERS, U.normalize(acct && acct.partner)].filter(Boolean);
+    const sideOfOrg = (org) => {
+      const o = U.normalize(org);
+      if (!o) return '';
+      if (/nutanix/.test(o)) return 'nutanix';
+      if (partnerNames.some((p) => o === p || o.includes(p))) return 'partner';
+      return 'customer';
+    };
+    const ROLE_RE = /\b(it|dir|director|vp|cio|cto|ciso|cfo|ceo|manager|mgr|admin|engineer|architect|ops|operations|lead|head|analyst|president|owner|sysadmin|infra\w*|security|network|storage|dba|procurement|finance)\b/i;
+    const add = (rawName, org, role) => {
+      let name = String(rawName || '').trim();
+      const pm = name.match(/^(.*?)\s*[(\[]([^)\]]+)[)\]]\s*$/) || name.match(/^(.*?)\s+[-–|]\s+(.+)$/);
+      if (pm) { name = pm[1].trim(); if (ROLE_RE.test(pm[2])) role = role || pm[2].trim(); else org = org || pm[2].trim(); }
+      if (!name || !isNameLike(name) || /\bteam$/i.test(name) || PRONOUNS.test(name.split(/\s+/)[0])) return;
+      const key = U.normalize(name);
+      const prev = people.get(key);
+      people.set(key, {
+        name: prev && prev.name.length > name.length ? prev.name : name,
+        organization: org || (prev && prev.organization) || '', role: role || (prev && prev.role) || '',
+        side: sideOfOrg(org) || (prev && prev.side) || '',
+      });
+    };
+    doc.attendees.forEach((a) => add(a));
+    // "Call with Maria (IT dir) + Tom (plant ops)" style headers
+    const head = doc.headLines.join(' ');
+    for (const m of head.matchAll(/\b([A-Z][a-z]+(?: [A-Z][a-z]+)?)\s*\(([^)\d]{2,40})\)/g)) add(`${m[1]} (${m[2]})`);
+    doc.utterances.forEach((u) => add(u.speaker));
+    doc.actionLines.forEach((a) => a.assignee && add(a.assignee));
+    return { people, partnerNames, addPerson: add };
+  }
+
+  function classifyOwner(name, ctx) {
+    const n = U.normalize(name).replace(/\b(side|team|folks|group)\b/g, '').trim();
+    if (!n || /^(i|we|us|me|my|our|myself|nutanix se|se)$/.test(n)) return 'me';
+    const me = U.normalize(ctx.userName);
+    if (me && (n === me || n.split(' ')[0] === me.split(' ')[0])) return 'me';
+    const p = ctx.people.get(n) || [...ctx.people.values()].find((x) => U.normalize(x.name).split(' ')[0] === n.split(' ')[0] && n.split(' ').length === 1);
+    if (/\b(ae|account exec|account executive|sales ?rep|rep|account manager)\b/.test(n)) return 'account_exec';
+    if (p && p.side === 'nutanix') return 'nutanix_other';
+    if (p && p.side === 'partner') return 'partner';
+    if (/\bnutanix\b/.test(n)) return 'nutanix_other';
+    if (/\b(partner|reseller|var|integrator)\b/.test(n) || ctx.partnerNames.some((x) => n === x || n.includes(x))) return 'partner';
+    return 'customer';
+  }
+
+  // =========================================================================
+  // Action items
+  // =========================================================================
+  function isCommitment(s) {
+    if (NOT_ACTION.test(s) || /\?$/.test(s) && !REQUEST_RE.test(s)) return false;
+    if (/\b(did|was|were|had|last (week|time|meeting)|previously|already)\b/i.test(s) && !/\b(will|going to|'ll|need to)\b/i.test(s)) return false;
+    return FIRST_PERSON_RE.test(s) || LET_ME_RE.test(s) || REQUEST_RE.test(s) || THIRD_RE.test(s) || /\b(action item|next step|to-?do)\b/i.test(s);
+  }
+
+  /** Shapes a commitment clause into an imperative task title. */
+  function toTaskTitle(s) {
+    let t = String(s)
+      .replace(DATE_PHRASE_RE, ' ')
+      .replace(/^(?:so|ok(?:ay)?|and|then|great|also|yeah|alright|perfect),?\s+/i, '')
+      .replace(/^(?:(?:we |i )?(?:need|needs|have|has) to|must|should|todo:?|to-?do:?|follow[- ]up:?(?= )|go ahead and|try to|also|then|just|quickly|definitely|probably|make sure (?:to|that we|we)|work to|be sure to)\s+/i, '')
+      .replace(/[\s.!?]+$/, '')
+      .replace(/^get you\s+/i, 'send ')
+      .replace(/\b(send|get|share|forward|email|provide|give|shoot)\s+(?:you|y'all|you guys|you all|over)\s+(?:over\s+)?/i, '$1 ')
+      .replace(/\b(back )?(?:over )?to you( all| guys)?\b/i, '$1to the customer')
+      .replace(/\s+(?:and|so|but|because|as well|too|if possible|when (?:you|we) can|for (?:you|them|us))\s*$/i, '')
+      .replace(/\s+(?:so that|so we can|because|which will|and then we'll|, and then)\b.*$/i, '')
+      .replace(/[\s,;:.!?"')]+$/, '').replace(/^[\s"'(]+/, '')
+      .replace(/\s+([,;:])/g, '$1').replace(/[,;:]+$/, '').replace(/\s{2,}/g, ' ').trim();
+    t = trimTo(t, 150);
+    return t.charAt(0).toUpperCase() + t.slice(1);
+  }
+
+  /** Parses one line/sentence into an action item, or null. */
+  function parseAction(input, opts, ctx) {
+    let s = stripBullet(String(input)).replace(MARKER_RE, '').replace(/^\[[ xX]?\]\s*/, '').trim();
+    if (s.length < 5) return null;
+    let speaker = opts.speaker || '';
+    let ownerName = opts.assignee || '';
+    let kind = ownerName ? 'assigned' : '';
+
+    // "Name: do X" (notes) — in an actions list the prefix names the owner.
+    let m = s.match(new RegExp(`^(${NAME_RE}(?:\\s+team)?)\\s*[:\\-–]\\s+(.+)$`));
+    if (m && !detectHeading(m[1]) && m[1].split(/\s+/).length <= 4 && !PRONOUNS.test(m[1])) {
+      if (opts.fromList) { ownerName = m[1]; kind = 'assigned'; } else speaker = speaker || m[1];
+      s = m[2];
+    }
+    // "[Name] do X" / "@Name do X" / "do X (Name)" / "do X - Name"
+    if ((m = s.match(/^[\[@]([^\]]{2,40}?)\]?\s+(.+)$/)) && isNameLike(m[1].replace(/^@/, ''))) { ownerName = m[1].replace(/^@/, ''); kind = 'assigned'; s = m[2]; }
+    else if ((m = s.match(new RegExp(`^(.+?)\\s*(?:\\((${NAME_RE})\\)|[-–—]\\s*(${NAME_RE}))\\.?$`))) && isNameLike(m[2] || m[3]) && !HAS_DATE_RE.test(m[2] || m[3])) {
+      ownerName = m[2] || m[3]; kind = 'assigned'; s = m[1];
     }
 
-    const acct = ctx.accounts.find((a) => a.id === matchedAccountId);
-    const firstLine = sections.summary[0] ? bulletText(sections.summary[0]).split(/[.!?]/)[0] : '';
-    const topic = firstLine && firstLine.length <= 70 && !(acct && U.normalize(firstLine).startsWith(U.normalize(acct.name))) ? firstLine : 'Meeting ' + U.formatDate(meetingDate, { month: 'short', day: 'numeric' });
-    const title = (acct ? acct.name + ' – ' : '') + topic;
-    const mine = actionItems.filter((a) => a.owner === 'me');
-    const followUpEmail = [
-      'Hi all,', '',
-      'Thank you for your time today. A quick recap:', '',
-      summary || '(summary)', '',
-      'Next steps:',
-      ...actionItems.map((a) => `• ${a.title}${a.ownerName ? ' (' + a.ownerName + ')' : ''} – by ${U.formatDate(a.dueDate, { month: 'short', day: 'numeric' })}`),
-      '', 'Please let me know if I missed anything.', '', 'Best regards,', ctx.userName || '',
-    ].join('\n');
+    // Narrow long sentences to the clause that holds the commitment.
+    if (!opts.fromList) {
+      const hits = [FIRST_PERSON_RE, LET_ME_RE, REQUEST_RE, THIRD_RE].map((re) => { const x = s.match(re); return x ? x.index : -1; }).filter((i) => i >= 0);
+      if (hits.length) s = s.slice(Math.min(...hits));
+    }
+    const dueSource = s;
+
+    if ((m = s.match(/^(i|we)(?:'ll| will| can| am going to|'m going to| are going to|'re going to| need to| should| have to| owe| plan to| want to| would like to| are to)\s+(.+)$/i))) {
+      kind = 'self'; s = m[2]; if (m[1].toLowerCase() === 'we' && !speaker) ownerName = ownerName || '';
+    } else if ((m = s.match(/^let me\s+(.+)$/i))) { kind = 'self'; s = m[1]; }
+    else if ((m = s.match(/^(?:can|could|would) you(?: please| guys| all| folks)?\s+(.+?)\??$/i)) || (m = s.match(/^please\s+(.+)$/i))) { kind = 'request'; s = m[1]; }
+    else if ((m = s.match(new RegExp(`^(${NAME_RE}(?:\\s+(?:and|&)\\s+${NAME_RE})*(?:\\s+team)?)(?:\\s*\\(([^)]+)\\))?\\s+(?:will|to|shall|should|needs? to|has to|have to|is going to|are going to|agreed to|committed to|volunteered to|offered to|plans? to|is to|are to|owes?)\\s+(.+)$`))) && !PRONOUNS.test(m[1].split(/\s+/)[0])) {
+      ownerName = m[1]; kind = 'assigned'; s = m[3];
+      if (m[2]) ctx.people.set(U.normalize(m[1]), { name: m[1], organization: m[2], side: /nutanix/i.test(m[2]) ? 'nutanix' : ctx.partnerNames.some((p) => U.normalize(m[2]).includes(p)) ? 'partner' : 'customer' });
+    } else if (!opts.fromList && !opts.imperative) return null;
+
+    // Owner
+    let owner;
+    if (kind === 'self') { owner = speaker ? classifyOwner(speaker, ctx) : 'me'; ownerName = speaker || ownerName; }
+    else if (kind === 'request') {
+      const speakerSide = speaker ? classifyOwner(speaker, ctx) : 'me';
+      owner = ['me', 'account_exec', 'nutanix_other'].includes(speakerSide) ? 'customer' : 'me';
+      ownerName = '';
+    } else owner = ownerName ? classifyOwner(ownerName, ctx) : 'me';
+    if (owner === 'customer' && !ctx.userName && ownerName && /\b(bom|sizing|size|quote|demo|design|architecture|collector|deck|proposal|poc plan|success criteria)\b/i.test(s)) owner = 'me';
+
+    const title = toTaskTitle(s);
+    if (words(title).length < 2 || title.length < 8) return null;
+
+    const lower = dueSource.toLowerCase();
+    let priority = 'medium';
+    if (/\b(asap|urgent|critical|blocker|blocking|immediately|right away|today|tonight|tomorrow|eod|cob|priority|time[- ]sensitive|before (the )?(poc|call|meeting|renewal))\b/.test(lower)) priority = 'high';
+    else if (/\b(nice to have|eventually|when (you|we) (can|get a chance)|no rush|at some point|optional|longer[- ]term|down the road)\b/.test(lower)) priority = 'low';
+    let dueDate = parseDueDate(dueSource, ctx.meetingDate);
+    if (!dueDate && /\bbefore (the )?(next|follow[- ]up) (meeting|call|session)\b/.test(lower) && ctx.nextMeeting) dueDate = U.addBusinessDays(U.addDays(ctx.nextMeeting, -3), 1);
+    const explicitDate = !!dueDate;
+    if (!dueDate) dueDate = U.addBusinessDays(ctx.meetingDate, priority === 'high' ? 1 : priority === 'low' ? 10 : owner === 'customer' ? 5 : 3);
+    if (explicitDate && U.daysBetween(ctx.meetingDate, dueDate) <= 2 && priority === 'medium') priority = 'high';
 
     return {
-      title,
-      meetingDate: ctx.meetingDate || '',
-      matchedAccountId, suggestedAccountName: acct ? acct.name : '',
-      matchedDealId, suggestedDealName: '',
-      attendees, summary,
-      discussionPoints: body.filter((l) => l.length > 25 && !ACTION_RE.test(l)).slice(0, 8).map(bulletText),
-      painPoints: [...new Set(painPoints)].slice(0, 8),
-      requirements: [...new Set(requirements)].slice(0, 8),
-      environment: [...new Set(environment)].slice(0, 8),
-      competitors, risks: [...new Set(risks)].slice(0, 8), decisions: [...new Set(decisions)].slice(0, 8),
-      actionItems,
-      suggestedStage, stageRationale,
-      dealNextStep: mine[0] ? mine[0].title : (actionItems[0] || {}).title || '',
-      followUpEmail,
+      title, details: opts.fromList || title.length > 90 ? '' : '', owner, ownerName: kind === 'request' ? '' : ownerName,
+      dueDate, priority, _explicitDate: explicitDate, _fromList: !!opts.fromList, _kind: kind, _speaker: speaker,
     };
   }
 
-  // ---------------------------------------------------------------------------
-  // Public entry point
-  // ---------------------------------------------------------------------------
-  /** Coerces any engine output to the contract (defends against partial / odd AI output). */
+  function extractActions(doc, sentences, ctx) {
+    const items = [];
+    for (const a of doc.actionLines) {
+      const am = a.assignee.match(/^(.*?)\s*\(([^)]+)\)$/);
+      if (am) { a.assignee = am[1]; ctx.addPerson(a.assignee, am[2]); }
+      for (const part of String(a.text).split(/;\s+(?=[A-Z])/)) {
+        const it = parseAction(part, { assignee: a.assignee, fromList: true }, ctx);
+        if (it) items.push(it);
+      }
+    }
+    // Commitments made in the discussion itself (all formats).
+    const listItems = items.slice();
+    const speakers = [...new Set(doc.utterances.map((u) => u.speaker))];
+    let fromBody = 0;
+    let lastRequest = null; // { item, speaker, at }
+    sentences.forEach((sent, at) => {
+      if (fromBody >= 20) return;
+      const imperative = doc.format === 'notes' && IMPERATIVE_RE.test(sent.text) && words(sent.text).length <= 25;
+      if (!imperative && !isCommitment(sent.text)) return;
+      // "I'll do X, and I'll send Y" -> two tasks
+      const sentenceDue = parseDueDate(sent.text, ctx.meetingDate);
+      const clauses = sent.text.split(/,?\s+(?:and\s+)?(?=(?:i|we)(?:'ll| will)\s)/i).filter(Boolean);
+      for (const clause of clauses) {
+        const it = parseAction(clause, { speaker: sent.speaker, imperative }, ctx);
+        if (!it) continue;
+        if (!it._explicitDate && sentenceDue && clauses.length > 1) { it.dueDate = sentenceDue; it._explicitDate = true; }
+        // In a two-person transcript the addressee of a request is the other speaker.
+        if (it._kind === 'request' && speakers.length === 2 && sent.speaker) {
+          it.ownerName = speakers.find((x) => x !== sent.speaker);
+          it.owner = classifyOwner(it.ownerName, ctx);
+          lastRequest = { item: it, speaker: sent.speaker, at };
+        }
+        // "Sure, I can get that to you tomorrow" -> assign the earlier request instead of creating a vague task.
+        if (it._kind === 'self' && lastRequest && sent.speaker && sent.speaker !== lastRequest.speaker && at - lastRequest.at <= 4 &&
+            /\b(that|it|this|those|them|these)\b/i.test(it.title) && words(it.title).length <= 8) {
+          const req = lastRequest.item;
+          req.owner = classifyOwner(sent.speaker, ctx); req.ownerName = sent.speaker;
+          if (it._explicitDate) { req.dueDate = it.dueDate; req._explicitDate = true; req.priority = it.priority; }
+          lastRequest = null;
+          continue;
+        }
+        // Zoom summaries: prose that restates a listed next step is not a new task.
+        if (listItems.some((x) => similarity(x.title, it.title) >= 0.34)) continue;
+        items.push(it); fromBody++;
+      }
+    });
+    // Merge duplicates: prefer items from an explicit list, with a date, with an owner name.
+    const rank = (x) => (x._fromList ? 4 : 0) + (x._explicitDate ? 2 : 0) + (x.ownerName ? 1 : 0);
+    const sorted = [...items].sort((a, b) => rank(b) - rank(a));
+    const merged = uniqueBy(sorted, (x) => x.title, 0.6);
+
+    // Standard SE follow-ups.
+    const has = (re) => merged.some((x) => re.test(x.title));
+    const what = ctx.followUpWhat ? ctx.followUpWhat : 'follow-up meeting';
+    if (ctx.nextMeeting && !has(/\b(schedule|invite|book|set ?up)\b.*\b(meeting|call|session|follow[- ]?up|workshop)\b/i)) {
+      merged.push({ title: `Send calendar invite for ${what} (${U.formatDate(ctx.nextMeeting, { weekday: 'short', month: 'short', day: 'numeric' })})`, details: '', owner: 'me', ownerName: ctx.userName || '', dueDate: U.addBusinessDays(ctx.meetingDate, 1), priority: 'medium' });
+    } else if (ctx.followUpMentioned && !has(/\b(schedule|invite|book|set ?up)\b.*\b(meeting|call|session|follow[- ]?up|workshop)\b/i)) {
+      merged.push({ title: 'Schedule ' + what, details: '', owner: 'me', ownerName: ctx.userName || '', dueDate: U.addBusinessDays(ctx.meetingDate, 2), priority: 'medium' });
+    }
+    if (!has(/\b(recap|summary|notes|follow[- ]?up email|minutes)\b/i)) {
+      merged.unshift({ title: 'Send meeting recap and next steps to attendees', details: '', owner: 'me', ownerName: ctx.userName || '', dueDate: U.addBusinessDays(ctx.meetingDate, 1), priority: 'high' });
+    }
+    const ownerOrder = { me: 0, account_exec: 1, nutanix_other: 2, partner: 3, customer: 4 };
+    return merged
+      .map(({ _explicitDate, _fromList, _kind, _speaker, ...x }) => x)
+      .sort((a, b) => (ownerOrder[a.owner] - ownerOrder[b.owner]) || a.dueDate.localeCompare(b.dueDate))
+      .slice(0, 25);
+  }
+
+  // =========================================================================
+  // Classification of discussion content
+  // =========================================================================
+  const CATEGORY_RULES = [
+    ['decisions', /^(?!.*\b(not|n't|never|pending|until|unless|if)\b).*\b(agreed|decided|decision (was|is)|approved|signed off|sign-off (was )?(given|received)|(will|to) move forward|moving forward with|chose|selected|go(ing)? with|green ?light|confirmed that|committed to)\b/i],
+    ['risks', /\b(risk|concern(ed|s)?|blocker|worried|hesitan\w*|pushback|objection|skeptic\w*|not (yet )?approved|hasn't been approved|unclear|unknown|delay(ed)?|push(ed)? (out|back)|evaluating (other|alternatives)|also (looking at|considering|talking to)|looking at [\w -]{2,30}\b(too|as well)|shopping|competing|open question|tbd|pending|at risk|freeze|budget (is )?(tight|cut|not)|no budget|politic\w*)\b/i],
+    ['pain', /\b(pain|challeng\w*|struggl\w*|frustrat\w*|problem|issue|headache|too (slow|expensive|complex|costly)|cost(s)? (increase|went up|are up|going up)|price increase|(\d+(\.\d+)?x|tripled|doubled|quadrupled)|renewal|end of (life|support)|\beol\b|licensing change|broadcom|manual(ly)?|downtime|outage|complexit\w*|can't scale|capacity (issues|constraints)|siloed|sprawl|lack of|limited|painful|legacy|no (secondary|dr|backup|redundan\w*)|flagged|audit (finding|issue)|gap|single point of failure|exposed|out of warranty|aging|old)\b/i],
+    ['requirements', /\b(require\w*|must(?! have been)|need(s)? to (support|have|be able|be off|be out|run|handle|meet|integrate|migrate|move)|before (the )?(contract|renewal|license) (ends|expires|is up)|deadline|success criteria|\brpo\b|\brto\b|\bsla\b|complian\w*|hipaa|pci|soc ?2|fedramp|should support|looking for|goal is|objective|has to (support|run|be)|integrat\w* with|high availability|\bha\b|wants? (central|centrali[sz]ed|single|one|a single|to (have|consolidate|simplify|standardi[sz]e|reduce|modernize|replace|get off|move))|performance (target|requirement)|latency)\b/i],
+    ['environment', /\b(currently|today (they|we|it)|running (on|about|roughly|approximately|\d)|existing|current (environment|setup|infrastructure|platform|state)|vsphere|esxi|vcenter|hyper-v|dell|hpe|cisco|lenovo|ucs|\bsan\b|netapp|pure|nimble|vxrail|\d+\s*(hosts|vms|nodes|clusters|sites|tb|pb|cores|users|desktops|servers|racks|data ?cent(er|re)s?))\b/i],
+  ];
+
+  const FILLER_SENTENCE = /\b(hear (you|me|us)|see (you|it|my screen|the screen)|how are you|good (morning|afternoon)|thanks (everyone|all|for (joining|your time|having))|can you hear|see my screen|you're on mute|weather|weekend|vacation|hello|hi (all|everyone|team)|nice to meet|sounds good|makes sense|no problem|talk soon|have a good|bye|awesome|perfect|cool)\b/i;
+
+  function scoreSentence(s, idx, total, ctx) {
+    const w = words(s).length;
+    let score = 0;
+    for (const t of TOPICS) if (t.re.test(s)) score += 1.2;
+    if (/\d/.test(s)) score += 0.8;
+    if (/\$|\b\d+%|\b\d+\s*(vms|tb|pb|nodes|hosts|sites|users|cores)\b/i.test(s)) score += 1;
+    for (const [, re] of CATEGORY_RULES) if (re.test(s)) score += 0.8;
+    if (ctx.account && new RegExp('\\b' + U.normalize(ctx.account.name).split(' ')[0] + '\\b', 'i').test(s)) score += 0.5;
+    if (w < 6) score -= 2.5; else if (w > 45) score -= 1; else if (w >= 10 && w <= 30) score += 0.5;
+    if (FILLER_SENTENCE.test(s)) score -= 3;
+    if (/\?$/.test(s)) score -= 0.8;
+    score += (1 - idx / Math.max(total, 1)) * 0.6;
+    return score;
+  }
+
+  function detectTopics(text) {
+    return TOPICS.map((t) => ({ ...t, hits: (String(text).match(new RegExp(t.re.source, 'gi')) || []).length }))
+      .filter((t) => t.hits > 0).sort((a, b) => b.hits - a.hits);
+  }
+
+  const joinList = (arr) => (arr.length <= 1 ? arr.join('') : arr.slice(0, -1).join(', ') + ' and ' + arr[arr.length - 1]);
+
+  // =========================================================================
+  // Matching & stage
+  // =========================================================================
+  const GENERIC_WORDS = new Set(['the', 'inc', 'corp', 'corporation', 'company', 'co', 'llc', 'ltd', 'group', 'health', 'healthcare', 'university', 'college',
+    'bank', 'systems', 'solutions', 'services', 'technologies', 'technology', 'county', 'city', 'state', 'of', 'and', 'manufacturing', 'logistics', 'hospital', 'global', 'international']);
+
+  function matchAccount(notesNorm, ctx, doc) {
+    if (ctx.accountId) return ctx.accountId;
+    let best = { id: '', score: 0 };
+    for (const a of ctx.accounts) {
+      const full = U.normalize(a.name);
+      if (!full) continue;
+      let score = (notesNorm.split(' ' + full + ' ').length - 1) * 3;
+      const distinct = full.split(' ').filter((w) => w.length >= 4 && !GENERIC_WORDS.has(w));
+      for (const w of distinct) score += Math.min(4, 2 * (notesNorm.split(' ' + w + ' ').length - 1));
+      if (doc.title && U.normalize(doc.title).includes(full)) score += 5;
+      if (score > best.score) best = { id: a.id, score };
+    }
+    return best.score >= 2 ? best.id : '';
+  }
+
+  function guessAccountName(doc, text, ctx) {
+    const reject = (s) => !s || /nutanix/i.test(s) || ctx.partnerNames.some((p) => U.normalize(s) === p) || (ctx.userName && U.normalize(s).includes(U.normalize(ctx.userName)));
+    if (doc.title) {
+      const parts = doc.title.split(/\s*(?:\/|\||<>|\bx\b|&|\+|\bwith\b|\band\b|[-–—:])\s*/i).map((s) => s.trim()).filter(Boolean);
+      const cand = parts.find((p) => !reject(p) && !/\b(meeting|sync|call|review|poc|demo|kickoff|kick-off|workshop|discussion|update|weekly)\b/i.test(p) && /^[A-Z]/.test(p));
+      if (cand) return cand;
+    }
+    const orgCounts = {};
+    for (const p of ctx.people.values()) if (p.organization && p.side === 'customer') orgCounts[p.organization] = (orgCounts[p.organization] || 0) + 1;
+    const org = Object.entries(orgCounts).sort((a, b) => b[1] - a[1])[0];
+    if (org) return org[0];
+    const m = text.match(/\b((?:[A-Z][A-Za-z&]+ ){0,3}[A-Z][A-Za-z&]+ (?:Inc|Corp|Corporation|LLC|Health|Healthcare|University|College|Bank|Group|Systems|Logistics|Manufacturing|Hospital|Medical Center|County|Schools|School District|Insurance|Energy|Foods|Airlines))\b/);
+    return m && !reject(m[1]) ? m[1] : '';
+  }
+
+  function matchDeal(notesNorm, accountId, ctx) {
+    if (ctx.dealId) return ctx.dealId;
+    if (!accountId) return '';
+    const open = ctx.deals.filter((d) => d.accountId === accountId && (STAGES.find((s) => s.id === d.stage) || {}).open);
+    const scored = open.map((d) => {
+      const ws = [...new Set(U.normalize(d.name).split(' ').filter((w) => w.length > 2 && !STOP.has(w)))];
+      return { d, score: ws.filter((w) => notesNorm.includes(' ' + w + ' ')).length };
+    }).sort((a, b) => b.score - a.score);
+    if (scored[0] && scored[0].score >= 2 && (!scored[1] || scored[1].score < scored[0].score)) return scored[0].d.id;
+    return open.length === 1 ? open[0].id : '';
+  }
+
+  const STAGE_SIGNALS = [
+    ['closed_won', /\b(po (was )?(received|issued|signed)|purchase order (was )?(received|issued|signed)|signed the (order|contract|quote|agreement)|closed[- ]won|booked the deal|deal (is )?(closed|booked)|we won)\b/i],
+    ['closed_lost', /\b((went|going) with|chose|selected|decided on) (vmware|broadcom|dell|hpe|microsoft|azure|proxmox|red hat|openshift|another vendor|a competitor|the competitor)\b|\b(closed[- ]lost|decided not to (proceed|move forward)|no longer (moving forward|pursuing|interested)|project (was )?(cancel+ed|shelved|killed)|lost (it |the deal )?to)\b/i],
+    ['tech_win', /\b(technical win|tech win|approved the (design|config|configuration|architecture|bom|solution)|signed off on the (design|config|configuration|bom|architecture|solution)|poc (was |is )?(successful|a success|passed|complete[d]?)|passed (the|all) (poc|success criteria)|met (all )?(of )?(the )?success criteria|validated the (solution|design)|confirmed (nutanix|the solution|it) (meets|can meet|will meet|solves))\b/i],
+    ['tech_diff', /\b(poc|proof of concept|pilot|success criteria|bom|bill of materials|test ?drive|design session|architecture (workshop|session|review)|configuration (review|session|workshop))\b/i],
+    ['develop', /\b(stakeholders?|decision makers?|economic buyer|champion|timeline|budget (cycle|approved|allocated|process)|procurement|requirements (gathering|workshop|document|session)|rfp|rfi|rfq|evaluation criteria|buying process)\b/i],
+    ['discovery', /\b(pain points?|metrics|business case|why change|current (costs?|spend)|tco|roi|compelling event|renewal date|discovery (call|session|meeting))\b/i],
+  ];
+  const HYPOTHETICAL = /\b(might|maybe|possibly|could potentially|eventually|down the road|at some point|not yet|if we|if they|would (like|consider)|considering|thinking about|future)\b/i;
+
+  function recommendStage(sentences, deal, isNewDeal) {
+    const current = deal ? deal.stage : 'identified';
+    const curOrder = (STAGES.find((s) => s.id === current) || STAGES[0]).order;
+    for (const [stage, re] of STAGE_SIGNALS) {
+      const hit = sentences.find((s) => re.test(s.text) && !(HYPOTHETICAL.test(s.text) && !/^closed/.test(stage)));
+      if (!hit) continue;
+      const st = STAGES.find((s) => s.id === stage);
+      if (stage === current) return { stage: 'no_change', rationale: `Notes are consistent with the current stage (${st.name}).` };
+      if (st.order > curOrder || stage === 'closed_lost' || (!deal && !isNewDeal)) {
+        const evidence = trimTo(hit.text.replace(/^\s*[\w .'-]{1,40}:\s+/, ''), 160);
+        return { stage, rationale: `"${evidence}" — matches ${st.name}: ${st.definition} Verify before moving.` };
+      }
+      return { stage: 'no_change', rationale: `Latest signals point to ${st.name}, which is behind the current stage — no move suggested.` };
+    }
+    return { stage: 'no_change', rationale: 'No clear stage exit-criteria signals found in the notes.' };
+  }
+
+  // =========================================================================
+  // Main
+  // =========================================================================
+  /**
+   * @param {string} rawNotes
+   * @param {{accounts, deals, userName, meetingDate, accountId, dealId}} ctxIn
+   */
+  function analyzeNotes(rawNotes, ctxIn) {
+    const text = cleanTranscript(rawNotes);
+    const doc = segment(text);
+    let meetingDate = ctxIn.meetingDate || U.todayISO();
+    if (!ctxIn.meetingDateLocked && doc.titleDate) {
+      const d = new Date(doc.titleDate);
+      if (!isNaN(d)) meetingDate = U.toLocalISODate(d);
+    }
+    const ctx = { ...ctxIn, meetingDate, people: new Map(), partnerNames: [] };
+    const notesNorm = ' ' + U.normalize(text) + ' ';
+
+    // Account first (owner classification uses its partner).
+    const accountId = matchAccount(notesNorm, ctx, doc);
+    ctx.account = ctx.accounts.find((a) => a.id === accountId) || null;
+    Object.assign(ctx, buildPeople(doc, ctx));
+
+    // Sentences (with speaker) outside the explicit action list.
+    const sentences = [];
+    if (doc.format === 'transcript') {
+      for (const u of doc.utterances) for (const s of splitSentences(deFiller(u.text))) sentences.push({ text: s, speaker: u.speaker });
+    }
+    for (const [sec, lines] of Object.entries(doc.sections)) {
+      if (sec === 'attendees') continue;
+      for (const l of lines) for (const s of splitSentences(l)) sentences.push({ text: s, speaker: '', section: sec });
+    }
+    for (const t of doc.topics) if (!doc.sections.summary && !doc.sections.body) for (const l of t.lines) for (const s of splitSentences(l)) sentences.push({ text: s, speaker: '', section: 'summary' });
+
+    // Next meeting
+    const nm = sentences.find((s) => /\b(next (meeting|call|sync|session|touchpoint|check-?in)|follow[- ]up (meeting|call|session)|reconvene|meet again|regroup|workshop)\b/i.test(s.text));
+    ctx.followUpMentioned = !!nm;
+    ctx.nextMeeting = nm ? parseDueDate(nm.text, meetingDate) : '';
+    if (nm) {
+      const w = nm.text.match(/\b(workshop|demo|design session|deep[- ]dive|whiteboard(?:ing)? session|architecture (?:review|session)|follow[- ]up (?:call|meeting|session))\b(?:\s+(?:on|about|for|covering)\s+((?:the\s+)?[\w/&-]+(?:\s+[\w/&-]+){0,4}))?/i);
+      if (w) ctx.followUpWhat = (w[1] + (w[2] ? ' on ' + w[2].replace(DATE_PHRASE_RE, '').trim() : '')).toLowerCase().replace(/\bpoc\b/, 'POC');
+    }
+
+    const actionItems = extractActions(doc, sentences, ctx);
+    // People named as owners are meeting participants too.
+    const sideOf = { me: 'nutanix', account_exec: 'nutanix', nutanix_other: 'nutanix', partner: 'partner', customer: 'customer' };
+    for (const a of actionItems) {
+      const n = U.normalize(a.ownerName);
+      if (!n || !isNameLike(a.ownerName) || /\bteam\b/.test(n)) continue;
+      const existing = ctx.people.get(n) || [...ctx.people.values()].find((p) => U.normalize(p.name).startsWith(n + ' ') || n.startsWith(U.normalize(p.name) + ' '));
+      if (!existing) ctx.people.set(n, { name: a.ownerName, organization: '', role: '', side: sideOf[a.owner] || '' });
+    }
+    if (ctx.userName) for (const [k, p] of ctx.people) if (classifyOwner(p.name, ctx) === 'me' && U.normalize(p.name) !== U.normalize(ctx.userName) && U.normalize(ctx.userName).startsWith(k)) ctx.people.delete(k);
+
+    // Categorize content sentences.
+    const actionTexts = actionItems.map((a) => a.title);
+    const content = sentences.filter((s) => !isCommitment(s.text) && !(doc.format === 'notes' && IMPERATIVE_RE.test(s.text)) &&
+      words(s.text).length >= 4 && !FILLER_SENTENCE.test(s.text) && !/\b(call|meeting|sync|mtg|chat) (w\/|with)\b/i.test(s.text) && !(/\?$/.test(s.text) && doc.format === 'transcript'));
+    const cat = { pain: [], requirements: [], environment: [], risks: [], decisions: [] };
+    const tidy = (t) => { const x = t.replace(/^[-•*]\s*/, '').replace(/^(risks?|pain( points?)?|reqs?|requirements?|decisions?|env(ironment)?|notes?|fyi|competition)\s*:\s*/i, '').trim(); return x.charAt(0).toUpperCase() + x.slice(1); };
+    const clean = (s) => trimTo(tidy(s.text), 240) + (s.speaker && doc.format === 'transcript' ? ` (${s.speaker})` : '');
+    for (const sec of Object.keys(cat)) for (const l of doc.sections[sec] || []) cat[sec].push(tidy(l));
+    for (const l of doc.sections.competition || []) cat.risks.push('Competition: ' + l);
+    for (const s of content) {
+      if (s.section && s.section in cat) continue;
+      const hits = CATEGORY_RULES.filter(([, re]) => re.test(s.text)).map(([k]) => k);
+      // A sentence lands in at most two buckets; "environment" only when nothing more specific applies.
+      const chosen = hits.filter((k) => k !== 'environment').slice(0, 2);
+      if (!chosen.length && hits.includes('environment')) chosen.push('environment');
+      if (/^risk\s*:/i.test(s.text)) chosen.splice(0, chosen.length, 'risks');
+      for (const k of chosen) cat[k].push(clean(s));
+    }
+    for (const k of Object.keys(cat)) cat[k] = uniqueBy(cat[k].filter((x) => !actionTexts.some((t) => similarity(t, x) > 0.8)), (x) => x, 0.7).slice(0, 8);
+
+    const competitors = COMPETITORS.filter((c) => new RegExp('\\b' + c.replace(/\s+/g, '\\s+') + '\\b', 'i').test(text));
+
+    // Summary + discussion points
+    const topics = detectTopics(text);
+    const topicLabels = topics.slice(0, 4).map((t) => t.label);
+    const customerPeople = [...ctx.people.values()].filter((p) => classifyOwner(p.name, ctx) !== 'me').map((p) => p.name);
+    let summary = '';
+    let discussionPoints = [];
+    if (doc.sections.recap && doc.sections.recap.length) {
+      summary = splitSentences(doc.sections.recap.join(' ')).slice(0, 7).join(' ');
+    }
+    if (doc.topics.length) {
+      discussionPoints = doc.topics.map((t) => {
+        const first = splitSentences(t.lines.join(' ')).slice(0, 2).join(' ');
+        return first ? `${t.title} — ${trimTo(first, 280)}` : t.title;
+      });
+    }
+    const ranked = content
+      .map((s, i) => ({ ...s, i, score: scoreSentence(s.text, i, content.length, ctx) }))
+      .filter((s) => s.section !== 'recap');
+    const top = uniqueBy([...ranked].sort((a, b) => b.score - a.score).filter((s) => s.score > 0.5), (s) => s.text, 0.6);
+    if (!summary) {
+      const acctName = ctx.account ? ctx.account.name : guessAccountName(doc, text, ctx);
+      const who = customerPeople.length ? ` with ${joinList(customerPeople.slice(0, 4))}` : '';
+      const intro = topicLabels.length
+        ? `${acctName ? acctName + ' meeting' : 'Meeting'}${who} covering ${joinList(topicLabels)}.`
+        : `${acctName ? acctName + ' meeting' : 'Meeting'}${who}.`;
+      const key = top.slice(0, doc.format === 'transcript' ? 4 : 3).sort((a, b) => a.i - b.i).map((s) => {
+        const t = tidy(s.text).replace(/[.!?]?$/, (e) => e || '.');
+        return s.speaker && doc.format === 'transcript' ? t.replace(/([.!?])$/, ` (${s.speaker})$1`) : t;
+      });
+      summary = [intro, ...key].join(' ');
+    }
+    if (!discussionPoints.length) {
+      discussionPoints = top.filter((s) => similarity(s.text, summary) < 0.9).slice(0, 8).sort((a, b) => a.i - b.i).map(clean);
+    }
+
+    // Attendees
+    const attendees = [...ctx.people.values()].map((p) => ({ name: p.name, organization: p.organization, role: p.role || '' }));
+
+    // Account / deal / stage
+    const suggestedAccountName = ctx.account ? ctx.account.name : guessAccountName(doc, text, ctx);
+    const dealId = matchDeal(notesNorm, accountId, ctx);
+    const deal = ctx.deals.find((d) => d.id === dealId) || null;
+    const openDeals = accountId ? ctx.deals.filter((d) => d.accountId === accountId && (STAGES.find((s) => s.id === d.stage) || {}).open) : [];
+    const topicDeal = topics.find((t) => t.deal);
+    const suggestedDealName = !deal && !openDeals.length ? (topicDeal ? topicDeal.deal : 'New opportunity') : '';
+    const reco = recommendStage(sentences, deal, !!suggestedDealName);
+
+    // Title
+    let title;
+    if (doc.title) title = doc.title;
+    else {
+      const t0 = doc.topics[0] ? doc.topics[0].title : topicLabels[0] ? topicLabels[0].replace(/^\w/, (c) => c.toUpperCase()) : 'Meeting';
+      title = suggestedAccountName ? `${suggestedAccountName} – ${t0}` : `${t0} discussion`;
+    }
+
+    const ADMIN = /\b(recap|calendar invite)\b|^schedule follow-up/i;
+    const mine = actionItems.filter((a) => a.owner === 'me' && !ADMIN.test(a.title));
+    const result = {
+      title: trimTo(title, 120),
+      meetingDate,
+      matchedAccountId: accountId,
+      suggestedAccountName,
+      matchedDealId: dealId,
+      suggestedDealName,
+      attendees,
+      summary,
+      discussionPoints,
+      painPoints: cat.pain,
+      requirements: cat.requirements,
+      environment: cat.environment,
+      competitors,
+      risks: cat.risks,
+      decisions: cat.decisions,
+      actionItems,
+      suggestedStage: reco.stage,
+      stageRationale: reco.rationale,
+      dealNextStep: (mine[0] || actionItems.find((a) => !ADMIN.test(a.title)) || actionItems[0] || {}).title || '',
+      followUpEmail: '',
+      format: doc.format,
+    };
+    result.followUpEmail = buildEmail(result, ctx, customerPeople);
+    return result;
+  }
+
+  function buildEmail(r, ctx, customerPeople) {
+    const firstNames = [...new Set(customerPeople.filter((n) => classifyOwner(n, ctx) === 'customer').map((n) => n.split(' ')[0]))];
+    const greeting = firstNames.length ? `Hi ${joinList(firstNames.slice(0, 4))},` : 'Hi all,';
+    const when = r.meetingDate === U.todayISO() ? 'today' : 'on ' + U.formatDate(r.meetingDate, { weekday: 'long', month: 'short', day: 'numeric' });
+    const takeaways = [...r.decisions, ...r.requirements].map((x) => x.replace(/\s\([^)]*\)$/, ''))
+      .filter((x) => similarity(x, r.summary) < 0.8).slice(0, 4);
+    const groups = [
+      ['Nutanix', ['me', 'account_exec', 'nutanix_other']],
+      [r.suggestedAccountName || 'Your team', ['customer']],
+      ['Partner', ['partner']],
+    ];
+    const lines = [greeting, '', `Thank you for your time ${when}. Here's a quick recap of what we covered:`, '', r.summary];
+    if (takeaways.length) lines.push('', 'Key takeaways:', ...takeaways.map((t) => '• ' + t));
+    const steps = r.actionItems.filter((a) => !/^send meeting recap/i.test(a.title));
+    if (steps.length) {
+      lines.push('', 'Next steps:');
+      for (const [label, owners] of groups) {
+        const items = steps.filter((a) => owners.includes(a.owner));
+        if (!items.length) continue;
+        lines.push(label + ':', ...items.map((a) => `• ${a.title}${a.ownerName && a.owner !== 'me' ? ' (' + a.ownerName + ')' : ''} – by ${U.formatDate(a.dueDate, { weekday: 'short', month: 'short', day: 'numeric' })}`));
+      }
+    }
+    lines.push('', 'Please let me know if I missed anything or if any of the dates need to change.', '', 'Best regards,', ctx.userName || '');
+    return lines.join('\n').trim();
+  }
+
+  /** Coerces a result to the contract (guards manual/imported/partial data). */
   function sanitize(r, ctx) {
     const s = (v) => (typeof v === 'string' ? v.trim() : '');
     const arr = (v) => (Array.isArray(v) ? v.map(s).filter(Boolean) : []);
@@ -1570,42 +1981,17 @@ How to work:
       stageRationale: s(r.stageRationale),
       dealNextStep: s(r.dealNextStep),
       followUpEmail: s(r.followUpEmail),
+      format: ['summary', 'transcript', 'notes', 'manual'].includes(r.format) ? r.format : 'manual',
     };
   }
 
-  /**
-   * @param {string} notes raw notes / transcript
-   * @param {{accounts, deals, userName, meetingDate, accountId, dealId}} ctx
-   * @param {{apiKey, model, effort, signal, forceOffline}} opts
-   * @returns {Promise<{result, engine: 'ai'|'heuristic', warning?: string}>}
-   */
-  async function processNotes(notes, ctx, opts = {}) {
+  /** Public entry point used by the UI. */
+  function processNotes(notes, ctx) {
     if (!String(notes || '').trim()) throw new Error('Paste or drop your meeting notes first');
-    if (opts.apiKey && !opts.forceOffline) {
-      try {
-        const raw = await callClaude({ apiKey: opts.apiKey, model: opts.model || 'claude-opus-5', effort: opts.effort, notes: cleanTranscript(notes), ctx, signal: opts.signal });
-        return { result: sanitize(raw, ctx), engine: 'ai' };
-      } catch (err) {
-        if (err.name === 'AbortError') throw err;
-        return { result: sanitize(heuristicParse(notes, ctx), ctx), engine: 'heuristic', warning: err.message + ' Used the offline parser instead.' };
-      }
-    }
-    return { result: sanitize(heuristicParse(notes, ctx), ctx), engine: 'heuristic' };
+    return sanitize(analyzeNotes(notes, ctx), ctx);
   }
 
-  /** Minimal request to verify a key/model combination from Settings. */
-  async function testConnection({ apiKey, model }) {
-    const res = await fetch(API_URL, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-api-key': apiKey, 'anthropic-version': '2023-06-01', 'anthropic-dangerous-direct-browser-access': 'true' },
-      body: JSON.stringify({ model, max_tokens: 16, messages: [{ role: 'user', content: 'Reply with OK.' }] }),
-    });
-    const data = await res.json().catch(() => ({}));
-    if (!res.ok) throw new Error((data.error && data.error.message) || res.statusText);
-    return data.model;
-  }
-
-  NX.ai = { MODELS, RESULT_SCHEMA, processNotes, heuristicParse, cleanTranscript, parseDueDate, sanitize, testConnection, systemPrompt };
+  NX.analyzer = { processNotes, analyzeNotes, sanitize, cleanTranscript, parseDueDate, deFiller, splitSentences, toTaskTitle };
 })(globalThis.NX = globalThis.NX || {});
 
 /* ---- src/ui/dom.js ---- */
@@ -2231,8 +2617,8 @@ How to work:
       accountId: defaults.accountId || '',
       dealId: defaults.dealId || '',
       date: U.todayISO(),
+      dateTouched: false,
       notes: '',
-      abort: null,
     };
     const p = ui.openPanel({
       title: 'New meeting', size: 'lg', sticky: true,
@@ -2241,7 +2627,6 @@ How to work:
         if (state.step === 'review' || (state.step === 'capture' && state.notes.trim().length > 40)) {
           return window.confirm('Discard this meeting? Your notes and analysis will be lost.');
         }
-        if (state.abort) state.abort.abort();
         return true;
       },
     });
@@ -2258,7 +2643,7 @@ How to work:
       };
       acctSel.addEventListener('change', () => { state.accountId = acctSel.value; state.dealId = ''; paintDeal(); });
       paintDeal();
-      const date = h('input.input', { type: 'date', value: state.date, onchange: (e) => (state.date = e.target.value) });
+      const date = h('input.input', { type: 'date', value: state.date, onchange: (e) => { state.date = e.target.value; state.dateTouched = true; } });
       const ta = h('textarea.input.notes-input', {
         value: state.notes, rows: 14, autofocus: true,
         placeholder: 'Paste the Zoom transcript, Zoom AI Companion summary, or your own rough notes here…\n\nOr drag & drop a .txt / .vtt / .md file anywhere in this box.',
@@ -2288,9 +2673,10 @@ How to work:
           } catch (err) { ui.toast(err.message, 'error', 6000); }
         } });
 
-      const engineNote = settings.apiKey
-        ? h('span.engine.engine-ai', icon('spark'), 'Claude will analyze these notes')
-        : h('span.engine', icon('info'), 'Offline parser (add a Claude API key in Settings for much better results)');
+      const engineNote = h('div.stack-sm',
+        h('span.engine.engine-ai', icon('spark'), 'Works best with a Zoom AI Companion summary or a Zoom transcript (.vtt/.txt). Rough notes work too.'),
+        settings.userName ? null : h('span.engine', icon('info'), 'Tip: add your name in ',
+          h('a.link', { href: '#/settings', onclick: () => p.close() }, 'Settings'), ' so your own action items are assigned to you.'));
 
       p.setBody(h('div.stack',
         h('div.form-grid.cols-3',
@@ -2309,7 +2695,7 @@ How to work:
 
     function blankResult() {
       const acct = store().accounts.get(state.accountId);
-      return NX.ai.sanitize({
+      return NX.analyzer.sanitize({
         title: acct ? acct.name + ' – meeting' : 'Meeting', meetingDate: state.date,
         matchedAccountId: state.accountId, matchedDealId: state.dealId, actionItems: [], suggestedStage: 'no_change',
       }, aiContext());
@@ -2319,36 +2705,18 @@ How to work:
       return {
         accounts: store().accounts.list(), deals: store().deals.list(),
         userName: store().settings.get().userName, meetingDate: state.date,
-        accountId: state.accountId, dealId: state.dealId,
+        accountId: state.accountId, dealId: state.dealId, meetingDateLocked: state.dateTouched,
       };
     }
 
     // ------------------------------------------------------------ Step 2
-    async function analyze() {
+    function analyze() {
       if (!state.notes.trim()) return ui.toast('Paste or drop your meeting notes first', 'error');
-      state.step = 'processing';
-      const settings = store().settings.get();
-      const started = Date.now();
-      const timer = h('span.muted');
-      const tick = setInterval(() => (timer.textContent = Math.round((Date.now() - started) / 1000) + 's'), 500);
-      state.abort = new AbortController();
-      p.setBody(h('div.processing', h('div.spinner'),
-        h('div', h('strong', settings.apiKey ? 'Claude is reading your notes…' : 'Parsing notes…')),
-        h('p.muted', 'Extracting summary, action items, owners, due dates and stage signals.'), timer));
-      p.setFooter(h('div.row.end', h('button.btn', { onclick: () => { state.abort.abort(); } }, 'Cancel')));
       try {
-        const { result, engine, warning } = await NX.ai.processNotes(state.notes, aiContext(), {
-          apiKey: settings.apiKey, model: settings.model, effort: settings.effort, signal: state.abort.signal,
-        });
-        if (warning) ui.toast(warning, 'warn', 9000);
-        renderReview(result, engine);
+        renderReview(NX.analyzer.processNotes(state.notes, aiContext()), 'auto');
       } catch (err) {
-        if (err.name === 'AbortError') { renderCapture(); return; }
-        ui.toast(err.message, 'error', 6000);
-        renderCapture();
-      } finally {
-        clearInterval(tick);
-        state.abort = null;
+        console.error(err);
+        ui.toast(err.message || String(err), 'error', 6000);
       }
     }
 
@@ -2480,8 +2848,10 @@ How to work:
 
       const g = (label, el) => ui.field(label, el);
       p.setBody(h('div.stack',
-        h('div.engine' + (engine === 'ai' ? '.engine-ai' : ''), icon(engine === 'ai' ? 'spark' : 'info'),
-          engine === 'ai' ? 'Analyzed by Claude — review and adjust before saving.' : engine === 'heuristic' ? 'Parsed offline — double-check the action items.' : 'Manual entry'),
+        h('div.engine' + (engine === 'auto' ? '.engine-ai' : ''), icon(engine === 'auto' ? 'spark' : 'info'),
+          engine === 'auto'
+            ? `Analyzed ${{ summary: 'Zoom summary', transcript: 'transcript', notes: 'notes' }[r.format] || 'notes'} — found ${r.actionItems.length} next step(s). Review and adjust before saving.`
+            : 'Manual entry'),
         h('div.card.stack',
           h('h3', 'Where does this go?'),
           h('div.form-grid', h('div', g('Account', acctSel), newAcct), h('label.field', h('span.field-label', 'Opportunity'), dealWrap)),
@@ -2770,7 +3140,7 @@ How to work:
   /** "Send sizing to Acme by Friday !" -> {title, dueDate, accountId, priority} */
   function parseQuickAdd(text) {
     let title = text.trim();
-    const dueDate = NX.ai.parseDueDate(title, U.todayISO());
+    const dueDate = NX.analyzer.parseDueDate(title, U.todayISO());
     const priority = /(^|\s)!(\s|$)|\burgent\b/i.test(title) ? 'high' : 'medium';
     title = title.replace(/(^|\s)!(\s|$)/, ' ').trim();
     const norm = ' ' + U.normalize(title) + ' ';
@@ -2879,7 +3249,7 @@ How to work:
         listEl.appendChild(h('button.meeting-row', { onclick: () => ui.openMeeting(m.id) },
           h('div.meeting-date', h('span.d', U.formatDate(m.date, { day: 'numeric' })), h('span.m', U.formatDate(m.date, { month: 'short' }))),
           h('div.meeting-main',
-            h('div.row.wrap', h('strong', m.title), m.processedBy === 'ai' ? h('span.chip.chip-ai', icon('spark'), 'AI') : null),
+            h('div.row.wrap', h('strong', m.title), m.processedBy !== 'manual' ? h('span.chip.chip-ai', icon('spark'), 'Auto') : null),
             h('div.muted.small', [acct && acct.name, deal && deal.name].filter(Boolean).join(' · ')),
             m.summary ? h('div.clamp-2', m.summary) : null),
           h('div.meeting-side', tasks.length ? h('span.pill', icon('check'), `${tasks.length - open}/${tasks.length}`) : null,
@@ -2962,13 +3332,8 @@ How to work:
 
     const userName = h('input.input', { value: s.userName, placeholder: 'e.g. Jordan Lee' });
     const wsName = h('input.input', { value: s.workspaceName });
-    const apiKey = h('input.input', { type: 'password', value: s.apiKey, placeholder: 'sk-ant-…', autocomplete: 'off' });
-    const model = h('select.input', { value: s.model }, NX.ai.MODELS.map((m) => h('option', { value: m.id }, m.label)));
-    const effort = h('select.input', { value: s.effort }, ['low', 'medium', 'high'].map((e) => h('option', { value: e }, e[0].toUpperCase() + e.slice(1))));
-    const testOut = h('span.small');
 
     const saveProfile = () => ui.run(() => store().settings.update({ userName: userName.value.trim(), workspaceName: wsName.value.trim() || 'My Workspace' }), 'Saved');
-    const saveAI = () => ui.run(() => store().settings.update({ apiKey: apiKey.value.trim(), model: model.value, effort: effort.value }), 'AI settings saved');
 
     const c = store().workspace.counts();
     const fileStatus = {
@@ -2986,28 +3351,9 @@ How to work:
       h('section.card.stack',
         h('h3', 'Profile'),
         h('div.form-grid',
-          ui.field('Your name', userName, 'Used to recognise your own action items in notes.'),
+          ui.field('Your name', userName, 'Used to recognise your own action items in meeting notes (e.g. "Jordan will send the BOM").'),
           ui.field('Workspace name', wsName)),
         h('div.row.end', h('button.btn.btn-primary', { onclick: saveProfile }, 'Save profile')),
-      ),
-
-      h('section.card.stack',
-        h('h3', icon('spark'), 'AI meeting analysis (Claude)'),
-        h('p.muted', 'With an Anthropic API key, meeting notes are analyzed by Claude for far better summaries, owners and due dates. Without one, a built-in offline parser is used. ',
-          'Your key is stored only in this browser and is never included in exports or the save file. Notes are sent directly from your browser to api.anthropic.com — check your company\'s policy on customer data before enabling.'),
-        h('div.form-grid',
-          h('div.span-2', ui.field('Anthropic API key', apiKey, 'Create one at console.anthropic.com → API keys.')),
-          ui.field('Model', model), ui.field('Analysis effort', effort, 'Higher = more thorough, slower.')),
-        h('div.row.wrap',
-          h('button.btn', {
-            onclick: async () => {
-              testOut.textContent = 'Testing…'; testOut.className = 'small muted';
-              try { const m = await NX.ai.testConnection({ apiKey: apiKey.value.trim(), model: model.value }); testOut.textContent = '✓ Connected (' + m + ')'; testOut.className = 'small text-success'; }
-              catch (e) { testOut.textContent = '✗ ' + e.message; testOut.className = 'small text-danger'; }
-            },
-          }, 'Test connection'),
-          testOut, h('span.grow'),
-          h('button.btn.btn-primary', { onclick: saveAI }, 'Save AI settings')),
       ),
 
       h('section.card.stack',

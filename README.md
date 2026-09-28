@@ -3,14 +3,14 @@
 A deal pipeline, meeting-notes assistant and task tracker built for **Nutanix Systems Engineers**.
 
 - **Pipeline board**: seven stage columns (Identified Opportunity → Opportunity Discovery → Develop Opportunity → Technical Differentiation → Technical Win → Closed Won / Closed Lost). Drag cards between columns.
-- **New meeting**: paste or drop your Zoom transcript or notes. You get a clean summary, pain points, requirements, risks and a follow-up email draft. You also get **dated next steps with owners**, the meeting is attached to the right account and opportunity, and it suggests a stage move when the exit criteria are met.
+- **New meeting**: paste or drop your Zoom AI Companion summary, Zoom transcript (`.vtt`/`.txt`) or rough notes. It's analyzed right in your browser, with no API key and nothing sent anywhere. You get a clean summary, pain points, requirements, risks and a follow-up email draft. You also get **dated next steps with owners**, the meeting is attached to the right account and opportunity, and it suggests a stage move when the exit criteria are met.
 - **Tasks & reminders**: everything you owe, grouped as Overdue / Today / Next 7 days / Later. There's natural-language quick-add, `.ics` calendar export and desktop notifications.
 - **Private by design**: each person's data stays on their own PC. No server and no sign-up.
 
 ## Using it
 
 1. Open **`dist/se-pipeline.html`** in Chrome or Edge (Firefox and Safari work too, without file auto-save).
-2. Optional: **Settings → AI** lets you paste an Anthropic API key for Claude-quality analysis. Without a key, a built-in offline parser is used.
+2. **Settings → Your name**: set this once so action items that are yours ("Jordan will send the BOM") get assigned to you.
 3. Recommended: **Settings → Storage → "Auto-save to a file…"** lets you pick a location such as `Documents/se-pipeline-workspace.json`. From then on every change is written to that file automatically. After a browser restart, click the yellow save indicator once to resume.
 4. Click **New meeting**, paste your notes and hit **Process notes**. Review, then **Save**.
 
@@ -31,4 +31,4 @@ node tests/e2e.mjs # browser smoke test (needs the `playwright` package)
 
 The architecture, file structure, database schema, API and UI design are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
-**Privacy note:** with an API key set, meeting notes are sent from your browser directly to `api.anthropic.com`. Check your company's policy on customer data before enabling it. The key is stored only in your browser and is never written to exports or the workspace file.
+**Privacy:** meeting notes are analyzed locally and never leave your PC.

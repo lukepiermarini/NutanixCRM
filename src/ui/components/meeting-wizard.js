@@ -26,8 +26,8 @@
       accountId: defaults.accountId || '',
       dealId: defaults.dealId || '',
       date: U.todayISO(),
+      dateTouched: false,
       notes: '',
-      abort: null,
     };
     const p = ui.openPanel({
       title: 'New meeting', size: 'lg', sticky: true,
@@ -36,7 +36,6 @@
         if (state.step === 'review' || (state.step === 'capture' && state.notes.trim().length > 40)) {
           return window.confirm('Discard this meeting? Your notes and analysis will be lost.');
         }
-        if (state.abort) state.abort.abort();
         return true;
       },
     });
@@ -53,7 +52,7 @@
       };
       acctSel.addEventListener('change', () => { state.accountId = acctSel.value; state.dealId = ''; paintDeal(); });
       paintDeal();
-      const date = h('input.input', { type: 'date', value: state.date, onchange: (e) => (state.date = e.target.value) });
+      const date = h('input.input', { type: 'date', value: state.date, onchange: (e) => { state.date = e.target.value; state.dateTouched = true; } });
       const ta = h('textarea.input.notes-input', {
         value: state.notes, rows: 14, autofocus: true,
         placeholder: 'Paste the Zoom transcript, Zoom AI Companion summary, or your own rough notes here…\n\nOr drag & drop a .txt / .vtt / .md file anywhere in this box.',
@@ -83,9 +82,10 @@
           } catch (err) { ui.toast(err.message, 'error', 6000); }
         } });
 
-      const engineNote = settings.apiKey
-        ? h('span.engine.engine-ai', icon('spark'), 'Claude will analyze these notes')
-        : h('span.engine', icon('info'), 'Offline parser (add a Claude API key in Settings for much better results)');
+      const engineNote = h('div.stack-sm',
+        h('span.engine.engine-ai', icon('spark'), 'Works best with a Zoom AI Companion summary or a Zoom transcript (.vtt/.txt). Rough notes work too.'),
+        settings.userName ? null : h('span.engine', icon('info'), 'Tip: add your name in ',
+          h('a.link', { href: '#/settings', onclick: () => p.close() }, 'Settings'), ' so your own action items are assigned to you.'));
 
       p.setBody(h('div.stack',
         h('div.form-grid.cols-3',
@@ -104,7 +104,7 @@
 
     function blankResult() {
       const acct = store().accounts.get(state.accountId);
-      return NX.ai.sanitize({
+      return NX.analyzer.sanitize({
         title: acct ? acct.name + ' – meeting' : 'Meeting', meetingDate: state.date,
         matchedAccountId: state.accountId, matchedDealId: state.dealId, actionItems: [], suggestedStage: 'no_change',
       }, aiContext());
@@ -114,36 +114,18 @@
       return {
         accounts: store().accounts.list(), deals: store().deals.list(),
         userName: store().settings.get().userName, meetingDate: state.date,
-        accountId: state.accountId, dealId: state.dealId,
+        accountId: state.accountId, dealId: state.dealId, meetingDateLocked: state.dateTouched,
       };
     }
 
     // ------------------------------------------------------------ Step 2
-    async function analyze() {
+    function analyze() {
       if (!state.notes.trim()) return ui.toast('Paste or drop your meeting notes first', 'error');
-      state.step = 'processing';
-      const settings = store().settings.get();
-      const started = Date.now();
-      const timer = h('span.muted');
-      const tick = setInterval(() => (timer.textContent = Math.round((Date.now() - started) / 1000) + 's'), 500);
-      state.abort = new AbortController();
-      p.setBody(h('div.processing', h('div.spinner'),
-        h('div', h('strong', settings.apiKey ? 'Claude is reading your notes…' : 'Parsing notes…')),
-        h('p.muted', 'Extracting summary, action items, owners, due dates and stage signals.'), timer));
-      p.setFooter(h('div.row.end', h('button.btn', { onclick: () => { state.abort.abort(); } }, 'Cancel')));
       try {
-        const { result, engine, warning } = await NX.ai.processNotes(state.notes, aiContext(), {
-          apiKey: settings.apiKey, model: settings.model, effort: settings.effort, signal: state.abort.signal,
-        });
-        if (warning) ui.toast(warning, 'warn', 9000);
-        renderReview(result, engine);
+        renderReview(NX.analyzer.processNotes(state.notes, aiContext()), 'auto');
       } catch (err) {
-        if (err.name === 'AbortError') { renderCapture(); return; }
-        ui.toast(err.message, 'error', 6000);
-        renderCapture();
-      } finally {
-        clearInterval(tick);
-        state.abort = null;
+        console.error(err);
+        ui.toast(err.message || String(err), 'error', 6000);
       }
     }
 
@@ -275,8 +257,10 @@
 
       const g = (label, el) => ui.field(label, el);
       p.setBody(h('div.stack',
-        h('div.engine' + (engine === 'ai' ? '.engine-ai' : ''), icon(engine === 'ai' ? 'spark' : 'info'),
-          engine === 'ai' ? 'Analyzed by Claude — review and adjust before saving.' : engine === 'heuristic' ? 'Parsed offline — double-check the action items.' : 'Manual entry'),
+        h('div.engine' + (engine === 'auto' ? '.engine-ai' : ''), icon(engine === 'auto' ? 'spark' : 'info'),
+          engine === 'auto'
+            ? `Analyzed ${{ summary: 'Zoom summary', transcript: 'transcript', notes: 'notes' }[r.format] || 'notes'} — found ${r.actionItems.length} next step(s). Review and adjust before saving.`
+            : 'Manual entry'),
         h('div.card.stack',
           h('h3', 'Where does this go?'),
           h('div.form-grid', h('div', g('Account', acctSel), newAcct), h('label.field', h('span.field-label', 'Opportunity'), dealWrap)),

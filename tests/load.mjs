@@ -5,7 +5,7 @@ import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const CORE = ['src/core/util.js', 'src/core/schema.js', 'src/core/db.js', 'src/core/store.js', 'src/core/ai.js'];
+const CORE = ['src/core/util.js', 'src/core/schema.js', 'src/core/db.js', 'src/core/store.js', 'src/core/analyzer.js'];
 
 export function loadCore() {
   const ctx = vm.createContext({ console, crypto: globalThis.crypto, setTimeout, clearTimeout, Date, JSON, Math });

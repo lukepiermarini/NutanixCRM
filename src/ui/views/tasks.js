@@ -28,7 +28,7 @@
   /** "Send sizing to Acme by Friday !" -> {title, dueDate, accountId, priority} */
   function parseQuickAdd(text) {
     let title = text.trim();
-    const dueDate = NX.ai.parseDueDate(title, U.todayISO());
+    const dueDate = NX.analyzer.parseDueDate(title, U.todayISO());
     const priority = /(^|\s)!(\s|$)|\burgent\b/i.test(title) ? 'high' : 'medium';
     title = title.replace(/(^|\s)!(\s|$)/, ' ').trim();
     const norm = ' ' + U.normalize(title) + ' ';

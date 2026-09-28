@@ -1,0 +1,20 @@
+Meeting summary for Tailspin Logistics DR Workshop (Sep 24, 2026)
+
+Quick recap
+The meeting focused on replacing Tailspin's aging Veeam-to-tape DR process with NC2 on AWS. Lee confirmed the POC was successful and the design meets their 1 hour RPO requirement.
+
+Next steps
+Jordan Lee
+• Send final BOM and architecture diagram
+• Coordinate with the AE on pricing by 10/2
+Lee Park
+• Get security team sign-off on the AWS VPC design
+• Share the DR runbook
+Mark Chen (Nutanix)
+• Set up NC2 trial credits extension
+
+Summary
+POC Results
+The POC ran for two weeks and failover completed in 11 minutes, beating the 15 minute RTO target. Lee's team approved the design.
+Commercials
+Budget is allocated for Q4 and procurement needs the quote by mid October.

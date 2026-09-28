@@ -6,7 +6,7 @@ A deal pipeline, meeting-intelligence and task tracker for Nutanix Systems Engin
 
 1. **Zero-install distribution.** One `.html` file you can email to a teammate. They double-click it and have their own workspace.
 2. **Local-first and private.** Every user's data lives on their own PC (IndexedDB, plus an optional JSON file that auto-saves). There's no server and no login.
-3. **AI where it counts.** Raw Zoom notes go in; out come a summary, owners, dated action items and a stage recommendation.
+3. **Smart where it counts, with no API keys.** Raw Zoom notes go in; out come a summary, owners, dated action items and a stage recommendation. A built-in analyzer runs entirely in the browser, and nothing is sent anywhere.
 4. **Built to grow into SaaS.** A layered design (UI → service API → storage adapter) means a cloud backend can be added by swapping one adapter. Views don't need to change.
 
 ---
@@ -25,23 +25,23 @@ A deal pipeline, meeting-intelligence and task tracker for Nutanix Systems Engin
 │                                   │  ▲ change events                                   │
 │  Service layer (src/core/store.js)▼  │                                                 │
 │  ┌──────────────────────────────────────────────────────────┐   ┌───────────────────┐  │
-│  │ api.accounts | deals | meetings | tasks | settings |     │   │ Meeting AI        │  │
-│  │ workspace   — validation (schema.js), in-memory cache,   │◄──┤ (src/core/ai.js)  │  │
-│  │ atomic multi-entity commits, event bus                   │   │ Claude ⇄ offline  │  │
-│  └───────────────┬──────────────────────────────┬───────────┘   │ heuristic parser  │  │
-│                  │ adapter.commit(ops)          │ snapshot      └─────────┬─────────┘  │
-│  ┌───────────────▼──────────────┐   ┌───────────▼─────────────┐           │ HTTPS      │
-│  │ IndexedDB adapter (db.js)    │   │ File sync (filesync.js) │           │ (user's    │
-│  │ primary store, per browser   │   │ File System Access API  │           │  own key)  │
-│  │ profile = per person's PC    │   │ debounced JSON mirror   │           │            │
-│  └──────────────────────────────┘   └───────────┬─────────────┘           │            │
-└──────────────────────────────────────────────────┼─────────────────────────┼────────────┘
-                                                   ▼                         ▼
-                                   ~/Documents/se-pipeline-workspace.json   api.anthropic.com
+│  │ api.accounts | deals | meetings | tasks | settings |     │   │ Notes analyzer    │  │
+│  │ workspace   — validation (schema.js), in-memory cache,   │◄──┤ (analyzer.js)     │  │
+│  │ atomic multi-entity commits, event bus                   │   │ local, rule-based │  │
+│  └───────────────┬──────────────────────────────┬───────────┘   │ no network/keys   │  │
+│                  │ adapter.commit(ops)          │ snapshot      └───────────────────┘  │
+│  ┌───────────────▼──────────────┐   ┌───────────▼─────────────┐                        │
+│  │ IndexedDB adapter (db.js)    │   │ File sync (filesync.js) │                        │
+│  │ primary store, per browser   │   │ File System Access API  │                        │
+│  │ profile = per person's PC    │   │ debounced JSON mirror   │                        │
+│  └──────────────────────────────┘   └───────────┬─────────────┘                        │
+└──────────────────────────────────────────────────┼─────────────────────────────────────┘
+                                                   ▼
+                                   ~/Documents/se-pipeline-workspace.json
 ```
 
 **Data flow for "New meeting":**
-`paste/drop notes → ai.processNotes()` (Claude with structured JSON output, or the offline parser) → `sanitize()` checks the result against the contract and the IDs that really exist → **review screen** (the user edits or accepts) → `api.meetings.ingest()` does one atomic commit: creates the account/deal if needed, saves the meeting and tasks, and moves the stage → a change event re-renders the views and triggers a debounced write to the linked file.
+`paste/drop notes → analyzer.processNotes()` (local, runs in milliseconds) → `sanitize()` checks the result against the contract and the IDs that really exist → **review screen** (the user edits or accepts) → `api.meetings.ingest()` does one atomic commit: creates the account/deal if needed, saves the meeting and tasks, and moves the stage → a change event re-renders the views and triggers a debounced write to the linked file.
 
 **Key decisions**
 
@@ -52,9 +52,8 @@ A deal pipeline, meeting-intelligence and task tracker for Nutanix Systems Engin
 | JSON file mirror via File System Access API | This covers "saves to my PC". The user owns a real file they can back up, sync with OneDrive, or move to a new laptop. On open, the newest copy (file or browser) wins. |
 | In-memory cache + event bus | Views stay synchronous and simple. A write is a single atomic IndexedDB transaction. |
 | `BroadcastChannel` | Two open tabs stay consistent. |
-| Human-in-the-loop review | AI output is never saved blindly. The user confirms the account, tasks and stage move. |
-| API key stored only in the browser, excluded from exports/file | A shared workspace file can never leak a secret. |
-| Claude called directly from the browser | There's no backend to run. The user supplies their own key, and the request carries `anthropic-dangerous-direct-browser-access`. In a SaaS version this moves server-side (see §7). |
+| Human-in-the-loop review | Extracted results are never saved blindly. The user confirms the account, tasks and stage move. |
+| Local rule-based analyzer instead of an LLM API | No keys to hand out, no per-user cost, and customer notes never leave the PC. Zoom AI Companion already does the heavy summarization; the analyzer structures it and turns it into owned, dated tasks. |
 
 ---
 
@@ -73,7 +72,7 @@ A deal pipeline, meeting-intelligence and task tracker for Nutanix Systems Engin
 │   │   ├── db.js                  IndexedDB adapter (+ in-memory fallback)
 │   │   ├── store.js               service layer = the "API"
 │   │   ├── filesync.js            auto-save to a JSON file on disk, import/export
-│   │   └── ai.js                  Claude client, JSON schema, offline parser, date NLP
+│   │   └── analyzer.js            meeting-notes analyzer: format detection, action extraction, date NLP, summary
 │   ├── ui/
 │   │   ├── dom.js                 h() element builder (textContent only → XSS-safe)
 │   │   ├── sample.js              demo workspace
@@ -86,10 +85,11 @@ A deal pipeline, meeting-intelligence and task tracker for Nutanix Systems Engin
 │   │       ├── pipeline.js        7-column drag-and-drop board
 │   │       ├── tasks.js           reminders grouped by due date, quick-add
 │   │       ├── meetings.js        meeting log + accounts grid
-│   │       └── settings.js        profile, AI, storage/backup
+│   │       └── settings.js        profile, storage/backup
 │   └── app.js                     bootstrap, hash router, header, reminders
 ├── tests/
-│   ├── core.test.mjs              unit tests (node --test)
+│   ├── core.test.mjs              unit + analyzer fixture tests (node --test)
+│   ├── fixtures/                  sample Zoom summaries, transcripts, rough notes
 │   ├── load.mjs                   loads browser sources into a Node vm
 │   └── e2e.mjs                    Playwright smoke test of the built file
 ├── docs/ARCHITECTURE.md
@@ -111,7 +111,7 @@ A deal pipeline, meeting-intelligence and task tracker for Nutanix Systems Engin
 | `tasks` | `id` | `accountId`, `dealId`, `meetingId`, `status`, `dueDate` |
 | `meta` | out-of-line key | `settings`, `fileHandle`, `lastChangeAt` |
 
-Every record passes through `schema.normalize.<entity>()` on write. This covers UI input, AI output and imported files, so no bad data ever reaches the store.
+Every record passes through `schema.normalize.<entity>()` on write. This covers UI input, analyzer output and imported files, so no bad data ever reaches the store.
 
 ### 3.2 Entities
 
@@ -132,7 +132,7 @@ Meeting  { id, accountId → Account, dealId → Deal?, title, date,
            summary, discussionPoints[], painPoints[], requirements[], environment[],
            competitors[], risks[], decisions[], followUpEmail,
            stageBefore, stageAfter, stageRationale,
-           rawNotes, processedBy: 'ai'|'heuristic'|'manual', createdAt, updatedAt }
+           rawNotes, processedBy: 'auto'|'manual', createdAt, updatedAt }
 
 Task     { id, title, details, dueDate, priority: 'high'|'medium'|'low',
            owner: 'me'|'account_exec'|'customer'|'partner'|'nutanix_other', ownerName,
@@ -140,7 +140,7 @@ Task     { id, title, details, dueDate, priority: 'high'|'medium'|'low',
            accountId?, dealId?, meetingId?, createdAt, updatedAt }
 ```
 
-**Pipeline stages** (defined in `schema.js`; the definitions are shown in the UI and given to the AI):
+**Pipeline stages** (defined in `schema.js`; the definitions are shown in the UI and drive the analyzer's stage recommendation):
 
 | # | id | Stage | Exit criteria |
 |---|---|---|---|
@@ -236,7 +236,7 @@ Records already use globally unique string IDs and `createdAt`/`updatedAt`. That
 | `workspace.snapshot()` / `load(json, 'replace'\|'merge')` / `reset()` / `counts()` | |
 | `on(listener)` | Change events `{type:'deals.update', id}` etc. |
 
-`ai.processNotes(notes, context, {apiKey, model, effort})` returns `{ result, engine: 'ai'|'heuristic', warning? }`.
+`analyzer.processNotes(notes, {accounts, deals, userName, meetingDate, accountId?, dealId?})` returns the analysis synchronously: title, summary, discussion points, pain/requirements/environment/risks/decisions, competitors, attendees, action items, matched account/deal, suggested stage + rationale, follow-up email, and the detected `format`.
 
 ### 4.2 REST contract for the cloud backend (1:1 with the service layer)
 
@@ -251,7 +251,7 @@ All endpoints are under `/api/v1`, use JSON, and require a `Bearer` JWT. Each wo
 | `POST /deals/:id/move` `{stage, beforeId}` | `deals.move` |
 | `GET /deals/:id/history` | stage history |
 | `GET /meetings?accountId=&dealId=&q=` | `meetings.list` |
-| `POST /meetings/analyze` `{notes, accountId?, dealId?, meetingDate}` → analysis | `ai.processNotes` (server-side key, streaming) |
+| `POST /meetings/analyze` `{notes, accountId?, dealId?, meetingDate}` → analysis | `analyzer.processNotes` (same module, run server-side) |
 | `POST /meetings/ingest` | `meetings.ingest` (one DB transaction) |
 | `GET/PATCH/DELETE /meetings/:id` | |
 | `GET /tasks?status=&owner=&due_before=&accountId=` · `POST /tasks` | `tasks.list` · `create` |
@@ -274,17 +274,37 @@ Errors return `{ error: { code, message, details? } }` with 400 (validation), 40
   2. **Process**: shows a spinner with an elapsed timer and can be cancelled.
   3. **Review**: fix the account and deal (or create new ones), see the stage recommendation with its reasoning, and get an editable action-item table (include toggle, owner, name, due date, priority). The editable meeting record covers summary, attendees, pain points, requirements, environment, risks, decisions and competitors, and there's a copyable follow-up email.
 - **Tasks**: grouped as Overdue / Today / Next 7 days / Later / No date / Completed. Filters are My tasks, Others' commitments, account and search. Quick-add understands phrases like "by Friday", "next week" and "10/15", detects account names, and treats `!` as high priority. You can reschedule inline, export a task to `.ics`, and turn on desktop notifications.
-- **Security**: no `innerHTML` anywhere with user or AI text. Everything uses `textContent`.
+- **Security**: no `innerHTML` anywhere with user text or pasted notes. Everything uses `textContent`.
 
 ---
 
-## 6. AI meeting analysis
+## 6. Meeting-notes analyzer (`src/core/analyzer.js`)
 
-- **Model**: `claude-opus-5` by default. `claude-sonnet-5` and `claude-haiku-4-5` can be picked in Settings. The request uses `output_config.format` (JSON Schema structured outputs) so the response always parses, plus `output_config.effort`.
-- **Refusal fallback**: on Opus 5 the request opts into server-side `fallbacks: "default"` (beta header `server-side-fallback-2026-07-01`). If the API rejects the parameter, it retries without it. `stop_reason` is checked for `refusal` and `max_tokens` before the content is read.
-- **Prompt**: the system prompt carries the Nutanix SE context, the 7 stage definitions and the rules. Only facts from the notes are used. Every action item gets an owner and a weekday due date resolved from the meeting date. A stage move is suggested only when exit criteria are met. The user turn contains the JSON context (today's date, the SE's name, and the existing accounts and deals with their IDs for matching) and the notes in `<meeting_notes>` tags.
-- **Validation**: `sanitize()` re-checks enums, dates and that the matched IDs really exist.
-- **Offline fallback**: `heuristicParse()` understands Zoom AI Companion sections ("Quick recap", "Next steps", "Summary"), WebVTT transcripts, speaker labels, "X will…" ownership, natural-language dates, competitor names and stage keyword signals. It runs when no key is set or when the API call fails.
+This runs fully in the browser with no API key and no network calls. It works in these stages:
+
+1. **Clean**: normalizes every Zoom transcript layout to `Speaker: text`. That covers WebVTT cues and `<v>` tags, `Name  00:01:23` headers, `00:01:23 Name: text`, and chat exports. Smart quotes and timestamps are removed. Spoken filler ("um", "you know", repeated words) is stripped from transcripts.
+2. **Detect the format**:
+   - **Zoom AI Companion summary**: Quick recap, Next steps and Summary sections.
+   - **Transcript**: mostly speaker lines.
+   - **Notes**: anything else.
+3. **Segment**: splits the text into sections (recap, summary topics, next steps, decisions, risks, pain points, requirements, environment, attendees) using heading synonyms. It finds Zoom's Title-Case topic subheadings, per-person groupings under Next steps ("Jordan Lee" followed by bullets), and the date and title from the "Meeting summary for …" line.
+4. **Action items**: pulled from:
+   - Next-steps lists: "X to…", "X will…", "Name: …", "[Name] …", "… (Name)", and per-person groups.
+   - Commitments in the conversation: "I'll / we'll / let me …", "Dana will …".
+   - Requests: "can you / please …". In a two-person call the other speaker is assigned.
+   - Imperative bullets in rough notes ("need to loop in AE on pricing").
+
+   Along the way it:
+   - splits compound sentences ("I'll size it by Friday, and I'll send the TCO") into two tasks;
+   - links replies like "Sure, I can get that to you tomorrow" back to the request they answer;
+   - removes duplicates, and adds standard SE follow-ups (recap email, calendar invite or scheduling a follow-up meeting or workshop when one is discussed).
+5. **Owners**: "me" is decided by the SE's name set in Settings, or by first person. Account Exec comes from "AE" or "account exec" mentions. Nutanix colleagues are recognized from an org in parentheses, partners from the account's partner or a list of known resellers (CDW, SHI, WWT, Presidio…), and everyone else counts as the customer.
+6. **Due dates**: natural-language dates are resolved against the meeting date: today, tomorrow, EOD/EOW/EOM, by Friday, next Tuesday, early/later this/next week, in 3 business days, 10/15, Oct 20th. Without a date, the default is 1, 3 or 10 business days depending on priority (5 for customer-owned items). Weekends are skipped.
+7. **Content**: sentences are classified into pain points, requirements, current environment, risks and decisions (negation-aware, so "not yet approved" is not a decision). Competitors are picked out and topics detected (VMware exit, POC, DR, NC2, NDB, VDI, Kubernetes, edge, …).
+8. **Summary**: Zoom's Quick recap is used as-is and topic subsections become discussion points. For transcripts and notes, a generated opening line (account, people, topics) is followed by the highest-scoring informative sentences, attributed to their speaker.
+9. **Match & recommend**: the account is matched by full or distinctive name (or suggested from the Zoom title or attendee orgs). The opportunity is matched by name overlap or as the only open deal, or a name is suggested from the main topic. The stage suggestion only moves forward, ignores hypotheticals ("might do a POC later"), and explains itself with the sentence that triggered it.
+
+Everything is covered by fixture tests (`tests/fixtures/*`) for each input format.
 
 ---
 
@@ -292,8 +312,8 @@ Errors return `{ error: { code, message, details? } }` with 400 (validation), 40
 
 | Phase | Change | Touches |
 |---|---|---|
-| **1 — MVP (this)** | Single file, local-first, bring-your-own API key | — |
+| **1 — MVP (this)** | Single file, local-first, built-in analyzer | — |
 | 2 — Team sync | Node/TS API (Fastify) + Postgres (§3.4) + auth (SSO via Entra ID/Okta). `HttpAdapter` implements the same `getAll/commit/…` surface as `db.js`, with IndexedDB kept as an offline cache and an outbox for replay. | `db.js` only |
-| 3 — Server-side AI | `/meetings/analyze` streams from Claude using the org's key. Adds prompt caching of the system prompt, audit logging and PII redaction policies. The browser no longer holds a key. | `ai.js` → thin client |
+| 3 — Optional LLM enrichment | A server-side `/meetings/analyze` could add an org-managed LLM on top of the rule-based analyzer, behind the same result contract, if leadership approves sending notes to one. No per-user keys. | `analyzer.js` output contract unchanged |
 | 4 — Integrations | Zoom webhook (`recording.transcript_completed`) auto-drafts meetings. Two-way sync of stage and amount to Salesforce. Calendar feed, and email or Slack digests of due tasks. | new services |
 | 5 — Manager views | Multi-SE workspaces, forecast roll-ups, stage-velocity analytics built from `deal_stage_history`. | new views |

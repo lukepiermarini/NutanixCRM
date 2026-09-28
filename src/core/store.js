@@ -13,13 +13,11 @@
   const SETTINGS_DEFAULTS = {
     userName: '',
     workspaceName: 'My Workspace',
-    apiKey: '',
-    model: 'claude-opus-5',
-    effort: 'high',
     remindersEnabled: false,
   };
-  // Secrets never leave the browser via export / file sync.
-  const PRIVATE_SETTINGS = ['apiKey'];
+  // Device-local settings never leave the browser via export / file sync.
+  const PRIVATE_SETTINGS = ['remindersEnabled'];
+  const LEGACY_SETTINGS = ['apiKey', 'model', 'effort'];
 
   function createStore(adapter) {
     const cache = { accounts: new Map(), deals: new Map(), meetings: new Map(), tasks: new Map() };
@@ -248,6 +246,7 @@
         for (const c of Object.keys(merged)) cache[c] = new Map(merged[c].map((r) => [r.id, r]));
         const keep = {}; PRIVATE_SETTINGS.forEach((k) => (keep[k] = settings[k]));
         settings = { ...SETTINGS_DEFAULTS, ...settings, ...snap.settings, ...keep };
+        LEGACY_SETTINGS.forEach((k) => delete settings[k]);
         await adapter.setMeta('settings', settings);
         await adapter.setMeta('lastChangeAt', raw.savedAt || nowISO());
         emit({ type: 'workspace.load' });
@@ -274,6 +273,7 @@
       async init() {
         for (const c of Object.keys(cache)) cache[c] = new Map((await adapter.getAll(c)).map((r) => [r.id, r]));
         settings = { ...SETTINGS_DEFAULTS, ...((await adapter.getMeta('settings')) || {}) };
+        LEGACY_SETTINGS.forEach((k) => delete settings[k]);
         return this;
       },
       on(fn) { listeners.add(fn); return () => listeners.delete(fn); },

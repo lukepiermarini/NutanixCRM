@@ -13,13 +13,8 @@
 
     const userName = h('input.input', { value: s.userName, placeholder: 'e.g. Jordan Lee' });
     const wsName = h('input.input', { value: s.workspaceName });
-    const apiKey = h('input.input', { type: 'password', value: s.apiKey, placeholder: 'sk-ant-…', autocomplete: 'off' });
-    const model = h('select.input', { value: s.model }, NX.ai.MODELS.map((m) => h('option', { value: m.id }, m.label)));
-    const effort = h('select.input', { value: s.effort }, ['low', 'medium', 'high'].map((e) => h('option', { value: e }, e[0].toUpperCase() + e.slice(1))));
-    const testOut = h('span.small');
 
     const saveProfile = () => ui.run(() => store().settings.update({ userName: userName.value.trim(), workspaceName: wsName.value.trim() || 'My Workspace' }), 'Saved');
-    const saveAI = () => ui.run(() => store().settings.update({ apiKey: apiKey.value.trim(), model: model.value, effort: effort.value }), 'AI settings saved');
 
     const c = store().workspace.counts();
     const fileStatus = {
@@ -37,28 +32,9 @@
       h('section.card.stack',
         h('h3', 'Profile'),
         h('div.form-grid',
-          ui.field('Your name', userName, 'Used to recognise your own action items in notes.'),
+          ui.field('Your name', userName, 'Used to recognise your own action items in meeting notes (e.g. "Jordan will send the BOM").'),
           ui.field('Workspace name', wsName)),
         h('div.row.end', h('button.btn.btn-primary', { onclick: saveProfile }, 'Save profile')),
-      ),
-
-      h('section.card.stack',
-        h('h3', icon('spark'), 'AI meeting analysis (Claude)'),
-        h('p.muted', 'With an Anthropic API key, meeting notes are analyzed by Claude for far better summaries, owners and due dates. Without one, a built-in offline parser is used. ',
-          'Your key is stored only in this browser and is never included in exports or the save file. Notes are sent directly from your browser to api.anthropic.com — check your company\'s policy on customer data before enabling.'),
-        h('div.form-grid',
-          h('div.span-2', ui.field('Anthropic API key', apiKey, 'Create one at console.anthropic.com → API keys.')),
-          ui.field('Model', model), ui.field('Analysis effort', effort, 'Higher = more thorough, slower.')),
-        h('div.row.wrap',
-          h('button.btn', {
-            onclick: async () => {
-              testOut.textContent = 'Testing…'; testOut.className = 'small muted';
-              try { const m = await NX.ai.testConnection({ apiKey: apiKey.value.trim(), model: model.value }); testOut.textContent = '✓ Connected (' + m + ')'; testOut.className = 'small text-success'; }
-              catch (e) { testOut.textContent = '✗ ' + e.message; testOut.className = 'small text-danger'; }
-            },
-          }, 'Test connection'),
-          testOut, h('span.grow'),
-          h('button.btn.btn-primary', { onclick: saveAI }, 'Save AI settings')),
       ),
 
       h('section.card.stack',

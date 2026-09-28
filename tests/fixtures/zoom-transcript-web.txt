@@ -1,0 +1,20 @@
+Jordan Lee  00:00:04
+Morning everyone. Thanks for making time.
+
+Maria Gomez  00:00:09
+Hi Jordan. So the main thing is we're paying way too much for VMware now, the renewal went up about 4x.
+
+Maria Gomez  00:00:21
+We need to be off it before the contract ends in June.
+
+Jordan Lee  00:00:30
+Understood. Who else is involved in the decision on your side?
+
+Maria Gomez  00:00:36
+Our CIO signs off, and procurement has to be involved for anything over 250k.
+
+Jordan Lee  00:00:44
+Okay. I'll send over a migration plan and some reference customers by Wednesday.
+
+Maria Gomez  00:00:52
+Great, and I will set up a meeting with our CIO next week.

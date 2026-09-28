@@ -4,7 +4,7 @@ import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { mkdirSync } from 'node:fs';
+import { mkdirSync, readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 
 const require = createRequire(import.meta.url);
@@ -84,46 +84,29 @@ await page.click('.nav >> text=Pipeline');
 await page.waitForSelector('.column[data-stage="discovery"] .deal-card:has-text("NC2 on AWS DR")');
 console.log('✓ data persisted after reload');
 
-// AI path with a mocked Claude API
-let captured = null;
-await page.route('https://api.anthropic.com/v1/messages', async (route) => {
-  captured = { headers: route.request().headers(), body: JSON.parse(route.request().postData()) };
-  const result = {
-    title: 'Tailspin – NC2 DR scoping', meetingDate: '', matchedAccountId: 'acc_demo_4', suggestedAccountName: 'Tailspin Logistics',
-    matchedDealId: 'deal_demo_4', suggestedDealName: '', attendees: [{ name: 'Lee Park', organization: 'Tailspin', role: 'IT Director' }],
-    summary: 'Scoped DR to AWS using NC2.', discussionPoints: ['RPO targets'], painPoints: ['No DR site'], requirements: ['RPO 1h'],
-    environment: ['vSphere 8'], competitors: ['VMware'], risks: [], decisions: ['Proceed to POC'],
-    actionItems: [{ title: 'Draft NC2 DR sizing', details: '', owner: 'me', ownerName: '', dueDate: '2030-01-10', priority: 'high' }],
-    suggestedStage: 'tech_diff', stageRationale: 'POC agreed.', dealNextStep: 'Draft sizing', followUpEmail: 'Hi Lee,…',
-  };
-  await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({
-    id: 'msg_1', type: 'message', role: 'assistant', model: 'claude-opus-5', stop_reason: 'end_turn',
-    content: [{ type: 'text', text: JSON.stringify(result) }] }) });
-});
+// Zoom transcript through the UI (no API key anywhere)
 await page.click('.nav >> text=Settings');
-await page.fill('input[type=password]', 'sk-ant-test');
-await page.click('text=Save AI settings');
+await page.fill('input[placeholder="e.g. Jordan Lee"]', 'Jordan Lee');
+await page.click('text=Save profile');
 await page.keyboard.press('n');
-await page.fill('.notes-input', 'Call with Lee Park at Tailspin about DR...');
+await page.selectOption('.modal select.input >> nth=0', 'acc_demo_4');
+await page.fill('.notes-input', readFileSync(join(root, 'tests', 'fixtures', 'zoom-transcript.vtt'), 'utf8'));
 await page.click('text=Process notes');
-await page.waitForSelector('text=Analyzed by Claude');
-assert.equal(captured.headers['anthropic-dangerous-direct-browser-access'], 'true');
-assert.equal(captured.headers['x-api-key'], 'sk-ant-test');
-assert.equal(captured.body.model, 'claude-opus-5');
-assert.equal(captured.body.output_config.format.type, 'json_schema');
-assert.equal(captured.body.fallbacks, 'default');
+await page.waitForSelector('text=Analyzed transcript');
+const titles = await page.$$eval('.action-item .ai-title', (els) => els.map((e) => e.value));
+assert.ok(titles.some((t) => /sizing for NC2 DR/.test(t)), 'SE commitment extracted');
+assert.ok(titles.some((t) => /RVTools export/.test(t)), 'customer request extracted');
+await page.screenshot({ path: join(shots, '2b-transcript-review.png') });
 await page.click('text=Save meeting & tasks');
-await page.waitForSelector('.toast-success:has-text("moved to Tech Diff")');
-console.log('✓ Claude API path (mocked) + stage move');
-
-// Export must not leak the key
-const snap = await page.evaluate(() => JSON.stringify(NX.app.store.workspace.snapshot()));
-assert.ok(!snap.includes('sk-ant-test'), 'api key excluded from export');
+await page.waitForSelector('.toast-success:has-text("Meeting saved")');
+const noKey = await page.evaluate(() => !('apiKey' in NX.app.store.settings.get()) && !document.body.innerText.includes('API key'));
+assert.ok(noKey, 'no API key setting anywhere');
+console.log('✓ transcript analyzed locally + saved');
 
 // Deal drawer
 await page.click('.nav >> text=Pipeline');
 await page.click('.deal-card:has-text("NC2 on AWS DR")');
-await page.waitForSelector('.drawer >> text=Draft NC2 DR sizing');
+await page.waitForSelector('.drawer >> text=Put together a sizing for NC2 DR');
 await page.screenshot({ path: join(shots, '4-deal-drawer.png') });
 console.log('✓ deal drawer shows meeting tasks');
 
@@ -145,7 +128,6 @@ const written = await page.evaluate(async () => {
 });
 assert.ok(written.after > written.before, 'change triggered a file write');
 assert.ok(written.last.includes('Autosave probe task'), 'file contains latest data');
-assert.ok(!written.last.includes('sk-ant-test'), 'file excludes api key');
 assert.equal(written.status, 'saved');
 await page.waitForSelector('.save-ind:has-text("my-workspace.json")');
 console.log('✓ auto-save to linked file');

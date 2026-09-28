@@ -1,0 +1,9 @@
+Fabrikam call w/ Maria (IT dir) + Tom (plant ops)
+- 12 plant sites, each running 2-3 old Dell servers, all out of warranty
+- downtime at plants costs ~$50k/hr, big pain
+- want central mgmt, looking at VxRail too
+- decided to do a workshop on edge architecture
+- I'll send the edge reference architecture deck tomorrow
+- Maria to share the site inventory spreadsheet by 10/8
+- need to loop in AE on pricing
+- risk: budget not approved until Q1

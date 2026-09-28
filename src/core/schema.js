@@ -127,7 +127,7 @@
         stageAfter: oneOf(m.stageAfter, STAGE_IDS, ''),
         stageRationale: str(m.stageRationale, 2000),
         rawNotes: str(m.rawNotes, 500000),
-        processedBy: oneOf(m.processedBy, ['ai', 'heuristic', 'manual'], 'manual'),
+        processedBy: oneOf(m.processedBy, ['auto', 'manual', 'ai', 'heuristic'], 'manual'),
       };
     },
 
