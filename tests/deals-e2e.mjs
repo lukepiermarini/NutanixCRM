@@ -77,6 +77,23 @@ const yesBg = await row.locator('.chk.yes b').first().evaluate((b) => getCompute
 assert.equal(noBg, 'rgb(214, 58, 58)', 'No badge is red');
 assert.notEqual(yesBg, noBg);
 
+// Land & Expand / Renewal toggle sits right after the deal name
+const dt = row.locator('.dtype');
+const tb0 = await row.locator('.title').boundingBox(), db0 = await dt.boundingBox();
+assert.ok(db0.x - (tb0.x + tb0.width) < 20 && Math.abs(db0.y - tb0.y) < 12, 'toggle is directly right of the name');
+assert.deepEqual(await dt.locator('button').allTextContents(), ['Land & Expand', 'Renewal']);
+const pressed = () => dt.locator('button[aria-pressed=true]').allTextContents();
+assert.deepEqual(await pressed(), [], 'starts unset');
+await dt.locator('button.land').click();
+await me.waitForFunction(() => document.querySelector('.row .dtype .land')?.getAttribute('aria-pressed') === 'true');
+await dt.locator('button.renewal').click();
+await me.waitForFunction(() => document.querySelector('.row .dtype .renewal')?.getAttribute('aria-pressed') === 'true');
+assert.deepEqual(await pressed(), ['Renewal'], 'only one option at a time');
+await me.reload(); await me.waitForSelector('.row .dtype');
+assert.deepEqual(await pressed(), ['Renewal'], 'saved');
+await dt.locator('button.renewal').click();
+await me.waitForFunction(() => !document.querySelector('.row .dtype [aria-pressed=true]'));
+
 // Checklist pill wording
 assert.match(await row.locator('.chk').first().textContent(), /^Updated Recent Notes/);
 
@@ -116,8 +133,8 @@ await row.locator('.step').first().hover();
 assert.equal(await op2(row.locator('.rowedit')), '0', 'no deal Edit button while hovering a step');
 await row.locator('.title').hover();
 assert.equal(await op2(row.locator('.rowedit')), '1', 'deal Edit button shows on hovering the name');
-const tb = await row.locator('.title').boundingBox(), eb = await row.locator('.rowedit').boundingBox();
-assert.ok(eb.x - (tb.x + tb.width) < 20, 'Edit sits right next to the name (gap ' + Math.round(eb.x - (tb.x + tb.width)) + 'px)');
+const tb = await row.locator('.dtype').boundingBox(), eb = await row.locator('.rowedit').boundingBox();
+assert.ok(eb.x - (tb.x + tb.width) < 20, 'Edit follows the name and its deal-type toggle (gap ' + Math.round(eb.x - (tb.x + tb.width)) + 'px)');
 await row.locator('.rowedit').click();
 await me.waitForSelector('.row.open .ed');
 assert.equal(await row.locator('.rowedit').count(), 0, 'Edit button hides while the editor is open');
@@ -225,13 +242,15 @@ assert.equal(await josh.locator('.row.upd').count(), 0, 'first visit starts clea
 // Josh ticks a step and flips a checklist item
 await josh.locator('.row .step', { hasText: 'Meeting with Wilden' }).locator('.bx').click();
 await josh.locator('.row .chk', { hasText: 'Impl. plan' }).click();
+await josh.locator('.row .dtype button.land').click();
 await josh.waitForTimeout(150);
 
 // Back to me: the change shows up live, highlighted, with who did it
 await me.bringToFront();
 await me.waitForSelector('.row.upd');
 assert.match(await me.textContent('#banner'), /Josh made changes/);
-assert.match(await me.textContent('.updchip'), /Josh changed steps, Impl\. plan/);
+assert.match(await me.textContent('.updchip'), /Josh changed (?=.*steps)(?=.*Impl\. plan)(?=.*Land & Expand \/ Renewal)/);
+assert.equal(await me.locator('.dtype.hl').count(), 1, 'deal type change highlighted');
 assert.equal(await me.locator('.step.hl').count(), 1, 'only the changed step is highlighted');
 assert.match(await me.locator('.step.hl').textContent(), /Meeting with Wilden/);
 assert.equal(await me.locator('.chk.hl').count(), 1);

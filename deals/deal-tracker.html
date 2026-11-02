@@ -150,7 +150,7 @@ main { padding-block: 22px 80px;
 .circle:hover:not(:disabled) { border-color: var(--accent); }
 .row.done .circle { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .body { min-width: 0; display: flex; flex-direction: column; gap: 13px; }
-.line1 { display: flex; align-items: flex-start; gap: 10px; }
+.line1 { display: flex; align-items: flex-start; flex-wrap: wrap; gap: 8px 10px; }
 .title { text-align: left; font-size: 16px; line-height: 1.4; font-weight: 600; letter-spacing: -.005em; flex: 0 1 auto; min-width: 0; overflow-wrap: anywhere; }
 .title:hover { color: var(--accent-text); }
 .row.done .title { color: var(--muted); font-weight: 500; }
@@ -189,6 +189,14 @@ body:not(.ro) .step .slabel { padding-right: 30px; }   /* room for the hover pen
 .sedit:hover { color: var(--accent-text); box-shadow: 0 0 0 1px var(--accent); }
 .step.editing { border-color: var(--accent); background: var(--surface); -webkit-user-select: text; user-select: text; }
 .stepedit-in { border: 0; background: none; outline: none; font: inherit; color: var(--ink); padding: 4px 12px 4px 5px; min-width: 120px; max-width: 100%; }
+/* Land & Expand / Renewal toggle beside a deal's name */
+.dtype { flex: none; display: inline-flex; margin-top: -1px; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; background: var(--surface); }
+.dtype button { padding: 3px 10px; font-size: 11.5px; font-weight: 600; color: var(--muted); white-space: nowrap; }
+.dtype button + button { border-left: 1px solid var(--line); }
+.dtype button:hover:not(:disabled) { color: var(--ink); background: var(--bg); }
+.dtype button[aria-pressed="true"].land { background: var(--accent); color: var(--on-accent); }
+.dtype button[aria-pressed="true"].renewal { background: var(--ink); color: var(--page); }
+.dtype.hl { box-shadow: 0 0 0 2px var(--hl-edge); }
 /* "Edit" pill that opens the details panel: shows while hovering a deal's name line or anywhere on a task */
 .rowedit { flex: none; margin-top: -2px; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 11px; border-radius: 999px; font-size: 12.5px; font-weight: 600;
   color: var(--accent-text); background: var(--accent-soft); opacity: 0; pointer-events: none; }
@@ -609,6 +617,7 @@ function effDue(kind, it) {
 function diff(kind, base, next) {
   const patch = {}, keys = [];
   const scalar = { title: '', notes: '', due: '', flagged: false, completed: false, deleted: false };
+  if (kind === 'deals') scalar.dealType = '';
   for (const [f, def] of Object.entries(scalar)) {
     if ((base[f] ?? def) !== (next[f] ?? def)) { patch[f] = next[f] ?? def; keys.push(f); }
   }
@@ -693,7 +702,7 @@ function allUnseen() {
   for (const kind of ['deals', 'tasks']) for (const it of S.items[kind].values()) { const u = unseen(kind, it); if (u) out.push({ kind, it, u }); }
   return out;
 }
-const FIELD_WORDS = { title: 'name', notes: 'notes', due: 'due date', flagged: 'flag', completed: 'status', deleted: 'deleted', steps: 'steps', links: 'links' };
+const FIELD_WORDS = { dealType: 'Land & Expand / Renewal', title: 'name', notes: 'notes', due: 'due date', flagged: 'flag', completed: 'status', deleted: 'deleted', steps: 'steps', links: 'links' };
 function describeFields(fields) {
   const words = new Set();
   for (const f of fields) {
@@ -838,6 +847,7 @@ function paintRow(kind, it, li) {
   li.dataset.kind = kind;
   body.append(h('div', { class: 'line1' },
     h('button', { class: 'title' + (F.has('title') || (u && u.isNew) ? ' hl' : ''), text: it.title || `Untitled ${VIEWS[kind].noun}`, onclick: toggle }),
+    kind === 'deals' ? dealTypeToggle(kind, it, F.has('dealType')) : null,
     S.canWrite && !isOpen ? h('button', { class: 'rowedit', icon: 'pencil', title: `Open the ${VIEWS[kind].noun} editor`, 'aria-label': `Edit ${VIEWS[kind].noun}: ${it.title || ''}`, onclick: toggle }, 'Edit') : null,
     h('div', { class: 'icons' },
       h('button', { class: 'ibtn' + (it.flagged ? ' on' : '') + (F.has('flagged') ? ' hl' : ''), title: it.flagged ? 'Remove flag' : 'Flag', 'aria-label': it.flagged ? 'Remove flag' : 'Flag', disabled: !S.canWrite,
@@ -932,6 +942,14 @@ function stepEditor(kind, it, s) {
     if (text && text !== s.text) commit(kind, it.id, (d) => { const x = (d.steps || []).find((y) => y.id === s.id); if (x) x.text = text; });
     blurActive(); render();
   });
+}
+
+const DEAL_TYPES = [{ v: 'land', label: 'Land & Expand' }, { v: 'renewal', label: 'Renewal' }];
+function dealTypeToggle(kind, it, changed) {
+  return h('div', { class: 'dtype' + (changed ? ' hl' : ''), role: 'group', 'aria-label': 'Deal type' },
+    DEAL_TYPES.map((t) => h('button', { class: t.v, 'aria-pressed': String(it.dealType === t.v), disabled: !S.canWrite, text: t.label,
+      title: it.dealType === t.v ? 'Click again to clear' : 'Mark as ' + t.label,
+      onclick: () => commit(kind, it.id, (d) => { d.dealType = d.dealType === t.v ? '' : t.v; }) })));
 }
 
 function openDueEditor(it, s, isNext) {
