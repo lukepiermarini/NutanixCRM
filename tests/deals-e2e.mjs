@@ -115,7 +115,7 @@ assert.equal(await prog.locator('[aria-current]').count(), 0, 'new deals start u
 assert.equal(await prog.locator('.pseg.on').count(), 0);
 assert.equal(await prog.locator('.plbl').first().textContent(), 'Stage');
 assert.equal(await prog.locator('.plbl').nth(1).textContent(), 'Tech Close');
-// Shape: each bar is one capsule of equal cells; Tech Close spans Stages 1–5 and ends at Stage 5; "?" is as tall as both bars
+// Shape: each bar is one capsule of equal cells; Tech Close spans Stages 1–5 and ends at Stage 5
 { const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg} (${a.toFixed(1)} vs ${b.toFixed(1)})`);
   const stBar = await box(prog.locator('.pbar.st')), tcBar = await box(prog.locator('.pbar.tc'));
   assert.equal(await prog.locator('.pbar.st > .pseg').count(), 8, 'eight stage cells inside the Sales Stage bar');
@@ -133,10 +133,7 @@ assert.equal(await prog.locator('.plbl').nth(1).textContent(), 'Tech Close');
   assert.ok(tcBar.y > stBar.y + stBar.height - 1, 'Tech Close is below Sales Stage');
   assert.deepEqual(await prog.locator('.pseg.tc').allTextContents(), ['0%', '25%', '50%', '75%', '99%', '100%'], 'percentages inside the cells');
   assert.deepEqual(await prog.locator('.pbar.st > .pseg').allTextContents(), ['1', '2', '3', '4', '5', '6', '7', '8'], 'stage numbers inside the cells');
-  const hb = await box(prog.locator('.phelp'));
-  near(hb.y, stBar.y, 1, '"?" top aligns with the top bar'); near(hb.y + hb.height, tcBar.y + tcBar.height, 1, '"?" bottom aligns with the bottom bar');
-  near(hb.width, hb.height, 0.5, '"?" is a circle');
-  assert.ok(hb.x > stBar.x + stBar.width, '"?" is right of the bars'); }
+  assert.equal(await prog.locator('.phelp').count(), 0, 'no "?" button'); }
 // Click sets immediately; fill up to and including current
 await st(3).click();
 await me.waitForFunction(() => document.querySelector('.row [data-fk="st3"]')?.getAttribute('aria-current') === 'step');
@@ -193,31 +190,62 @@ assert.deepEqual(await current('tc'), ['tc99'], 'Tech Close independent of the o
 await st(4).click();
 await me.waitForFunction(() => !document.querySelector('.row .prog').classList.contains('is-out'));
 { const d = await dealDoc(); assert.equal(d.salesStage, 4); assert.equal(d.closedOutcome, null); }
-// Help popover: every stage and percentage; Esc and outside click close it; clearing both bars
-await prog.locator('.phelp').click(); await me.waitForSelector('.pop[role="dialog"]');
-const helpText = await me.locator('.pop').textContent();
-for (const t of ['1. Identified Opportunity', '2. Opportunity Discovery', '3. Develop Opportunity', '4. Technical Differentiation', '5. Technical Win',
-  '6. Commercial Win', '7. Order Statuses', '8. Closed Won', '9. Closed Lost / Disqualified',
-  '0% Acknowledgement', '25% Discovery', '50% Solutioning', '75% Proposal Review', '99% Executive Validation', '100% Tech Closed']) assert.ok(helpText.includes(t), 'help lists ' + t);
-assert.ok(helpText.includes('a clean PO received and processed by the Orders Team.'));
-await me.keyboard.press('Escape'); await me.waitForSelector('.pop', { state: 'detached' });
-assert.equal(await me.evaluate(() => document.activeElement?.dataset.fk), 'help');
-await prog.locator('.phelp').click(); await me.waitForSelector('.pop[role="dialog"]');
-await me.locator('.head h1').click(); await me.waitForSelector('.pop', { state: 'detached' });
-await prog.locator('.phelp').click(); await me.waitForSelector('.pop[role="dialog"]');
-await prog.locator('.phelp').click(); await me.waitForSelector('.pop', { state: 'detached' });   // ? toggles
-await prog.locator('.phelp').click();
-await me.locator('.pop button', { hasText: 'Clear Sales Stage' }).click();
+// Hover tooltips: what each step requires and what it takes to reach the next one
+const tipFor = async (loc) => { await me.locator('.head h1').hover(); await me.waitForSelector('.ptip', { state: 'detached' }); await loc.hover(); await me.waitForSelector('.ptip'); return me.locator('.ptip').textContent(); };
+let tip = await tipFor(st(3));
+assert.ok(tip.startsWith('Stage 3: Develop Opportunity'), tip);
+assert.ok(tip.includes('RequirementsResources identified and validated; requirements, timing and key stakeholders\' interests established.'), tip);
+assert.ok(tip.includes('To move to Stage 4: Technical DifferentiationConfiguration being set for the agreed use case;'), tip);
+assert.equal(await st(3).getAttribute('aria-describedby'), 'ptip', 'tooltip is the cell\'s description');
+assert.equal(await me.locator('.ptip').getAttribute('role'), 'tooltip');
+{ const tb = await box(me.locator('.ptip')); assert.ok(tb.x >= 15 && tb.x + tb.width <= 1281 - 15, 'tooltip stays on screen'); }
+await me.locator('.head h1').hover(); await me.waitForSelector('.ptip', { state: 'detached' });
+assert.equal(await st(3).getAttribute('aria-describedby'), null);
+assert.match(await tipFor(st(4)), /Current stage\. Click again to clear it\./, 'current stage says how to clear');
+assert.match(await tipFor(st(7)), /Click to set this stage, then choose the order status\./);
+tip = await tipFor(st(8));
+assert.ok(tip.includes('A clean PO received and processed by the Orders Team.') && tip.includes('This is the final stage.'), tip);
+tip = await tipFor(st(9));
+assert.ok(tip.includes("Lost means we competed and lost (Stage 2 or later); Disqualified means we didn't compete."), tip);
+tip = await tipFor(tc(75));
+assert.ok(tip.startsWith('Tech Close 75%: Proposal Review') && tip.includes('Engage Bid Desk.') && tip.includes('To move to 99%: Executive Validation') && tip.includes('Implementation plan final;'), tip);
+assert.match(await tipFor(tc(99)), /Current\. Click again to clear it\./);
+tip = await tipFor(tc(100));
+assert.ok(tip.includes('firm "Why Nutanix"') && tip.includes('This is the final Tech Close step.'), tip);
+for (const [fk, title] of [['st1', 'Stage 1: Identified Opportunity'], ['st2', 'Stage 2: Opportunity Discovery'], ['st5', 'Stage 5: Technical Win'], ['st6', 'Stage 6: Commercial Win'],
+  ['tc0', 'Tech Close 0%: Acknowledgement'], ['tc25', 'Tech Close 25%: Discovery'], ['tc50', 'Tech Close 50%: Solutioning']])
+  assert.ok((await tipFor(prog.locator(`[data-fk="${fk}"]`))).startsWith(title), 'tooltip for ' + fk);
+await me.locator('.head h1').hover(); await me.waitForSelector('.ptip', { state: 'detached' });
+// Keyboard focus shows it too; Esc hides it without closing anything else
+await st(1).focus(); await me.keyboard.press('Tab');
+await me.waitForSelector('.ptip');
+assert.ok((await me.locator('.ptip').textContent()).startsWith('Stage 2: Opportunity Discovery'));
+await me.keyboard.press('Escape'); await me.waitForSelector('.ptip', { state: 'detached' });
+assert.equal(await me.evaluate(() => document.activeElement?.dataset.fk), 'st2', 'focus stays put');
+await me.keyboard.press('Shift+Tab'); await me.waitForSelector('.ptip');   // moving focus shows the next one
+await me.locator('.head h1').click(); await me.waitForSelector('.ptip', { state: 'detached' });
+// Clearing: clicking the current cell again clears that bar (the other bar is untouched)
+await st(4).click();
 await me.waitForFunction(() => !document.querySelector('.row .prog .pseg.st[aria-current]'));
 assert.deepEqual(await current('tc'), ['tc99'], 'clearing the stage leaves Tech Close');
-await prog.locator('.phelp').click();
-assert.ok(await me.locator('.pop button', { hasText: 'Clear Sales Stage' }).isDisabled(), 'nothing to clear');
-await me.locator('.pop button', { hasText: 'Clear Tech Close' }).click();
+await tc(99).click();
 await me.waitForFunction(() => !document.querySelector('.row .prog [aria-current]'));
 await me.reload(); await me.waitForSelector('.row .prog');
 assert.equal(await prog.locator('[aria-current]').count(), 0, 'cleared values stay cleared after reload');
 assert.equal(await prog.locator('.pseg.on').count(), 0);
 { const d = await dealDoc(); assert.equal(d.salesStage, null); assert.equal(d.techClose, null); assert.equal(d.orderStatus, null); assert.equal(d.closedOutcome, null); }
+// ...and Stage 7 / Stage 9 menus have a Clear option once set
+await st(7).click(); await me.locator('.pop .mi', { hasText: 'Order with OEM' }).click();
+await me.waitForFunction(() => document.querySelector('.row .olbl')?.textContent.includes('OEM'));
+await st(7).click(); await me.waitForSelector('.pop[role="menu"]');
+await me.locator('.pop .mi', { hasText: 'Clear Sales Stage' }).click();
+await me.waitForFunction(() => !document.querySelector('.row .prog [aria-current]') && !document.querySelector('.row .olbl'));
+await st(9).click(); assert.equal(await me.locator('.pop .mi', { hasText: 'Clear' }).count(), 0, 'nothing to clear yet');
+await me.locator('.pop .mi', { hasText: 'Closed Lost' }).click();
+await me.waitForFunction(() => document.querySelector('.row .prog.is-out'));
+await st(9).click(); await me.locator('.pop .mi', { hasText: 'Clear Sales Stage' }).click();
+await me.waitForFunction(() => !document.querySelector('.row .prog.is-out') && !document.querySelector('.row .prog [aria-current]'));
+{ const d = await dealDoc(); assert.equal(d.salesStage, null); assert.equal(d.closedOutcome, null); }
 // Leave a value set for the two-person check below
 await tc(25).click();
 await me.waitForFunction(() => document.querySelector('.row [data-fk="tc25"]')?.getAttribute('aria-current') === 'step');
@@ -447,10 +475,10 @@ assert.ok(overflow <= 0, 'no horizontal scroll at phone width (' + overflow + 'p
 // Phone width with a Stage 9 outcome: the red badge is fully visible and nothing overflows
 await me.locator('.row .prog [data-fk="st9"]').first().click(); await me.locator('.pop .mi', { hasText: 'Disqualified' }).click();
 await me.waitForFunction(() => document.querySelector('.row .prog.is-out'));
-{ const n = me.locator('.row .prog [data-fk="st9"]').first(), hb = await me.locator('.row .prog .phelp').first().boundingBox(), nb = await n.boundingBox();
+{ const n = me.locator('.row .prog [data-fk="st9"]').first(), nb = await n.boundingBox();
   assert.equal(await n.evaluate((e) => e.scrollWidth <= e.clientWidth), true, 'outcome badge text not clipped');
   assert.equal(await n.locator('.short').textContent(), 'DQ');
-  assert.ok(nb.x + nb.width <= hb.x && hb.x + hb.width <= 390 - 16 + 1, 'badge and help fit inside the gutter');
+  assert.ok(nb.x + nb.width <= 390 - 16 + 1, 'badge fits inside the gutter');
   assert.ok(await me.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), 'still no horizontal scroll'); }
 await me.screenshot({ path: join(shots, 'deals-3-phone.png'), fullPage: true });
 

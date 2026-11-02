@@ -198,10 +198,10 @@ body:not(.ro) .step .slabel { padding-right: 30px; }   /* room for the hover pen
 .dtype button[aria-pressed="true"].renewal { background: var(--ink); color: var(--page); }
 .dtype.hl { box-shadow: 0 0 0 2px var(--hl-edge); }
 /* Deal progress: two capsule-shaped progress bars. Sales Stage spans eight equal stage columns; Tech Close
-   spans the first five (it ends at Stage 5) and splits them into six equal cells. "?" is as tall as both bars. */
+   spans the first five (it ends at Stage 5) and splits them into six equal cells. Hovering a cell explains it. */
 .prog { --barh: 26px; --pgap: 5px; --colmin: 26px;
   flex: 0 1 auto; min-width: 0; max-width: 100%; display: inline-grid; align-items: center; row-gap: var(--pgap);
-  grid-template-columns: auto repeat(8, minmax(var(--colmin), 36px)) auto auto; margin-top: -4px; padding: 2px 4px; border-radius: 8px; }
+  grid-template-columns: auto repeat(8, minmax(var(--colmin), 36px)) auto; margin-top: -4px; padding: 2px 4px; border-radius: 8px; }
 .plbl { grid-column: 1; padding-right: 8px; font-size: 10.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); white-space: nowrap; text-align: right; }
 .pbar { height: var(--barh); display: grid; gap: 2px; padding: 2px; border-radius: 999px; border: 1.5px solid var(--accent); background: var(--surface); }
 .pbar.st { grid-row: 1; grid-column: 2 / span 8; grid-template-columns: repeat(8, minmax(0, 1fr)); }
@@ -225,20 +225,21 @@ body:not(.ro) .step .slabel { padding-right: 30px; }   /* room for the hover pen
 .prog.is-out .pbar.st { border-color: var(--line); }
 .prog.is-out .pbar.st .pseg { background: var(--bg); color: var(--faint); box-shadow: none; text-decoration: line-through; }
 .olbl { grid-row: 3; grid-column: 7 / span 3; font-size: 10.5px; font-weight: 600; line-height: 1.2; color: var(--accent-text); text-align: center; white-space: nowrap; }
-.phelp { grid-column: 11; grid-row: 1 / span 2; align-self: start; margin-left: 8px; width: calc(2 * var(--barh) + var(--pgap)); height: calc(2 * var(--barh) + var(--pgap));
-  display: grid; place-items: center; border-radius: 50%; border: 1.5px solid var(--line); background: var(--surface); color: var(--muted); font-size: 20px; font-weight: 700; line-height: 1; }
-.phelp:hover { border-color: var(--accent); color: var(--accent-text); }
 /* small anchored popovers: order status / outcome menus and the help card */
 .pop { position: absolute; z-index: 30; padding: 6px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); box-shadow: var(--shadow); font-size: 13px; }
 .pop .phd { padding: 4px 10px 6px; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
 .pop .mi { display: flex; align-items: center; gap: 8px; width: 100%; min-width: 210px; padding: 6px 10px; border-radius: 6px; text-align: left; }
 .pop .mi:hover, .pop .mi:focus-visible { background: var(--accent-soft); }
 .pop .mi .ck { width: 14px; display: grid; place-items: center; color: var(--accent-text); }
-.pop-help { width: min(560px, calc(100vw - 32px)); max-height: min(70vh, 640px); overflow: auto; padding: 10px 14px 12px; }
-.pop-help .phead { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
-.pop-help h4 { margin: 12px 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--accent-text); }
-.pop-help ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; line-height: 1.5; }
-.pop-help .pfoot { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
+.pop .msep { height: 1px; margin: 4px 6px; background: var(--line); }
+.pop .mi.clr { color: var(--muted); }
+/* tooltip for a progress cell: its requirements and what it takes to reach the next one */
+.ptip { position: absolute; z-index: 40; width: max-content; max-width: min(340px, calc(100vw - 32px)); padding: 10px 12px; border-radius: 10px;
+  background: var(--ink); color: var(--page); box-shadow: var(--shadow); font-size: 12.5px; line-height: 1.45; pointer-events: none; }
+.ptip .tt { display: block; font-size: 13px; font-weight: 700; }
+.ptip .tl { margin-top: 8px; font-size: 11px; font-weight: 700; color: color-mix(in srgb, var(--page) 72%, transparent); }
+.ptip p { margin: 2px 0 0; }
+.ptip .th { margin-top: 9px; padding-top: 7px; border-top: 1px solid color-mix(in srgb, var(--page) 22%, transparent); font-size: 11.5px; color: color-mix(in srgb, var(--page) 80%, transparent); }
 /* "Edit" pill that opens the details panel: shows while hovering a deal's name line or anywhere on a task */
 .rowedit { flex: none; margin-top: -2px; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 11px; border-radius: 999px; font-size: 12.5px; font-weight: 600;
   color: var(--accent-text); background: var(--accent-soft); opacity: 0; pointer-events: none; }
@@ -378,7 +379,6 @@ body.ro .add, body.ro .ed .writer, body.ro #clearDone { display: none; }
   .pseg.tc { font-size: 9px; letter-spacing: -.04em; }
   .pseg.tc .pc { display: none; }   /* "100%" doesn't fit a phone-width cell; the bar is labelled Tech Close */
   .pseg.nine { margin-left: 4px; padding: 0 6px; }
-  .phelp { margin-left: 4px; font-size: 17px; }
   .pseg.nine .full { display: none; }
   .pseg.nine .short { display: inline; }
 }
@@ -872,6 +872,7 @@ function render() {
     else empty.append(h('strong', { text: `No ${V.nouns} yet` }), S.canWrite ? `Type a ${V.noun} name in the line above and press Enter.` : '');
   }
   resolveNames();
+  refreshTip();
 }
 
 function paintRow(kind, it, li) {
@@ -1052,6 +1053,7 @@ const setStage = (kind, id, n) => commit(kind, id, (d) => { d.salesStage = n; if
 const setOrderStatus = (kind, id, v) => commit(kind, id, (d) => { d.salesStage = 7; d.orderStatus = v; d.closedOutcome = null; });
 const setOutcome = (kind, id, v) => commit(kind, id, (d) => { d.salesStage = 9; d.closedOutcome = v; d.orderStatus = null; });
 const setTech = (kind, id, v) => commit(kind, id, (d) => { d.techClose = v; });
+const clearStage = (kind, id) => commit(kind, id, (d) => { d.salesStage = null; d.orderStatus = null; d.closedOutcome = null; });
 
 function progressTracker(kind, it, changed) {
   const stage = stageOf(it), tc = techOf(it), ro = !S.canWrite;
@@ -1062,9 +1064,9 @@ function progressTracker(kind, it, changed) {
     const n = i + 1, cur = stage === n;
     const label = `Stage ${n}: ${name}` + (n === 7 && os ? ` (${os.label})` : '');
     stBar.append(h('button', { type: 'button', class: 'pseg st' + (stage && stage <= 8 && n <= stage ? ' on' : '') + (cur ? ' cur' : ''), 'data-fk': 'st' + n,
-      disabled: ro, title: label, 'aria-label': label, 'aria-current': cur ? 'step' : null, 'aria-haspopup': n === 7 ? 'menu' : null,
+      disabled: ro, 'aria-label': label, 'aria-current': cur ? 'step' : null, 'aria-haspopup': n === 7 ? 'menu' : null,
       onclick: (e) => {
-        if (n !== 7) return setStage(kind, it.id, n);
+        if (n !== 7) return cur ? clearStage(kind, it.id) : setStage(kind, it.id, n);
         if (stage !== 7) setStage(kind, it.id, 7);
         openOrderMenu(kind, it, e.currentTarget);
       } }, String(n)));
@@ -1073,20 +1075,17 @@ function progressTracker(kind, it, changed) {
   for (const t of TECH) {
     const cur = tc === t.v, label = `Tech Close ${t.v}%: ${t.label}`;
     tcBar.append(h('button', { type: 'button', class: 'pseg tc' + (tc != null && t.v <= tc ? ' on' : '') + (cur ? ' cur' : ''), 'data-fk': 'tc' + t.v,
-      disabled: ro, title: label, 'aria-label': label, 'aria-current': cur ? 'step' : null, onclick: () => setTech(kind, it.id, t.v) },
+      disabled: ro, 'aria-label': label, 'aria-current': cur ? 'step' : null, onclick: () => setTech(kind, it.id, cur ? null : t.v) },
       h('span', { class: 'n', text: String(t.v) }), h('span', { class: 'pc', text: '%' })));
   }
   return h('div', { class: 'prog' + (changed ? ' hl' : '') + (stage === 9 ? ' is-out' : ''), role: 'group', 'aria-label': 'Deal progress' },
     h('span', { class: 'plbl', style: 'grid-row:1', 'aria-hidden': 'true', text: 'Stage' }), stBar,
     h('button', { type: 'button', class: 'pseg st nine' + (out ? ' on' : ''), 'data-fk': 'st9', disabled: ro, 'aria-haspopup': 'menu',
-      title: out ? `Stage 9: ${out.label}` : 'Stage 9: Closed Lost / Disqualified',
       'aria-label': 'Stage 9: Closed Lost / Disqualified' + (out ? ` (${out.label})` : ''), 'aria-current': stage === 9 ? 'step' : null,
       onclick: (e) => openOutcomeMenu(kind, it, e.currentTarget) },
       out ? [h('span', { class: 'full', text: out.label }), h('span', { class: 'short', text: out.short })] : '9'),
     h('span', { class: 'plbl', style: 'grid-row:2', 'aria-hidden': 'true', text: 'Tech Close' }), tcBar,
-    os ? h('span', { class: 'olbl', title: os.label, text: '▲ ' + os.short }) : null,
-    h('button', { type: 'button', class: 'phelp', 'data-fk': 'help', title: 'What the stages and percentages mean', 'aria-label': 'Help: what the stages and percentages mean',
-      'aria-haspopup': 'dialog', onclick: (e) => openProgressHelp(kind, it, e.currentTarget) }, '?'));
+    os ? h('span', { class: 'olbl', title: os.label, text: '▲ ' + os.short }) : null);
 }
 
 /* anchored popover: Esc or a click outside closes it and returns focus to the control that opened it */
@@ -1102,7 +1101,8 @@ function closePop(refocus) {
 function openPop(key, anchor, content, { role, label, back }) {
   if (POP && POP.key === key) { closePop(true); return null; }
   closePop(false);
-  const el = h('div', { class: 'pop' + (role === 'dialog' ? ' pop-help' : ''), role, 'aria-label': label, tabindex: '-1' }, [content].flat(3));
+  hideTip();
+  const el = h('div', { class: 'pop', role, 'aria-label': label, tabindex: '-1' }, [content].flat(3));
   document.body.append(el);
   const r = anchor.getBoundingClientRect(), vw = document.documentElement.clientWidth;
   el.style.left = Math.max(16, Math.min(r.left, vw - el.offsetWidth - 16)) + scrollX + 'px';
@@ -1127,34 +1127,97 @@ window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && POP) { e.s
 const rowCtl = (kind, id, fk) => () => { const li = rowEls.get(kind + '/' + id); return (li && li.querySelector(`[data-fk="${fk}"]`)) || null; };
 function menuPop(key, anchor, title, items, back) {
   const el = openPop(key, anchor, [h('div', { class: 'phd', text: title }),
-    items.map((o) => h('button', { type: 'button', class: 'mi', role: 'menuitemradio', 'aria-checked': String(!!o.checked), onclick: () => { closePop(true); o.pick(); } },
-      h('span', { class: 'ck' }, o.checked ? h('span', { icon: 'check' }) : null), o.label))],
+    items.map((o) => [o.clear ? h('div', { class: 'msep', role: 'separator' }) : null,
+      h('button', { type: 'button', class: 'mi' + (o.clear ? ' clr' : ''), role: o.clear ? 'menuitem' : 'menuitemradio', 'aria-checked': o.clear ? null : String(!!o.checked),
+        onclick: () => { closePop(true); o.pick(); } },
+        h('span', { class: 'ck' }, o.checked ? h('span', { icon: 'check' }) : o.clear ? h('span', { icon: 'x' }) : null), o.label)])],
     { role: 'menu', label: title, back });
   if (el) (el.querySelector('.mi[aria-checked="true"]') || el.querySelector('.mi')).focus();
 }
 function openOrderMenu(kind, it, anchor) {
   const curr = stageOf(it) === 7 ? it.orderStatus : null;
-  menuPop('order-' + it.id, anchor, 'Order status', ORDER_STATUSES.map((o) => ({ label: o.label, checked: curr === o.v, pick: () => setOrderStatus(kind, it.id, o.v) })), rowCtl(kind, it.id, 'st7'));
+  const items = ORDER_STATUSES.map((o) => ({ label: o.label, checked: curr === o.v, pick: () => setOrderStatus(kind, it.id, o.v) }));
+  if (stageOf(it) === 7) items.push({ label: 'Clear Sales Stage', clear: true, pick: () => clearStage(kind, it.id) });
+  menuPop('order-' + it.id, anchor, 'Order status', items, rowCtl(kind, it.id, 'st7'));
 }
 function openOutcomeMenu(kind, it, anchor) {
   const curr = stageOf(it) === 9 ? it.closedOutcome : null;
-  menuPop('out-' + it.id, anchor, 'Stage 9 outcome', OUTCOMES.map((o) => ({ label: o.label, checked: curr === o.v, pick: () => setOutcome(kind, it.id, o.v) })), rowCtl(kind, it.id, 'st9'));
+  const items = OUTCOMES.map((o) => ({ label: o.label, checked: curr === o.v, pick: () => setOutcome(kind, it.id, o.v) }));
+  if (stageOf(it) === 9) items.push({ label: 'Clear Sales Stage', clear: true, pick: () => clearStage(kind, it.id) });
+  menuPop('out-' + it.id, anchor, 'Stage 9 outcome', items, rowCtl(kind, it.id, 'st9'));
 }
-function openProgressHelp(kind, it, anchor) {
-  const list = (rows) => h('ul', null, rows.map(([t, d]) => h('li', null, h('strong', { text: t + ': ' }), d)));
-  const el = openPop('help-' + it.id, anchor, [
-    h('div', { class: 'phead' }, h('strong', { text: 'Deal progress' }),
-      h('button', { type: 'button', class: 'ibtn', icon: 'x', title: 'Close', 'aria-label': 'Close help', onclick: () => closePop(true) })),
-    h('h4', { text: 'Sales Stages' }), list(HELP_STAGES),
-    h('h4', { text: 'Tech Close' }), list(HELP_TECH),
-    S.canWrite ? h('div', { class: 'pfoot' },
-      h('button', { type: 'button', class: 'btn sm', text: 'Clear Sales Stage', disabled: stageOf(it) == null,
-        onclick: () => { closePop(true); commit(kind, it.id, (d) => { d.salesStage = null; d.orderStatus = null; d.closedOutcome = null; }); } }),
-      h('button', { type: 'button', class: 'btn sm', text: 'Clear Tech Close', disabled: techOf(it) == null,
-        onclick: () => { closePop(true); setTech(kind, it.id, null); } })) : null,
-  ], { role: 'dialog', label: 'Deal progress help', back: rowCtl(kind, it.id, 'help') });
-  if (el) el.focus();
+const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+function progressTip(fk, it) {
+  const stage = stageOf(it), tc = techOf(it), ro = !S.canWrite;
+  let title, need, nextHead = null, next = null, hint = null;
+  if (fk.startsWith('st')) {
+    const n = Number(fk.slice(2));
+    title = n === 9 ? 'Stage 9: Closed Lost / Disqualified' : `Stage ${n}: ${STAGES[n - 1]}`;
+    need = HELP_STAGES[n - 1][1];
+    if (n < 8) { nextHead = `To move to Stage ${n + 1}: ${STAGES[n]}`; next = HELP_STAGES[n][1]; }
+    else if (n === 8) nextHead = 'This is the final stage.';
+    if (!ro) hint = n === 9 ? (stage === 9 ? 'Click to change the outcome or clear it.' : 'Click to record Closed Lost or Disqualified.')
+      : n === 7 ? (stage === 7 ? 'Current stage. Click to change the order status or clear it.' : 'Click to set this stage, then choose the order status.')
+      : stage === n ? 'Current stage. Click again to clear it.' : 'Click to set this stage.';
+  } else {
+    const i = TECH.findIndex((t) => 'tc' + t.v === fk), t = TECH[i];
+    title = `Tech Close ${t.v}%: ${t.label}`;
+    need = HELP_TECH[i][1];
+    if (i < TECH.length - 1) { nextHead = `To move to ${TECH[i + 1].v}%: ${TECH[i + 1].label}`; next = HELP_TECH[i + 1][1]; }
+    else nextHead = 'This is the final Tech Close step.';
+    if (!ro) hint = tc === t.v ? 'Current. Click again to clear it.' : 'Click to set.';
+  }
+  return [h('strong', { class: 'tt', text: title }), h('div', { class: 'tl', text: 'Requirements' }), h('p', { text: cap(need) }),
+    nextHead ? h('div', { class: 'tl', text: nextHead }) : null, next ? h('p', { text: cap(next) }) : null,
+    hint ? h('div', { class: 'th', text: hint }) : null];
 }
+let TIP = null, tipTimer = null;
+function hideTip() {
+  clearTimeout(tipTimer);
+  if (!TIP) return;
+  TIP.anchor.removeAttribute('aria-describedby'); TIP.el.remove(); TIP = null;
+}
+function showTip(anchor) {
+  const li = anchor.closest('.row');
+  const it = li && S.items[li.dataset.kind] && S.items[li.dataset.kind].get(li.dataset.id);
+  if (!it || POP) return;
+  hideTip();
+  const el = h('div', { class: 'ptip', role: 'tooltip', id: 'ptip' }, progressTip(anchor.dataset.fk, it));
+  document.body.append(el);
+  const r = anchor.getBoundingClientRect(), vw = document.documentElement.clientWidth, hgt = el.offsetHeight;
+  el.style.left = Math.max(16, Math.min(r.left + r.width / 2 - el.offsetWidth / 2, vw - el.offsetWidth - 16)) + scrollX + 'px';
+  el.style.top = (r.top - hgt - 8 >= 8 ? r.top - hgt - 8 : r.bottom + 8) + scrollY + 'px';
+  anchor.setAttribute('aria-describedby', 'ptip');
+  TIP = { el, anchor, row: li.dataset.kind + '/' + li.dataset.id, fk: anchor.dataset.fk };
+}
+// a save repaints the row: move the tooltip to the new copy of the cell if it's still hovered or focused
+function refreshTip() {
+  if (!TIP || TIP.anchor.isConnected) return;
+  const li = rowEls.get(TIP.row), a = li && li.querySelector(`.prog [data-fk="${TIP.fk}"]`);
+  if (a && (a.matches(':hover') || document.activeElement === a)) showTip(a); else hideTip();
+}
+const progCell = (t) => (t && t.closest ? t.closest('.prog .pseg') : null);
+document.addEventListener('pointerover', (e) => {
+  const a = progCell(e.target);
+  if (!a || (TIP && TIP.anchor === a)) return;
+  clearTimeout(tipTimer);
+  tipTimer = setTimeout(() => { if (a.isConnected && a.matches(':hover')) showTip(a); }, e.pointerType === 'mouse' ? 150 : 0);
+});
+document.addEventListener('pointerout', (e) => {
+  const a = progCell(e.target);
+  if (!a || (e.relatedTarget && a.contains(e.relatedTarget))) return;
+  clearTimeout(tipTimer);
+  if (TIP && TIP.anchor === a) hideTip();
+});
+document.addEventListener('focusin', (e) => {
+  const a = progCell(e.target);
+  if (a && a.matches(':focus-visible')) showTip(a);
+  else if (TIP && TIP.anchor !== a) hideTip();
+});
+document.addEventListener('focusout', (e) => { if (TIP && e.target === TIP.anchor && !TIP.anchor.matches(':hover')) hideTip(); });
+document.addEventListener('pointerdown', (e) => { if (TIP && !TIP.anchor.contains(e.target)) hideTip(); }, true);
+window.addEventListener('scroll', hideTip, { passive: true });
+window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && TIP && !POP) { e.stopPropagation(); hideTip(); } }, true);
 
 function openDueEditor(it, s, isNext) {
   const [date, time] = stepDue(it, s, isNext).split('T');
