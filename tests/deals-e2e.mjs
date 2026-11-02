@@ -413,9 +413,25 @@ assert.ok(mtip.includes('○Named · required (not met)') && mtip.includes('○F
 await me.locator('.head h1').hover(); await me.waitForSelector('.ptip', { state: 'detached' });
 
 // click: the detail panel with all eight letters, focused on the one clicked
-await tile(1).click();
+// a small down arrow appears on hover, hidden otherwise
+await me.waitForTimeout(250);   // let any earlier hover fade out
+assert.equal(await tile(1).locator('.mchev').evaluate((e) => getComputedStyle(e).opacity), '0', 'arrow hidden until hover');
+await tile(1).hover(); await me.waitForTimeout(200);
+assert.equal(await tile(1).locator('.mchev').evaluate((e) => getComputedStyle(e).opacity), '1', 'arrow shows on hover');
+await tile(1).locator('.mchev').click();   // clicking the arrow opens the evidence
 await me.waitForSelector('.row .mpanel');
 assert.equal(await me.locator('.mpanel .mgroup').count(), 8);
+// each letter's box sits directly below its tile, same column width
+{ const tb = await tiles.evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((r) => [r.left, r.width, r.bottom]));
+  const gb = await me.locator('.mpanel .mgroup').evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((r) => [r.left, r.width, r.top]));
+  gb.forEach(([l, w, top], i) => {
+    assert.ok(Math.abs(l - tb[i][0]) < 1.5 && Math.abs(w - tb[i][1]) < 1.5, `box ${i} is under tile ${i} (${l.toFixed(1)}/${w.toFixed(1)} vs ${tb[i][0].toFixed(1)}/${tb[i][1].toFixed(1)})`);
+    assert.ok(top > tb[i][2], `box ${i} is below its tile`);
+  });
+  assert.equal(new Set(gb.map((g) => Math.round(g[2]))).size, 1, 'all eight boxes in one row');
+  assert.equal(await me.locator('.mpanel .mgroup').first().evaluate((e) => getComputedStyle(e).borderTopLeftRadius), await tile(0).evaluate((e) => getComputedStyle(e).borderTopLeftRadius), 'boxes styled like the tiles'); }
+assert.equal(await tile(1).getAttribute('aria-expanded'), 'true');
+assert.equal(await tile(1).locator('.mchev').evaluate((e) => getComputedStyle(e).opacity), '1', 'arrow stays visible while open');
 assert.equal(await me.locator('.mpanel .mgroup.mcur h4').textContent(), 'E Economic Buyer');
 assert.equal(await tile(1).getAttribute('aria-expanded'), 'true');
 const group = (name) => me.locator('.mpanel .mgroup', { has: me.locator('h4', { hasText: name }) });

@@ -243,6 +243,11 @@ body:not(.ro) .step .slabel { padding-right: 30px; }   /* room for the hover pen
 .mletter { font-size: 22px; font-weight: 800; line-height: 1; color: var(--ink); }
 .mname { font-size: 11.5px; font-weight: 600; line-height: 1.25; color: var(--muted); }
 .mnext { margin-top: 2px; font-size: 11.5px; line-height: 1.35; color: var(--ink); overflow-wrap: anywhere; }
+.mchev { position: absolute; right: 6px; bottom: 6px; width: 20px; height: 20px; display: grid; place-items: center; border-radius: 6px;
+  color: var(--accent-text); background: var(--accent-soft); opacity: 0; transition: opacity .12s; }
+.mtile:hover .mchev, .mtile:focus-visible .mchev, .mtile[aria-expanded="true"] .mchev { opacity: 1; }
+.mtile[aria-expanded="true"] .mchev svg { transform: rotate(180deg); }
+@media (hover: none) { .mchev { opacity: .8; } }
 .mrisk { position: absolute; top: 7px; right: 7px; width: 16px; height: 16px; display: grid; place-items: center; border-radius: 50%; background: var(--late); color: #fff; font-size: 11px; font-weight: 800; }
 .mmeter { display: inline-flex; align-items: center; gap: 6px; }
 .mdots { display: inline-flex; gap: 3px; }
@@ -257,30 +262,39 @@ body:not(.ro) .step .slabel { padding-right: 30px; }   /* room for the hover pen
 @container (max-width: 560px) { .mgrid { grid-template-columns: repeat(4, minmax(0, 1fr)); } .mnext { display: block; } }
 @container (max-width: 480px) { .mnext { display: none; } }
 @container (max-width: 360px) { .mname { display: none; } .mtile { align-items: center; } }   /* ...then the name, never the letter or dots */
-.mpanel { margin-top: 2px; display: flex; flex-direction: column; gap: 12px; padding: 12px 14px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); }
+.mpanel { container-type: inline-size; display: flex; flex-direction: column; gap: 10px; }
 .mp-head { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; }
 .mp-head .mp-hint { flex: 1; font-size: 12.5px; color: var(--muted); }
-.mgroup { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); scroll-margin-block: 90px; }
-.mgroup.mcur { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+/* same 8-column grid and gap as the tiles, so each letter's bullets sit directly below it */
+.mcols { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; align-items: start; }
+.mgroup { min-width: 0; display: flex; flex-direction: column; gap: 8px; padding: 9px 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); scroll-margin-block: 90px; }
+.mgroup.mcur { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
 @media (prefers-reduced-motion: no-preference) { .mgroup.flash { animation: mflash 1.4s ease-out; } }
-@keyframes mflash { 0% { background: var(--accent-soft); } 100% { background: transparent; } }
-.mg-head { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; }
-.mg-head h4 { margin: 0; font-size: 14px; }
-.mg-head .ml { color: var(--accent-text); font-weight: 800; }
-.mg-meter { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; }
-.mrisk-i { font-size: 12px; font-weight: 700; color: var(--late); }
-.mgnext { font-size: 12.5px; color: var(--muted); }
-.mmean { margin: 0; font-size: 12.5px; color: var(--muted); }
-.mempty { margin: 0; font-size: 12.5px; color: var(--faint); }
+@keyframes mflash { 0% { background: var(--accent-soft); } 100% { background: var(--surface); } }
+.mcolh { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }   /* the letter is right above */
+.mcolh .ml { color: var(--accent-text); font-weight: 800; }
+.mg-head { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+.mg-meter { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; }
+.mrisk-i { font-size: 11.5px; font-weight: 700; color: var(--late); }
+.mgnext { font-size: 11.5px; line-height: 1.35; color: var(--muted); overflow-wrap: anywhere; }
+.mempty { margin: 0; font-size: 12px; color: var(--faint); }
 .mbuls { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.mbul { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 210px) minmax(0, 175px) minmax(0, 150px) auto auto; align-items: center; gap: 6px; padding: 4px; border-radius: 8px; }
-.mbul .fld { padding: 5px 8px; font-size: 13px; }
-.mbul.isrisk { background: var(--late-soft); }
+.mbul { min-width: 0; display: flex; flex-direction: column; gap: 4px; padding: 6px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); }
+.mbul .fld { width: 100%; padding: 4px 6px; font-size: 12px; background: var(--surface); }
+.mbul textarea.mtext { min-height: 0; resize: none; overflow: hidden; line-height: 1.4; font-size: 12.5px; }
+.mbul.isrisk { background: var(--late-soft); border-color: color-mix(in srgb, var(--late) 40%, var(--line)); }
 .mbul.isassume .mtext { font-style: italic; color: var(--muted); }
-.mriskbtn { display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 0 10px; border-radius: 7px; border: 1px solid var(--line); background: var(--surface); font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.mbrow { display: flex; align-items: center; gap: 4px; }
+.mbrow .ibtn { margin-left: auto; width: 24px; height: 24px; }
+.mriskbtn { display: inline-flex; align-items: center; gap: 3px; height: 24px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--line); background: var(--surface); font-size: 11.5px; font-weight: 600; color: var(--muted); }
 .mriskbtn span { font-weight: 800; }
 .mriskbtn[aria-pressed="true"] { background: var(--late); border-color: var(--late); color: #fff; }
-@media (max-width: 900px) { .mbul { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .mbul .mtext { grid-column: 1 / -1; } }
+.mgroup .madd-ev { justify-content: center; width: 100%; padding: 4px 8px; }
+/* narrow: tiles wrap to 2 rows, so stack the boxes in one column and label each with its letter */
+@container (max-width: 560px) {
+  .mcols { grid-template-columns: minmax(0, 1fr); }
+  .mcolh { position: static; width: auto; height: auto; margin: 0; overflow: visible; clip: auto; white-space: normal; font-size: 14px; }
+}
 .mnotesec { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: 10px; border: 1px dashed var(--line); }
 .mnotes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
 .mn-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; font-size: 13px; }
@@ -1369,13 +1383,14 @@ function meddpiccSection(kind, it, F) {
     h('div', { class: 'mstrip' }, h('div', { class: 'mgrid' }, scores.map(([L, sc]) =>
       h('button', { type: 'button', class: 'mtile lv-' + sc.level + (open === L.id ? ' sel' : '') + (F.has('meddpicc:' + L.id) ? ' hl' : ''), 'data-fk': 'm-' + L.id,
         'aria-expanded': String(!!open), 'aria-controls': open ? 'mp-' + it.id : null,
-        'aria-label': `${L.name}: ${sc.label}${sc.risk ? ', risk flagged' : ''}. Next step: ${sc.next}`,
+        'aria-label': `${L.name}: ${sc.label}${sc.risk ? ', risk flagged' : ''}. Next step: ${sc.next}`, title: open ? null : 'Show the evidence under each letter',
         onclick: () => toggleMeddpicc(it.id, L.id) },
         h('span', { class: 'mletter', 'aria-hidden': 'true', text: L.letter }),
         h('span', { class: 'mname', 'aria-hidden': 'true', text: L.name }),
         meter(sc, false),
         h('span', { class: 'mnext', 'aria-hidden': 'true', text: sc.next }),
-        sc.risk ? h('span', { class: 'mrisk', 'aria-hidden': 'true', text: '!' }) : null)))));
+        sc.risk ? h('span', { class: 'mrisk', 'aria-hidden': 'true', text: '!' }) : null,
+        h('span', { class: 'mchev', 'aria-hidden': 'true', icon: 'down' }))))));
 }
 function meddpiccTip(letterId, it) {
   const L = MD.BY_ID[letterId], sc = MD.scoreLetter(L, mList(it, L.id));
@@ -1434,17 +1449,18 @@ function buildMPanel(P, it) {
   el.append(h('div', { class: 'mp-head' }, h('strong', { text: 'MEDDPICC evidence' }),
     h('span', { class: 'mp-hint', text: ro ? '' : 'Assumptions are reminders of what to check, not evidence. Flag bad news as a risk.' }),
     h('button', { type: 'button', class: 'ibtn', icon: 'x', 'data-mk': 'close', title: 'Close', 'aria-label': 'Close MEDDPICC details', onclick: () => closeMeddpicc(it.id) })));
+  const cols = h('div', { class: 'mcols' });
   for (const L of MD.RUBRIC) {
     const list = mList(it, L.id);
-    el.append(h('section', { class: 'mgroup' + (cur === L.id ? ' mcur' : '') + (F.has('meddpicc:' + L.id) ? ' hlb' : ''), id: `mg-${it.id}-${L.id}`, 'aria-labelledby': `mgh-${it.id}-${L.id}` },
+    cols.append(h('section', { class: 'mgroup' + (cur === L.id ? ' mcur' : '') + (F.has('meddpicc:' + L.id) ? ' hlb' : ''), id: `mg-${it.id}-${L.id}`, 'aria-labelledby': `mgh-${it.id}-${L.id}` },
       h('div', { class: 'mg-head' },
-        h('h4', { id: `mgh-${it.id}-${L.id}` }, h('span', { class: 'ml', text: L.letter }), ' ', L.name),
-        h('span', { class: 'mg-meter', 'data-meter': L.id }, meterFull(MD.scoreLetter(L, list)))),
-      h('p', { class: 'mmean', text: L.meaning }),
+        h('h4', { class: 'mcolh', id: `mgh-${it.id}-${L.id}` }, h('span', { class: 'ml', text: L.letter }), ' ', L.name),
+        h('div', { class: 'mg-meter', 'data-meter': L.id }, meterFull(MD.scoreLetter(L, list)))),
       list.length ? h('ul', { class: 'mbuls' }, list.map((b) => bulletRow(P, L, b))) : h('p', { class: 'mempty', text: 'No evidence yet.' }),
-      ro ? null : h('div', null, h('button', { type: 'button', class: 'btn sm', icon: 'plus', 'data-mk': 'add-' + L.id, onclick: () => addBullet(P, it, L) }, `Add ${L.name} evidence`))));
+      ro ? null : h('button', { type: 'button', class: 'btn sm madd-ev', icon: 'plus', 'data-mk': 'add-' + L.id, 'aria-label': `Add ${L.name} evidence`, onclick: () => addBullet(P, it, L) }, 'Add')));
   }
-  el.append(notesSection(P, it, F));
+  el.append(cols, notesSection(P, it, F));
+  el.querySelectorAll('textarea.mtext').forEach(fitText);
   const target = (P.focusBid && el.querySelector(`[data-bid="${P.focusBid}"] .mtext`)) || (P.focusMk && el.querySelector(`[data-mk="${P.focusMk}"]`)) || (keep && el.querySelector(`[data-mk="${keep}"]`));
   P.focusBid = null; P.focusMk = null;
   if (target) target.focus();
@@ -1463,13 +1479,13 @@ function bulletRow(P, L, b) {
     MD.SOURCES.map((x) => h('option', { value: x.v, text: x.v === 'notes' ? sourceText({ source: 'notes', noteDate: b.noteDate }) : x.label })));
   src.value = MD.SOURCES.some((x) => x.v === b.source) ? b.source : 'customer';
   return h('li', { class: 'mbul' + (b.risk ? ' isrisk' : '') + (b.source === 'assumption' ? ' isassume' : ''), 'data-bid': b.id },
-    h('input', { class: 'fld mtext', value: b.text || '', placeholder: 'What did you learn?', 'aria-label': `${L.name} evidence`, 'data-mk': 't-' + b.id, disabled: ro,
-      oninput: (e) => pendM(P, L.id, b.id, { text: e.target.value }), onblur: () => flushM(P),
-      onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); flushM(P); } } }),
+    h('textarea', { class: 'fld mtext', rows: '2', placeholder: 'What did you learn?', 'aria-label': `${L.name} evidence`, 'data-mk': 't-' + b.id, disabled: ro,
+      oninput: (e) => { fitText(e.target); pendM(P, L.id, b.id, { text: e.target.value }); }, onblur: () => flushM(P),
+      onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); flushM(P); } } }, b.text || ''),
     crit, src,
     h('input', { class: 'fld mwho', value: b.who || '', placeholder: 'Who said it (optional)', 'aria-label': 'Who said it', 'data-mk': 'w-' + b.id, disabled: ro,
       oninput: (e) => pendM(P, L.id, b.id, { who: e.target.value }), onblur: () => flushM(P) }),
-    h('button', { type: 'button', class: 'mriskbtn', 'aria-pressed': String(!!b.risk), 'data-mk': 'r-' + b.id, disabled: ro,
+    h('div', { class: 'mbrow' }, h('button', { type: 'button', class: 'mriskbtn', 'aria-pressed': String(!!b.risk), 'data-mk': 'r-' + b.id, disabled: ro,
       title: 'Flag as a risk: bad news such as criteria written around a competitor',
       onclick: (e) => {
         const now = !(mList(S.items.deals.get(P.id), L.id).find((y) => y.id === b.id) || b).risk;
@@ -1477,8 +1493,9 @@ function bulletRow(P, L, b) {
         saveBullet(P, L.id, b.id, { risk: now });
       } }, h('span', { 'aria-hidden': 'true', text: '!' }), 'Risk'),
     ro ? null : h('button', { type: 'button', class: 'ibtn', icon: 'x', title: 'Delete', 'aria-label': `Delete evidence: ${b.text || 'empty'}`,
-      onclick: () => { P.focusMk = 'add-' + L.id; saveBullet(P, L.id, b.id, null); } }));
+      onclick: () => { P.focusMk = 'add-' + L.id; saveBullet(P, L.id, b.id, null); } })));
 }
+const fitText = (t) => { t.style.height = 'auto'; t.style.height = t.scrollHeight + 2 + 'px'; };   // grow with the text
 function pendM(P, letter, bid, patch) {
   const k = letter + '|' + bid;
   P.pending.set(k, { ...(P.pending.get(k) || {}), ...patch });
