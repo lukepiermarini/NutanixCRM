@@ -110,6 +110,18 @@ await me.locator('.ed .lrow').nth(2).locator('.ibtn').click();
 await me.click('.ed .btn.primary');
 await me.waitForFunction(() => document.querySelectorAll('.row .lnk').length === 2);
 
+// Hovering a deal's name line shows an Edit button that opens the editor (not when hovering its steps)
+const op2 = (loc) => loc.evaluate((e) => getComputedStyle(e).opacity);
+await row.locator('.step').first().hover();
+assert.equal(await op2(row.locator('.rowedit')), '0', 'no deal Edit button while hovering a step');
+await row.locator('.title').hover();
+assert.equal(await op2(row.locator('.rowedit')), '1', 'deal Edit button shows on hovering the name');
+await row.locator('.rowedit').click();
+await me.waitForSelector('.row.open .ed');
+assert.equal(await row.locator('.rowedit').count(), 0, 'Edit button hides while the editor is open');
+await me.click('.ed .btn.primary');
+await me.waitForSelector('.row.open', { state: 'detached' });
+
 // Hovering a step shows a pencil on its right; clicking it renames the step in place
 const fl = row.locator('.step', { hasText: 'Frontline' });
 assert.equal(await fl.locator('.sedit').evaluate((e) => getComputedStyle(e).opacity), '0', 'pencil hidden until hover');
@@ -187,18 +199,20 @@ await me.fill('#addIn', 'Get in contact with Dell for Ogden');
 await me.press('#addIn', 'Enter');
 await me.waitForSelector('.row');
 assert.equal(await me.textContent('#h1'), 'Tasks');
-// Hovering a task shows a pencil on the right; clicking it renames the task in place
+// Hovering anywhere on a task shows an Edit button on the right that opens the editor
 const trow = me.locator('.row').first();
-assert.equal(await trow.locator('.tedit').evaluate((e) => getComputedStyle(e).opacity), '0');
-await trow.hover();
-assert.equal(await trow.locator('.tedit').evaluate((e) => getComputedStyle(e).opacity), '1');
-await trow.locator('.tedit').click();
-await me.fill('.titleedit input', 'Call Dell about Ogden');
-await me.press('.titleedit input', 'Enter');
+const op = (loc) => loc.evaluate((e) => getComputedStyle(e).opacity);
+assert.equal(await op(trow.locator('.rowedit')), '0', 'Edit hidden until hover');
+await trow.locator('.circle').hover();
+assert.equal(await op(trow.locator('.rowedit')), '1', 'Edit shows when hovering anywhere on the task');
+await trow.locator('.rowedit').click();
+await me.waitForSelector('.row.open #ed-title');
+await me.fill('#ed-title', 'Call Dell about Ogden');
+await me.click('.ed .btn.primary');
 await me.waitForFunction(() => document.querySelector('.row .title')?.textContent === 'Call Dell about Ogden');
-await trow.hover(); await trow.locator('.tedit').click();
-await me.fill('.titleedit input', 'Get in contact with Dell for Ogden');
-await me.press('.titleedit input', 'Enter');
+await trow.hover(); await trow.locator('.rowedit').click();
+await me.fill('#ed-title', 'Get in contact with Dell for Ogden');
+await me.click('.ed .btn.primary');
 await me.waitForFunction(() => document.querySelector('.row .title')?.textContent === 'Get in contact with Dell for Ogden');
 await me.click('#tab-deals');
 

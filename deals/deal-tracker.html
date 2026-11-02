@@ -189,12 +189,15 @@ body:not(.ro) .step .slabel { padding-right: 30px; }   /* room for the hover pen
 .sedit:hover { color: var(--accent-text); box-shadow: 0 0 0 1px var(--accent); }
 .step.editing { border-color: var(--accent); background: var(--surface); -webkit-user-select: text; user-select: text; }
 .stepedit-in { border: 0; background: none; outline: none; font: inherit; color: var(--ink); padding: 4px 12px 4px 5px; min-width: 120px; max-width: 100%; }
-.tedit { opacity: 0; pointer-events: none; }
-.row:hover .tedit, .row:focus-within .tedit { opacity: 1; pointer-events: auto; }
-.titleedit { flex: 1; min-width: 0; display: flex; }
-.titleedit .fld { font-size: 16px; font-weight: 600; padding: 4px 9px; }
+/* "Edit" pill that opens the details panel: shows while hovering a deal's name line or anywhere on a task */
+.rowedit { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600;
+  color: var(--accent-text); background: var(--accent-soft); opacity: 0; pointer-events: none; }
+.rowedit:hover { background: var(--accent); color: var(--on-accent); }
+.row[data-kind="deals"] .line1:hover .rowedit, .row[data-kind="tasks"]:hover .rowedit, .rowedit:focus-visible { opacity: 1; pointer-events: auto; }
+.row[data-kind="deals"] .line1:hover .title, .row[data-kind="tasks"]:hover .title { color: var(--accent-text); }
 @media (hover: none) {
-  .sedit, .tedit { opacity: .75; pointer-events: auto; }
+  .sedit { opacity: .75; pointer-events: auto; }
+  .rowedit { opacity: 1; pointer-events: auto; }
 }
 .sdue { display: flex; flex-wrap: nowrap; align-items: center; gap: 6px; padding-left: 4px; white-space: nowrap;
   margin-right: -480px; position: relative; z-index: 1; }   /* hang below the pill without widening the step */
@@ -470,7 +473,6 @@ const S = {
   editDue: null,  // {id, sid, date, time} while a step's date box is open
   openSteps: new Set(), // "dealId:stepId" of steps whose date is shown under the pill
   editStep: null,  // {id, sid, text} while a step is being renamed in place
-  editTitle: null, // {kind, id, text} while a task is being renamed in place
 };
 const rowEls = new Map();   // key -> li
 let ED = null;              // open editor {kind,id,base,draft,dirty,timer,el,confirmDel}
@@ -833,13 +835,11 @@ function paintRow(kind, it, li) {
   const body = h('div', { class: 'body' });
   // line 1
   const toggle = () => (isOpen ? closeEditor() : openEditor(kind, it.id));
-  const renaming = kind === 'tasks' && S.canWrite && S.editTitle && S.editTitle.kind === kind && S.editTitle.id === it.id;
+  li.dataset.kind = kind;
   body.append(h('div', { class: 'line1' },
-    renaming ? titleEditor(kind, it)
-      : h('button', { class: 'title' + (F.has('title') || (u && u.isNew) ? ' hl' : ''), text: it.title || `Untitled ${VIEWS[kind].noun}`, onclick: toggle }),
+    h('button', { class: 'title' + (F.has('title') || (u && u.isNew) ? ' hl' : ''), text: it.title || `Untitled ${VIEWS[kind].noun}`, onclick: toggle }),
     h('div', { class: 'icons' },
-      kind === 'tasks' && S.canWrite && !renaming ? h('button', { class: 'ibtn tedit', icon: 'pencil', title: 'Edit task', 'aria-label': 'Edit task: ' + (it.title || ''),
-        onclick: () => { S.editTitle = { kind, id: it.id, text: it.title || '', focus: true }; render(); } }) : null,
+      S.canWrite && !isOpen ? h('button', { class: 'rowedit', icon: 'pencil', title: `Open the ${VIEWS[kind].noun} editor`, 'aria-label': `Edit ${VIEWS[kind].noun}: ${it.title || ''}`, onclick: toggle }, 'Edit') : null,
       h('button', { class: 'ibtn' + (it.flagged ? ' on' : '') + (F.has('flagged') ? ' hl' : ''), title: it.flagged ? 'Remove flag' : 'Flag', 'aria-label': it.flagged ? 'Remove flag' : 'Flag', disabled: !S.canWrite,
         icon: it.flagged ? 'flag' : 'flagOff', onclick: () => commit(kind, it.id, (d) => { d.flagged = !d.flagged; }) }),
       h('button', { class: 'ibtn info', title: 'Details', 'aria-label': 'Details', 'aria-expanded': String(!!isOpen), icon: 'info', onclick: toggle }))));
@@ -932,14 +932,6 @@ function stepEditor(kind, it, s) {
     if (text && text !== s.text) commit(kind, it.id, (d) => { const x = (d.steps || []).find((y) => y.id === s.id); if (x) x.text = text; });
     blurActive(); render();
   });
-}
-function titleEditor(kind, it) {
-  const E = S.editTitle;
-  return h('span', { class: 'titleedit inl' }, inlineText(E, 'fld', 'Name', (text) => {
-    if (S.editTitle === E) S.editTitle = null;
-    if (text && text !== it.title) commit(kind, it.id, (d) => { d.title = text; });
-    blurActive(); render();
-  }));
 }
 
 function openDueEditor(it, s, isNext) {
