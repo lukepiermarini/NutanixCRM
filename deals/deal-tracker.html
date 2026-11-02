@@ -399,18 +399,28 @@ body:not(.ro) .row[data-kind="deals"] .title:hover { box-shadow: 0 1px 0 0 var(-
 .sdel:hover { color: var(--late); }
 /* step notes: a post-it under the step, shown when the step is clicked */
 .addpost { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 500; padding: 3px 9px; border-radius: 6px; border: 1px dashed var(--faint); color: var(--muted); }
-.addpost:hover { border-style: solid; border-color: var(--amber); color: var(--amber); }
-.snote { position: relative; z-index: 1; width: 0; min-width: 100%;   /* exactly the step's width: the note never widens its column */
-  display: flex; align-items: flex-start; gap: 6px; padding: 7px 9px; text-align: left;
-  border-radius: 3px 10px 10px 10px; border: 1px solid color-mix(in srgb, var(--amber) 45%, var(--line)); background: color-mix(in srgb, var(--amber) 14%, var(--surface));
-  color: var(--ink); font-size: 12.5px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; -webkit-user-select: text; user-select: text; }
-.snote[role="button"] { cursor: text; }
-.snote[role="button"]:hover { border-color: var(--amber); }
-.snote .snote-ic { flex: none; display: grid; margin-top: 2px; color: var(--amber); }
-.snote.editing { flex-direction: column; gap: 4px; z-index: 3; }
+.addpost:hover { border-style: solid; border-color: var(--accent); color: var(--accent-text); }
+.snotes { width: 0; min-width: 100%; display: flex; flex-direction: column; align-items: flex-start; gap: 5px; }   /* exactly the step's width */
+.snote { position: relative; z-index: 1; width: 100%; display: flex; align-items: flex-start; gap: 6px; padding: 6px 4px 6px 9px; text-align: left;
+  border-radius: 3px 10px 10px 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink);
+  font-size: 12.5px; line-height: 1.45; -webkit-user-select: text; user-select: text; }
+.snote .snote-ic { flex: none; display: grid; margin-top: 2px; color: var(--muted); }
+.snote .snote-t { flex: 1; min-width: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.snote .snote-t[role="button"] { cursor: text; }
+.snote.collapsed .snote-t { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.snote-tg { flex: none; width: 20px; height: 20px; display: grid; place-items: center; border-radius: 5px; color: var(--muted); }
+.snote-tg:hover { background: var(--surface); color: var(--ink); }
+/* same tones as the step's date: purple while the step is upcoming and not done, grey otherwise */
+.snote.up { border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); background: var(--accent-soft); }
+.snote.up .snote-ic, .snote.up .snote-tg { color: var(--accent-text); }
+.snote:hover { border-color: var(--faint); }
+.snote.up:hover { border-color: var(--accent); }
+.snote.editing { flex-direction: column; gap: 4px; padding-right: 9px; z-index: 3; }
 .snote.editing textarea { width: 100%; min-height: 70px; font-size: 12.5px; line-height: 1.45; resize: vertical; background: var(--surface); }
-.snote.editing .mut { font-size: 11px; color: var(--faint); }
-.snote-mk { display: inline-grid; color: var(--amber); }
+.snote.editing .snrow { display: flex; align-items: center; gap: 6px; width: 100%; }
+.snote.editing .mut { flex: 1; font-size: 11px; color: var(--faint); }
+.snote-mk { display: inline-grid; color: var(--muted); }
+.step.next .snote-mk, .snote-mk.up { color: var(--accent-text); }
 .delask { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--late); }
 .step .tag { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--accent-text); font-weight: 700; }
 .step:hover { border-color: var(--accent); }
@@ -685,7 +695,8 @@ const S = {
   editStep: null,  // {id, sid, text} while a step is being renamed in place
   editTitle: null, // {id, text} while a deal's name is being edited in place
   editLink: null,  // {id, lid, label, url} while a link is being edited in place
-  editStepNote: null, // {id, sid, text} while a step's note is being edited
+  editStepNote: null, // {id, sid, nid (null = new), text} while a step note is being written
+  collapsedNotes: (() => { try { return new Set(JSON.parse(localStorage.getItem('crm.collapsedNotes') || '[]')); } catch { return new Set(); } })(),   // per viewer
   askDelete: null, // deal id showing "Delete this deal?"
 };
 const rowEls = new Map();   // key -> li
@@ -812,10 +823,26 @@ function writeDoc(kind, id, fn) {
   return enqueue(kind + '/' + id, fn).catch(onWriteError);
 }
 
-const LISTS = { steps: ['text', 'done', 'due', 'note'], links: ['label', 'url'] };
+const LISTS = { steps: ['text', 'done', 'due', 'note', 'notes'], links: ['label', 'url'] };
 // Each step carries its own due date/time. Older deals kept one deal-level "next step due"; it still shows on the next step.
 // Older deals kept one deal-level note; it shows on the next step until that step gets its own.
-function stepNote(it, s, isNext) { return (s && s.note) || (isNext ? it.notes || '' : ''); }
+// Each step holds a list of notes. Older data had one `note` per step, or one deal-level note shown on the next step.
+function stepNotes(it, s, isNext) {
+  if (Array.isArray(s.notes)) return s.notes.filter((n) => n && String(n.text || '').trim());
+  if (s.note) return [{ id: 'n-' + s.id, text: s.note }];
+  if (isNext && it.notes) return [{ id: 'n-deal-' + s.id, text: it.notes }];
+  return [];
+}
+const noteUpcoming = (it, s, isNext) => !s.done && !it.completed && (isNext || dueEnd(stepDue(it, s, isNext)) >= Date.now() && !!stepDue(it, s, isNext));
+function saveStepNotes(kind, it, s, isNext, change) {
+  commit(kind, it.id, (d) => {
+    const x = (d.steps || []).find((y) => y.id === s.id); if (!x) return;
+    const list = stepNotes(d, x, isNext).map((n) => ({ ...n }));
+    change(list);
+    x.notes = list; delete x.note;
+    if (isNext && d.notes) d.notes = '';
+  });
+}
 function stepDue(it, s, isNext) { return (s && s.due) || (isNext ? it.due || '' : ''); }
 function effDue(kind, it) {
   if (kind !== 'deals') return it.due || '';
@@ -852,7 +879,7 @@ function diff(kind, base, next) {
     let structural = b.length !== n.length;
     n.forEach((x, i) => {
       const o = bm.get(x.id);
-      if (!o || props.some((p) => (o[p] ?? '') !== (x[p] ?? ''))) keys.push(field.slice(0, -1) + ':' + x.id);
+      if (!o || props.some((p) => JSON.stringify(o[p] ?? '') !== JSON.stringify(x[p] ?? ''))) keys.push(field.slice(0, -1) + ':' + x.id);
       if (!b[i] || b[i].id !== x.id) structural = true;
     });
     if (structural) keys.push(field);
@@ -1094,7 +1121,7 @@ function paintRow(kind, it, li) {
     if (!steps.length && !S.canWrite) ol.append(h('li', { text: 'No steps yet.' }));
     steps.forEach((s, i) => {
       const isNext = i === nextIdx, key = it.id + ':' + s.id;
-      const open = S.openSteps.has(key), shown = isNext || open, note = stepNote(it, s, isNext);
+      const open = S.openSteps.has(key), shown = isNext || open, note = stepNotes(it, s, isNext).length;
       const noteEditing = S.canWrite && S.editStepNote && S.editStepNote.id === it.id && S.editStepNote.sid === s.id;
       const renaming = S.canWrite && S.editStep && S.editStep.id === it.id && S.editStep.sid === s.id;
       const pill = h('div', { class: 'step' + (s.done ? ' done' : isNext ? ' next' : '') + (F.has('step:' + s.id) ? ' hl' : '') + (renaming ? ' editing inl' : '') },
@@ -1111,7 +1138,7 @@ function paintRow(kind, it, li) {
             render();
           } },
           h('span', { class: 'stext', text: s.text || 'Untitled step' }), isNext ? h('span', { class: 'tag', text: 'Next' }) : null,
-          note && !open ? h('span', { class: 'snote-mk', icon: 'postit', title: 'This step has a note', 'aria-label': 'has a note' }) : null),
+          note && !open ? h('span', { class: 'snote-mk' + (noteUpcoming(it, s, isNext) ? ' up' : ''), icon: 'postit', title: note === 1 ? 'This step has a note' : `This step has ${note} notes`, 'aria-label': note === 1 ? 'has a note' : `has ${note} notes` }) : null),
         S.canWrite && !renaming ? h('button', { class: 'sedit', icon: 'pencil', title: 'Edit step', 'aria-label': 'Edit step: ' + (s.text || ''),
           onclick: () => { S.editStep = { id: it.id, sid: s.id, text: s.text || '', focus: true }; render(); } }) : null);
       if (renaming) {
@@ -1126,9 +1153,6 @@ function paintRow(kind, it, li) {
         const a = stepDueArea(kind, it, s, isNext, editing);
         if (a) col.append(a);
       }
-      if (open && S.canWrite && !note && !noteEditing)   // its own line, so it never runs into the next step's date
-        col.append(h('div', { class: 'sdue' }, h('button', { type: 'button', class: 'addpost', icon: 'postit', title: 'Add a note to this step', 'aria-label': `Add a note to step: ${s.text || ''}`,
-          onclick: () => { S.editStepNote = { id: it.id, sid: s.id, text: '', focus: true }; render(); } }, 'Add note')));
       if (open || noteEditing) { const n = stepNoteArea(kind, it, s, isNext); if (n) col.append(n); }
       ol.append(h('li', { 'data-sid': s.id }, col));
     });
@@ -1780,28 +1804,52 @@ function openDueEditor(it, s, isNext) {
 }
 const blurActive = () => { const a = document.activeElement; if (a && a !== document.body && a.blur) a.blur(); };
 function stepNoteArea(kind, it, s, isNext) {
-  const note = stepNote(it, s, isNext);
+  const notes = stepNotes(it, s, isNext), up = noteUpcoming(it, s, isNext) ? ' up' : '';
   const E = S.canWrite && S.editStepNote && S.editStepNote.id === it.id && S.editStepNote.sid === s.id ? S.editStepNote : null;
-  const startEdit = () => { if (S.canWrite) { S.editStepNote = { id: it.id, sid: s.id, text: note, focus: true }; render(); } };
-  if (E) {
+  const startEdit = (n) => { if (S.canWrite) { S.editStepNote = { id: it.id, sid: s.id, nid: n ? n.id : null, text: n ? n.text : '', focus: true }; render(); } };
+  const editor = () => {
     const finish = (save) => {
       if (E.done) return; E.done = true;
       if (S.editStepNote === E) S.editStepNote = null;
-      if (save && E.text.trim() !== note.trim()) commit(kind, it.id, (d) => { const x = (d.steps || []).find((y) => y.id === s.id); if (!x) return; x.note = E.text.trim(); if (isNext && d.notes) d.notes = ''; });
+      const text = E.text.trim(), old = E.nid ? (notes.find((n) => n.id === E.nid) || {}).text || '' : '';
+      if (save && text !== old.trim()) saveStepNotes(kind, it, s, isNext, (list) => {
+        const i = list.findIndex((n) => n.id === E.nid);
+        if (!text) { if (i >= 0) list.splice(i, 1); }                 // clearing a note deletes it
+        else if (i >= 0) list[i].text = text;
+        else list.push({ id: rid(), text, createdAt: Date.now() });
+      });
       blurActive(); render();
     };
+    const del = () => { if (E.done) return; E.done = true; S.editStepNote = null; saveStepNotes(kind, it, s, isNext, (list) => { const i = list.findIndex((n) => n.id === E.nid); if (i >= 0) list.splice(i, 1); }); blurActive(); render(); };
     const ta = h('textarea', { class: 'fld', rows: '3', 'aria-label': `Note for step: ${s.text || ''}`, placeholder: 'Note for this step…',
       oninput: (e) => { E.text = e.target.value; },
       onkeydown: (e) => { if (e.key === 'Escape') { e.stopPropagation(); finish(false); } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); finish(true); } },
       onblur: () => setTimeout(() => finish(true), 0) }, E.text);
     if (E.focus) { E.focus = false; queueMicrotask(() => { if (ta.isConnected) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); } }); }
-    return h('div', { class: 'snote editing inl' }, ta, h('span', { class: 'mut', text: 'Saves when you click away · Esc cancels' }));
+    return h('div', { class: 'snote editing inl' + up }, ta, h('div', { class: 'snrow' }, h('span', { class: 'mut', text: 'Click away to save · Esc cancels' }),
+      E.nid ? h('button', { type: 'button', class: 'btn sm danger', text: 'Delete', onpointerdown: (e) => e.preventDefault(), onclick: del }) : null));
+  };
+  const box = h('div', { class: 'snotes' });
+  for (const n of notes) {
+    if (E && E.nid === n.id) { box.append(editor()); continue; }
+    const ck = it.id + ':' + n.id, collapsed = S.collapsedNotes.has(ck);
+    const flip = () => {
+      collapsed ? S.collapsedNotes.delete(ck) : S.collapsedNotes.add(ck);
+      try { localStorage.setItem('crm.collapsedNotes', JSON.stringify([...S.collapsedNotes])); } catch {}
+      render();
+    };
+    box.append(h('div', { class: 'snote' + up + (collapsed ? ' collapsed' : ''), 'data-nid': n.id },
+      h('span', { class: 'snote-ic', icon: 'postit' }),
+      h('span', { class: 'snote-t', text: n.text, role: S.canWrite ? 'button' : null, tabindex: S.canWrite ? '0' : null, title: S.canWrite ? 'Click to edit' : (collapsed ? n.text : null),
+        'aria-label': S.canWrite ? `Edit note: ${n.text}` : null, onclick: () => startEdit(n),
+        onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startEdit(n); } } }),
+      h('button', { type: 'button', class: 'snote-tg', 'data-fk': 'ntg-' + n.id, icon: collapsed ? 'down' : 'up', 'aria-expanded': String(!collapsed),
+        title: collapsed ? 'Show the whole note' : 'Collapse to one line', 'aria-label': collapsed ? 'Expand note' : 'Collapse note', onclick: flip })));
   }
-  if (!note) return null;
-  return h('div', { class: 'snote', role: S.canWrite ? 'button' : null, tabindex: S.canWrite ? '0' : null, title: S.canWrite ? 'Click to edit' : null,
-    'aria-label': S.canWrite ? `Edit note for step ${s.text || ''}: ${note}` : null, onclick: startEdit,
-    onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startEdit(); } } },
-    h('span', { class: 'snote-ic', icon: 'postit' }), h('span', { class: 'snote-t', text: note }));
+  if (E && !E.nid) box.append(editor());
+  else if (S.canWrite) box.append(h('button', { type: 'button', class: 'addpost', icon: 'postit', title: 'Add a note to this step', 'aria-label': `Add a note to step: ${s.text || ''}`,
+    onclick: () => startEdit(null) }, notes.length ? 'Add another note' : 'Add note'));
+  return box.children.length ? box : null;
 }
 function stepDueArea(kind, it, s, isNext, editing) {
   const due = stepDue(it, s, isNext);

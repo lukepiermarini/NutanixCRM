@@ -349,7 +349,7 @@ await me.waitForSelector('.snote textarea');
 await me.keyboard.type('Sizer run with 3:1 ratio for HPE and NX');
 await me.locator('.head h1').click();   // click away saves
 await me.waitForFunction(() => document.querySelector('.row .snote .snote-t')?.textContent === 'Sizer run with 3:1 ratio for HPE and NX');
-assert.equal(await row.locator('li:has(.step:has-text("Sizer")) .addpost').count(), 0, 'post-it button gives way to the note');
+assert.equal(await row.locator('li:has(.step:has-text("Sizer")) .addpost').textContent(), 'Add another note', 'more notes can be added');
 { const nb = await row.locator('.snote').boundingBox(), pb = await sz().boundingBox();
   assert.ok(nb.y > pb.y + pb.height && Math.abs(nb.x - pb.x) < 1.5, 'note sits directly under its step');
   assert.ok(Math.abs(nb.width - pb.width) < 1.5, `note is exactly as wide as its step (${nb.width.toFixed(1)} vs ${pb.width.toFixed(1)})`); }
@@ -366,26 +366,53 @@ assert.equal(await row.locator('.snote').count(), 0);
 assert.equal(await sz().locator('.snote-mk').count(), 1);
 // reveal and edit: Esc cancels, click-away saves
 await sz().locator('.slabel').click();
-await row.locator('.snote').click(); await me.keyboard.type(' zzz'); await me.keyboard.press('Escape');
+await row.locator('.snote .snote-t').click(); await me.keyboard.type(' zzz'); await me.keyboard.press('Escape');
 await me.waitForFunction(() => document.querySelector('.row .snote .snote-t')?.textContent === 'Sizer run with 3:1 ratio for HPE and NX');
-await row.locator('.snote').click(); await me.keyboard.type(' (confirmed)'); await me.locator('.head h1').click();
+await row.locator('.snote .snote-t').click(); await me.keyboard.type(' (confirmed)'); await me.locator('.head h1').click();
 await me.waitForFunction(() => document.querySelector('.row .snote .snote-t')?.textContent === 'Sizer run with 3:1 ratio for HPE and NX (confirmed)');
+// several notes per step
+await row.locator('li:has(.step:has-text("Sizer")) .addpost').click();
+await me.keyboard.type('Second pass at 4:1 for the DR site, which ended up needing a lot more storage than the first estimate suggested'); await me.locator('.head h1').click();
+await me.waitForFunction(() => !document.querySelector('.row .snote.editing') && document.querySelectorAll('.row .snote').length === 2);
+const sNotes = row.locator('li:has(.step:has-text("Sizer")) .snote');
+assert.deepEqual(await sNotes.locator('.snote-t').allTextContents(), ['Sizer run with 3:1 ratio for HPE and NX (confirmed)', 'Second pass at 4:1 for the DR site, which ended up needing a lot more storage than the first estimate suggested']);
+// collapse to one line with "…", then expand again
+const n2 = sNotes.nth(1), tall = (await n2.boundingBox()).height;
+await n2.getByRole('button', { name: 'Collapse note' }).click();
+await me.waitForSelector('.row .snote.collapsed');
+{ const cb = await row.locator('.snote.collapsed').boundingBox();
+  assert.ok(cb.height < tall - 10, `collapsed note is one line (${cb.height} < ${tall})`);
+  assert.equal(await row.locator('.snote.collapsed .snote-t').evaluate((e) => getComputedStyle(e).textOverflow), 'ellipsis');
+  assert.ok(await row.locator('.snote.collapsed .snote-t').evaluate((e) => e.scrollWidth > e.clientWidth), 'text is cut off with …'); }
+await me.reload(); await me.waitForSelector('.row .step'); await sz().locator('.slabel').click();
+assert.equal(await row.locator('.snote.collapsed').count(), 1, 'collapsed state is remembered in this browser');
+await row.locator('.snote.collapsed').getByRole('button', { name: 'Expand note' }).click();
+await me.waitForFunction(() => !document.querySelector('.row .snote.collapsed'));
+// grey for a done/past step, purple for the upcoming next step (like the dates)
+assert.equal(await sNotes.first().evaluate((e) => getComputedStyle(e).backgroundColor), await row.locator('.lnk').first().evaluate((e) => getComputedStyle(e).backgroundColor), 'done step: grey note');
+// delete the second note from its editor
+await sNotes.nth(1).locator('.snote-t').click();
+await me.locator('.snote.editing').getByRole('button', { name: 'Delete' }).click();
+await me.waitForFunction(() => !document.querySelector('.row .snote.editing') && document.querySelectorAll('.row .snote').length === 1);
 // the next step works the same way (its date stays visible; the note shows on click)
 await row.locator('.step.next .slabel').click();
 await row.locator('li:has(.step.next) .addpost').click();
 await me.keyboard.type('Bring the HPE quote'); await me.locator('.head h1').click();
-await me.waitForFunction(() => document.querySelectorAll('.row .snote').length === 2);
+await me.waitForFunction(() => !document.querySelector('.row .snote.editing') && document.querySelectorAll('.row .snote').length === 2);
+assert.equal(await row.locator('li:has(.step.next) .snote').evaluate((e) => getComputedStyle(e).backgroundColor), 'rgb(241, 237, 255)', 'upcoming step: purple note (the accent tint its upcoming date uses)');
+assert.equal(await row.locator('li:has(.step.next) .snote .snote-ic').evaluate((e) => getComputedStyle(e).color), 'rgb(91, 55, 230)', 'purple post-it icon');
 await row.locator('.step.next .slabel').click();
 assert.equal(await row.locator('li:has(.step.next) .due').count(), 1, 'next step keeps its date visible');
 await me.reload(); await me.waitForSelector('.row .step');
 assert.equal(await row.locator('.snote').count(), 0, 'notes start hidden');
 assert.equal(await row.locator('.snote-mk').count(), 2, 'marks show which steps have notes');
 { const d = await me.evaluate(() => Object.values(JSON.parse(localStorage.getItem('crm.localdb.v1')).deals)[0]);
-  assert.equal(d.steps.find((st) => st.text === 'Sizer').note, 'Sizer run with 3:1 ratio for HPE and NX (confirmed)'); }
+  const sn = d.steps.find((st) => st.text === 'Sizer');
+  assert.deepEqual(sn.notes.map((n) => n.text), ['Sizer run with 3:1 ratio for HPE and NX (confirmed)']); assert.equal(sn.note, undefined, 'stored as a list'); }
 // clear the next step's note again so later checks start from a clean step
-await row.locator('.step.next .slabel').click(); await row.locator('li:has(.step.next) .snote').click();
+await row.locator('.step.next .slabel').click(); await row.locator('li:has(.step.next) .snote .snote-t').click();
 await me.keyboard.press('ControlOrMeta+a'); await me.keyboard.press('Delete'); await me.locator('.head h1').click();
-await me.waitForFunction(() => document.querySelectorAll('.row .snote').length === 0);
+await me.waitForFunction(() => !document.querySelector('.row .snote.editing') && document.querySelectorAll('.row .snote').length === 0);
 await row.locator('.step.next .slabel').click();
 // deleting a deal is inline too (with a confirm)
 await me.fill('#addIn', 'Temporary deal'); await me.press('#addIn', 'Enter');
