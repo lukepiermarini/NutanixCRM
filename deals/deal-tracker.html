@@ -388,6 +388,20 @@ button.due:hover { box-shadow: 0 0 0 1px var(--accent) inset; }
 .row[data-kind="deals"] .title { cursor: text; border-radius: 4px; }
 body:not(.ro) .row[data-kind="deals"] .title:hover { box-shadow: 0 1px 0 0 var(--faint); }
 .titleedit { flex: 1 1 320px; min-width: 0; display: flex; }
+/* deal name with its Salesforce opportunity link right below */
+.tcol { flex: 0 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
+.tcol .titleedit { flex: none; width: 460px; max-width: 100%; }
+.sfw { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; border-radius: 6px; }
+.sflink { display: inline-flex; align-items: center; gap: 5px; min-width: 0; font-size: 12.5px; font-weight: 500; color: var(--link); text-decoration: none; }
+.sflink:hover { text-decoration: underline; }
+.sflink .ext { display: inline-grid; }
+.sfw .sfedit { width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%; color: var(--link); opacity: 0; pointer-events: none; }
+.sfw:hover .sfedit, .sfw:focus-within .sfedit { opacity: 1; pointer-events: auto; }
+.sfw .sfedit:hover { box-shadow: 0 0 0 1px var(--link); }
+@media (hover: none) { .sfw .sfedit { opacity: .8; pointer-events: auto; } }
+.addsf { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; color: var(--faint); }
+.addsf:hover { color: var(--link); }
+.sfedit-form .fld.u { width: 380px; }
 .titleedit .fld { font-size: 16px; font-weight: 600; padding: 2px 8px; }
 .lnkw { position: relative; display: inline-flex; max-width: 100%; }
 .lnkedit { position: absolute; top: -8px; right: -8px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%;
@@ -611,6 +625,7 @@ const I = {
   grip: '<svg width="12" height="16" viewBox="0 0 12 16" fill="currentColor"><circle cx="3.5" cy="3" r="1.4"/><circle cx="8.5" cy="3" r="1.4"/><circle cx="3.5" cy="8" r="1.4"/><circle cx="8.5" cy="8" r="1.4"/><circle cx="3.5" cy="13" r="1.4"/><circle cx="8.5" cy="13" r="1.4"/></svg>',
   trash: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
   postit: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 4h16v10l-6 6H4z"/><path d="M14 20v-6h6"/></svg>',
+  cloud: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M7 18.5h10.2a4.2 4.2 0 0 0 .6-8.36A6.2 6.2 0 0 0 6 9.4a4.6 4.6 0 0 0 1 9.1z"/></svg>',
   pencil: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg>',
   plus: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
   ext: '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>',
@@ -697,6 +712,7 @@ const S = {
   editLink: null,  // {id, lid, label, url} while a link is being edited in place
   editStepNote: null, // {id, sid, nid (null = new), text} while a step note is being written
   expandedNotes: (() => { try { return new Set(JSON.parse(localStorage.getItem('crm.expandedNotes') || '[]')); } catch { return new Set(); } })(),   // per viewer; notes start collapsed
+  editSf: null,    // {id, url} while a deal's Salesforce link is being edited
   askDelete: null, // deal id showing "Delete this deal?"
 };
 const rowEls = new Map();   // key -> li
@@ -852,7 +868,7 @@ function effDue(kind, it) {
 function diff(kind, base, next) {
   const patch = {}, keys = [];
   const scalar = { title: '', notes: '', due: '', flagged: false, completed: false, deleted: false };
-  if (kind === 'deals') Object.assign(scalar, { dealType: '', salesStage: null, orderStatus: null, closedOutcome: null, techClose: null });
+  if (kind === 'deals') Object.assign(scalar, { dealType: '', sfdcUrl: '', salesStage: null, orderStatus: null, closedOutcome: null, techClose: null });
   for (const [f, def] of Object.entries(scalar)) {
     if ((base[f] ?? def) !== (next[f] ?? def)) { patch[f] = next[f] ?? def; keys.push(f); }
   }
@@ -944,7 +960,7 @@ function allUnseen() {
   for (const kind of ['deals', 'tasks']) for (const it of S.items[kind].values()) { const u = unseen(kind, it); if (u) out.push({ kind, it, u }); }
   return out;
 }
-const FIELD_WORDS = { meetingNotes: 'meeting notes', salesStage: 'sales stage', orderStatus: 'order status', closedOutcome: 'Closed Lost / Disqualified', techClose: 'Tech Close', dealType: 'Land & Expand / Renewal', title: 'name', notes: 'notes', due: 'due date', flagged: 'flag', completed: 'status', deleted: 'deleted', steps: 'steps', links: 'links' };
+const FIELD_WORDS = { sfdcUrl: 'Salesforce link', meetingNotes: 'meeting notes', salesStage: 'sales stage', orderStatus: 'order status', closedOutcome: 'Closed Lost / Disqualified', techClose: 'Tech Close', dealType: 'Land & Expand / Renewal', title: 'name', notes: 'notes', due: 'due date', flagged: 'flag', completed: 'status', deleted: 'deleted', steps: 'steps', links: 'links' };
 function describeFields(fields) {
   const words = new Set();
   for (const f of fields) {
@@ -1092,10 +1108,13 @@ function paintRow(kind, it, li) {
   const toggle = () => (isOpen ? closeEditor() : openEditor(kind, it.id));
   li.dataset.kind = kind;
   body.append(h('div', { class: 'line1' },
-    kind === 'deals' && S.canWrite && S.editTitle && S.editTitle.id === it.id ? titleEditor(kind, it)
-      : h('button', { class: 'title' + (F.has('title') || (u && u.isNew) ? ' hl' : ''), text: it.title || `Untitled ${VIEWS[kind].noun}`,
-        title: kind === 'deals' && S.canWrite ? 'Click to rename' : null, 'aria-label': kind === 'deals' && S.canWrite ? `Rename deal: ${it.title || ''}` : null,
-        onclick: kind === 'deals' ? () => { if (S.canWrite) { S.editTitle = { id: it.id, text: it.title || '', focus: true }; render(); } } : toggle }),
+    (() => {
+      const t = kind === 'deals' && S.canWrite && S.editTitle && S.editTitle.id === it.id ? titleEditor(kind, it)
+        : h('button', { class: 'title' + (F.has('title') || (u && u.isNew) ? ' hl' : ''), text: it.title || `Untitled ${VIEWS[kind].noun}`,
+          title: kind === 'deals' && S.canWrite ? 'Click to rename' : null, 'aria-label': kind === 'deals' && S.canWrite ? `Rename deal: ${it.title || ''}` : null,
+          onclick: kind === 'deals' ? () => { if (S.canWrite) { S.editTitle = { id: it.id, text: it.title || '', focus: true }; render(); } } : toggle });
+      return kind === 'deals' ? h('div', { class: 'tcol' }, t, sfLine(kind, it, F.has('sfdcUrl'))) : t;
+    })(),
     kind === 'deals' ? dealTypeToggle(kind, it, F.has('dealType')) : null,
     kind === 'deals' ? progressTracker(kind, it, ['salesStage', 'orderStatus', 'closedOutcome', 'techClose'].some((f) => F.has(f))) : null,
     kind === 'tasks' && S.canWrite && !isOpen ? h('button', { class: 'rowedit', icon: 'pencil', title: `Open the ${VIEWS[kind].noun} editor`, 'aria-label': `Edit ${VIEWS[kind].noun}: ${it.title || ''}`, onclick: toggle }, 'Edit') : null,
@@ -1221,6 +1240,37 @@ function titleEditor(kind, it) {
     if (text && text !== it.title) commit(kind, it.id, (d) => { d.title = text; });
     blurActive(); render();
   }));
+}
+// The deal's Salesforce opportunity link, right below its name
+function sfLine(kind, it, changed) {
+  if (S.canWrite && S.editSf && S.editSf.id === it.id) {
+    const E = S.editSf;
+    const close = () => { S.editSf = null; blurActive(); render(); };
+    const save = (v) => {
+      const url = v ? safeUrl(v) : '';
+      if (v && !url) { toast('Paste the opportunity’s web address, like https://nutanix.lightning.force.com/lightning/r/Opportunity/…'); return; }
+      S.editSf = null;
+      commit(kind, it.id, (d) => { d.sfdcUrl = url; });
+      blurActive(); render();
+    };
+    const ui = h('input', { class: 'fld u', value: E.url, inputmode: 'url', autocomplete: 'off', placeholder: 'Paste the Salesforce opportunity link', 'aria-label': 'Salesforce opportunity link',
+      onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); save(E.url.trim()); } else if (e.key === 'Escape') { e.stopPropagation(); close(); } },
+      oninput: (e) => { E.url = e.target.value; } });
+    if (E.focus) { E.focus = false; queueMicrotask(() => { if (ui.isConnected) { ui.focus(); ui.select(); } }); }
+    return h('span', { class: 'linkadd sfedit-form inl' }, h('span', { class: 'lnkico', icon: 'cloud' }), ui,
+      h('button', { type: 'button', class: 'btn primary sm', text: 'Save', onclick: () => save(E.url.trim()) }),
+      it.sfdcUrl ? h('button', { type: 'button', class: 'btn sm danger', text: 'Remove', onclick: () => save('') }) : null,
+      h('button', { type: 'button', class: 'ibtn', icon: 'x', title: 'Cancel', 'aria-label': 'Cancel', onclick: close }));
+  }
+  const url = safeUrl(it.sfdcUrl);
+  const start = () => { S.editSf = { id: it.id, url: it.sfdcUrl || '', focus: true }; render(); };
+  if (url) {
+    const isSf = /salesforce\.com|force\.com/i.test(hostOf(url));
+    return h('span', { class: 'sfw' + (changed ? ' hl' : '') },
+      h('a', { class: 'sflink', href: url, target: '_blank', rel: 'noopener noreferrer', title: url, icon: 'cloud' }, isSf ? 'Salesforce opportunity' : 'Opportunity link', h('span', { class: 'ext', icon: 'ext' })),
+      S.canWrite ? h('button', { type: 'button', class: 'sfedit', icon: 'pencil', title: 'Change the Salesforce link', 'aria-label': 'Change the Salesforce link', onclick: start }) : null);
+  }
+  return S.canWrite ? h('button', { type: 'button', class: 'addsf' + (changed ? ' hl' : ''), icon: 'plus', onclick: start }, 'Add Salesforce link') : null;
 }
 function linkEditor(kind, it, l) {
   const E = S.editLink;
