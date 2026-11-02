@@ -1,3 +1,16 @@
+# Nutanix Deals (shared deal tracker)
+
+`deals/deal-tracker.html` is a shared, reminders-style tracker for deals in flight and general tasks. It runs as a claude.ai artifact with a live shared database, so you and your account executive work from the same list.
+
+- **Deals** and **Tasks** each get their own page. Tasks are one-off items without a step track.
+- **Steps per deal are free-form.** You can add, rename, reorder, tick off or remove any number of them. The first unfinished step is marked *Next*, and steps used on several deals are suggested when you add one.
+- **Next step due** takes a date and an optional time ("Tomorrow, 11:30 AM"). It turns red when it's overdue.
+- **Links**: add as many as you need. Sizer scenario IDs are shown on each link.
+- **Yes/No checklist** on every deal: *Updated Nutanix Recent Notes*, *Implementation Strategy*, *Implementation Plan*. You can toggle them right on the row.
+- **Edit highlights**: every change records who made it and when, down to the step, link or checklist item. When someone else changes something, the next time you open the page a banner names them, the changed parts are highlighted, and the row says what changed. Highlights stay until you click *Mark seen* or *Mark all seen*. Deletions by the other person show up with a *Restore* button.
+
+Opened as a plain file outside claude.ai, the page falls back to a single-browser mode backed by `localStorage`. `node tests/deals-e2e.mjs` uses that mode to drive two simulated people through the whole flow in Chromium.
+
 # SE Pipeline
 
 A deal pipeline, meeting-notes assistant and task tracker built for **Nutanix Systems Engineers**.
