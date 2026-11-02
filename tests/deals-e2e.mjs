@@ -110,6 +110,30 @@ await me.locator('.ed .lrow').nth(2).locator('.ibtn').click();
 await me.click('.ed .btn.primary');
 await me.waitForFunction(() => document.querySelectorAll('.row .lnk').length === 2);
 
+// Hovering a step shows a pencil on its right; clicking it renames the step in place
+const fl = row.locator('.step', { hasText: 'Frontline' });
+assert.equal(await fl.locator('.sedit').evaluate((e) => getComputedStyle(e).opacity), '0', 'pencil hidden until hover');
+await fl.hover();
+assert.equal(await fl.locator('.sedit').evaluate((e) => getComputedStyle(e).opacity), '1', 'pencil shows on hover');
+await fl.locator('.sedit').click();
+await me.waitForSelector('.stepedit-in');
+await me.fill('.stepedit-in', 'Frontline review');
+await me.press('.stepedit-in', 'Enter');
+await me.waitForFunction(() => [...document.querySelectorAll('.row .stext')].some((e) => e.textContent === 'Frontline review'));
+assert.equal(await row.locator('.step.done').count(), 2, 'renaming keeps the step ticked');
+await row.locator('.step', { hasText: 'Frontline review' }).hover();
+await row.locator('.step', { hasText: 'Frontline review' }).locator('.sedit').click();
+await me.fill('.stepedit-in', 'zzz');
+await me.press('.stepedit-in', 'Escape');
+await me.waitForSelector('.stepedit-in', { state: 'detached' });
+assert.ok((await row.locator('.step .stext').allTextContents()).includes('Frontline review'), 'Esc cancels');
+assert.equal(await me.locator('.row.open').count(), 0, 'Esc does not touch the details panel');
+await row.locator('.step', { hasText: 'Frontline review' }).hover();
+await row.locator('.step', { hasText: 'Frontline review' }).locator('.sedit').click();
+await me.fill('.stepedit-in', 'Frontline');
+await me.locator('.head h1').click();   // clicking away saves
+await me.waitForFunction(() => [...document.querySelectorAll('.row .stext')].some((e) => e.textContent === 'Frontline'));
+
 // The + after the last step adds steps inline (Enter keeps the box open for the next one)
 await row.locator('.addstep').click();
 await me.fill('.addstep-in', 'Proposal');
@@ -163,6 +187,19 @@ await me.fill('#addIn', 'Get in contact with Dell for Ogden');
 await me.press('#addIn', 'Enter');
 await me.waitForSelector('.row');
 assert.equal(await me.textContent('#h1'), 'Tasks');
+// Hovering a task shows a pencil on the right; clicking it renames the task in place
+const trow = me.locator('.row').first();
+assert.equal(await trow.locator('.tedit').evaluate((e) => getComputedStyle(e).opacity), '0');
+await trow.hover();
+assert.equal(await trow.locator('.tedit').evaluate((e) => getComputedStyle(e).opacity), '1');
+await trow.locator('.tedit').click();
+await me.fill('.titleedit input', 'Call Dell about Ogden');
+await me.press('.titleedit input', 'Enter');
+await me.waitForFunction(() => document.querySelector('.row .title')?.textContent === 'Call Dell about Ogden');
+await trow.hover(); await trow.locator('.tedit').click();
+await me.fill('.titleedit input', 'Get in contact with Dell for Ogden');
+await me.press('.titleedit input', 'Enter');
+await me.waitForFunction(() => document.querySelector('.row .title')?.textContent === 'Get in contact with Dell for Ogden');
 await me.click('#tab-deals');
 
 // Second person: first visit sees nothing highlighted
