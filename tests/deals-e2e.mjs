@@ -144,6 +144,11 @@ assert.equal(await prog.locator('.plbl').nth(1).textContent(), 'Tech Close');
   assert.deepEqual(await prog.locator('.pseg.tc').allTextContents(), ['0%', '25%', '50%', '75%', '99%', '100%'], 'percentages inside the cells');
   assert.deepEqual(await prog.locator('.pbar.st > .pseg').allTextContents(), ['1', '2', '3', '4', '5', '6', '7', '8'], 'stage numbers inside the cells');
   assert.equal(await prog.locator('.phelp').count(), 0, 'no "?" button'); }
+// Breathing room: progress bars -> steps, and step dates -> links
+{ const pb = await box(prog.locator('.pbar.tc')), tr = await box(row.locator('.track')), mt = await box(row.locator('.meta'));
+  const dates = await row.locator('.track .sdue').evaluateAll((els) => Math.max(0, ...els.map((e) => e.getBoundingClientRect().bottom)));
+  assert.ok(tr.y - (pb.y + pb.height) >= 20, 'space between Tech Close and the steps (' + Math.round(tr.y - (pb.y + pb.height)) + 'px)');
+  assert.ok(mt.y - Math.max(tr.y + tr.height, dates) >= 20, 'space between the step dates and the links (' + Math.round(mt.y - Math.max(tr.y + tr.height, dates)) + 'px)'); }
 // Click sets immediately; fill up to and including current
 await st(3).click();
 await me.waitForFunction(() => document.querySelector('.row [data-fk="st3"]')?.getAttribute('aria-current') === 'step');
