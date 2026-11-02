@@ -168,7 +168,7 @@ main { padding-block: 22px 80px;
 .track { list-style: none; margin: 9px 0; padding: 0;   /* extra room above (progress bars) and below (step dates → links) */
   display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px 5px; }
 .track > li { display: flex; align-items: flex-start; gap: 4px; min-width: 0; }
-.track > li + li::before { content: ""; flex: none; width: 12px; height: 1.5px; margin-top: 15.5px; background: var(--line); border-radius: 2px; }
+.track > li + li::before { content: ""; flex: none; width: 12px; height: 1.5px; margin-top: 15.5px; background: color-mix(in srgb, var(--ink) 30%, var(--line)); border-radius: 2px; }
 .scol { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
 .step { display: inline-flex; align-items: stretch; max-width: 100%; min-width: 200px; min-height: 32px; font-size: 13px;   /* never narrower than a "Meeting with Wilden" pill, so details under steps don't collide */
   -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
