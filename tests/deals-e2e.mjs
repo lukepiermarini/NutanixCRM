@@ -26,7 +26,7 @@ writeFileSync(file, '<!doctype html><html><head><meta charset="utf-8"><meta name
 const url = pathToFileURL(file).href;
 
 const browser = await playwright.chromium.launch();
-const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+const ctx = await browser.newContext({ viewport: { width: 1280, height: 1100 } });
 const errors = [];
 const open = async (who) => {
   const p = await ctx.newPage();
@@ -69,6 +69,59 @@ assert.match(await row.locator('.lnk').nth(1).getAttribute('href'), /^https:\/\/
 assert.match(await row.locator('.chk', { hasText: 'Impl. strategy' }).textContent(), /Yes/);
 assert.match(await row.locator('.due').textContent(), /11:30/);
 assert.equal(await me.locator('.row.upd').count(), 0, 'own edits are not highlighted');
+
+// "No" answers are red, "Yes" answers are not
+const noBg = await row.locator('.chk:not(.yes) b').first().evaluate((b) => getComputedStyle(b).backgroundColor);
+const yesBg = await row.locator('.chk.yes b').first().evaluate((b) => getComputedStyle(b).backgroundColor);
+assert.equal(noBg, 'rgb(201, 58, 58)', 'No badge is red');
+assert.notEqual(yesBg, noBg);
+
+// The + after the last step adds steps inline (Enter keeps the box open for the next one)
+await row.locator('.addstep').click();
+await me.fill('.addstep-in', 'Proposal');
+await me.press('.addstep-in', 'Enter');
+await me.waitForFunction(() => document.querySelectorAll('.row .step').length === 5);
+assert.ok(await me.evaluate(() => document.activeElement && document.activeElement.classList.contains('addstep-in')), 'add box keeps focus');
+await me.keyboard.type('PO received');
+await me.keyboard.press('Enter');
+await me.waitForFunction(() => document.querySelectorAll('.row .step').length === 6);
+await me.keyboard.press('Escape');
+await me.waitForSelector('.row .addstep');
+const texts = async () => (await row.locator('.step > span:not(.tag)').allTextContents());
+assert.deepEqual((await texts()).slice(-2), ['Proposal', 'PO received']);
+
+// Drag a step chip on the list to reorder it
+const dragTo = async (from, to, before = true) => {
+  const a = await from.boundingBox(), b = await to.boundingBox();
+  await me.mouse.move(a.x + a.width / 2, a.y + a.height / 2);
+  await me.mouse.down();
+  await me.mouse.move(a.x + a.width / 2 + 10, a.y + a.height / 2 + 2, { steps: 3 });
+  await me.mouse.move(before ? b.x + 4 : b.x + b.width - 4, before ? b.y + b.height / 2 : b.y + b.height * 0.8, { steps: 8 });
+  await me.mouse.up();
+};
+await dragTo(row.locator('.step', { hasText: 'PO received' }), row.locator('.step', { hasText: 'Sizer' }));
+await me.waitForTimeout(150);
+assert.deepEqual(await texts(), ['PO received', 'Sizer', 'Frontline', 'Meeting with Wilden', 'Discuss with Ogden', 'Proposal'], 'drag reorders steps');
+await me.reload(); await me.waitForSelector('.row .step');
+assert.equal((await texts())[0], 'PO received', 'reorder is saved');
+assert.equal(await row.locator('.step.done').count(), 2, 'dragging does not toggle steps');
+
+// Drag in the details panel using the grip handle, then remove the two test steps
+await row.locator('.info').click();
+await me.waitForSelector('.ed .grip');
+await me.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+await me.waitForTimeout(400);
+const grips = me.locator('.ed .srow .grip');
+await dragTo(grips.nth(0), me.locator('.ed .srow').nth(5), false);
+await me.waitForTimeout(150);
+const edOrder = await me.locator('.ed .srow input.fld').evaluateAll((els) => els.map((e) => e.value));
+assert.deepEqual(edOrder, ['Sizer', 'Frontline', 'Meeting with Wilden', 'Discuss with Ogden', 'Proposal', 'PO received'], 'editor drag reorders');
+await me.locator('.ed .srow').nth(5).locator('.ibtn').click();
+await me.locator('.ed .srow').nth(4).locator('.ibtn').click();
+await me.click('.ed .btn.primary');
+await me.waitForTimeout(100);
+assert.deepEqual(await texts(), ['Sizer', 'Frontline', 'Meeting with Wilden', 'Discuss with Ogden']);
+await me.screenshot({ path: join(shots, 'deals-0-list.png'), fullPage: true });
 
 // A task on the Tasks page
 await me.click('#tab-tasks');

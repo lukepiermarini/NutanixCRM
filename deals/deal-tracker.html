@@ -46,7 +46,7 @@
 }
 
 * { box-sizing: border-box; }
-body { background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 15px; line-height: 1.45; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 15px; line-height: 1.55; }
 body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
 button, input, textarea, select { font: inherit; color: inherit; }
 button { cursor: pointer; background: none; border: 0; padding: 0; }
@@ -103,17 +103,17 @@ main { max-width: 980px; margin: 0 auto; padding-block: 22px 80px;
 
 /* ---------- rows ---------- */
 .list { list-style: none; margin: 0; padding: 0; }
-.row { position: relative; display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 0 10px; padding: 14px 0 16px; border-bottom: 1px solid var(--line); }
-.row.upd::before { content: ""; position: absolute; left: -12px; top: 12px; bottom: 12px; width: 3px; border-radius: 3px; background: var(--hl-edge); }
+.row { position: relative; display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 0 12px; padding: 22px 0 24px; border-bottom: 1px solid var(--line); }
+.row.upd::before { content: ""; position: absolute; left: -12px; top: 18px; bottom: 18px; width: 3px; border-radius: 3px; background: var(--hl-edge); }
 .row.open { background: var(--surface); box-shadow: var(--shadow); border-radius: 12px; border-bottom-color: transparent;
-  margin: 8px -12px; padding-inline: 12px; }
+  margin: 10px -14px; padding-inline: 14px; }
 .row.open.upd::before { left: 0; }
 .circle { width: 22px; height: 22px; margin-top: 1px; border-radius: 50%; border: 1.5px solid var(--faint); display: grid; place-items: center; color: transparent; }
 .circle:hover:not(:disabled) { border-color: var(--accent); }
 .row.done .circle { background: var(--accent); border-color: var(--accent); color: var(--surface); }
-.body { min-width: 0; display: flex; flex-direction: column; gap: 7px; }
+.body { min-width: 0; display: flex; flex-direction: column; gap: 13px; }
 .line1 { display: flex; align-items: flex-start; gap: 10px; }
-.title { text-align: left; font-size: 16px; font-weight: 600; letter-spacing: -.005em; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.title { text-align: left; font-size: 16.5px; line-height: 1.4; font-weight: 600; letter-spacing: -.005em; flex: 1; min-width: 0; overflow-wrap: anywhere; }
 .title:hover { color: var(--accent); }
 .row.done .title { color: var(--muted); font-weight: 500; }
 .icons { display: flex; align-items: center; gap: 6px; margin-left: auto; }
@@ -126,10 +126,11 @@ main { max-width: 980px; margin: 0 auto; padding-block: 22px 80px;
   background: var(--hl); color: var(--hl-ink); border-radius: 999px; padding: 2px 4px 2px 10px; }
 .updchip button { font-weight: 600; color: var(--hl-ink); background: color-mix(in srgb, var(--hl-edge) 25%, transparent); border-radius: 999px; padding: 1px 9px; }
 
-.track { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 4px; }
+.track { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 5px; }
 .track > li { display: flex; align-items: center; gap: 4px; min-width: 0; }
-.track > li + li::before { content: ""; width: 10px; height: 1.5px; background: var(--line); border-radius: 2px; }
-.step { display: inline-flex; align-items: center; gap: 5px; max-width: 100%; text-align: left; font-size: 13.5px; padding: 3px 9px 3px 6px;
+.track > li + li::before { content: ""; width: 12px; height: 1.5px; background: var(--line); border-radius: 2px; }
+.step { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; text-align: left; font-size: 13.5px; padding: 5px 11px 5px 8px;
+  -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
   border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); }
 .step span { overflow-wrap: anywhere; }
 .step .bx { width: 15px; height: 15px; border-radius: 4px; border: 1.5px solid var(--faint); display: grid; place-items: center; color: transparent; }
@@ -140,26 +141,39 @@ main { max-width: 980px; margin: 0 auto; padding-block: 22px 80px;
 .step .tag { font-size: 10.5px; text-transform: uppercase; letter-spacing: .06em; color: var(--accent); font-weight: 700; }
 .step:hover:not(:disabled) { border-color: var(--accent); }
 .track.empty { font-size: 13px; color: var(--faint); }
+.addstep { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; border: 1.5px dashed var(--faint); color: var(--muted); background: var(--surface); }
+.addstep:hover { border-style: solid; border-color: var(--accent); color: var(--accent); }
+.addstep.wide { width: auto; display: inline-flex; gap: 6px; padding: 3px 12px 3px 9px; border-radius: 999px; font-size: 13px; }
+.addstep-in { font-size: 13.5px; padding: 4px 11px; border-radius: 999px; border: 1.5px solid var(--accent); background: var(--surface); outline: none; width: 220px; max-width: 100%; color: var(--ink); }
+.track > li.addli { min-width: 0; }
+body:not(.ro) .track .step { cursor: grab; }
+.track .step.dragging, .srow.dragging { opacity: .45; }
+.track.sorting .step { cursor: grabbing; }
+.track.sorting .step:not(.dragging) { transition: transform .12s; }
+.grip { width: 22px; height: 28px; display: grid; place-items: center; color: var(--faint); cursor: grab; border-radius: 5px; touch-action: none; }
+.grip:hover { color: var(--ink); background: var(--bg); }
+.srow.dragging .grip { cursor: grabbing; }
 
-.meta { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px; }
-.due { display: inline-flex; align-items: center; gap: 5px; font-size: 13px; font-weight: 500; padding: 2px 8px; border-radius: 6px; background: var(--bg); color: var(--muted); font-variant-numeric: tabular-nums; }
+.meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; }
+.due { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; padding: 4px 10px; border-radius: 6px; background: var(--bg); color: var(--muted); font-variant-numeric: tabular-nums; }
 .due.today, .due.soon { background: var(--accent-soft); color: var(--accent); }
 .due.overdue { background: var(--late-soft); color: var(--late); }
-.lnk { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; font-size: 13px; padding: 2px 8px; border-radius: 6px;
+.lnk { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; font-size: 13px; padding: 4px 10px; border-radius: 6px;
   background: var(--bg); color: var(--ink); text-decoration: none; border: 1px solid var(--line); }
 .lnk:hover { border-color: var(--accent); color: var(--accent); }
 .lnk .lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; }
 .lnk code, .mono { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
 
-.checks { display: flex; flex-wrap: wrap; gap: 6px; }
-.chk { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; padding: 2px 4px 2px 9px; border-radius: 6px;
-  border: 1px solid var(--line); color: var(--muted); background: var(--surface); }
-.chk b { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 1px 6px; border-radius: 4px; background: var(--bg); color: var(--faint); }
+.checks { display: flex; flex-wrap: wrap; gap: 8px; }
+.chk { display: inline-flex; align-items: center; gap: 7px; font-size: 12.5px; padding: 4px 5px 4px 10px; border-radius: 6px;
+  border: 1px solid color-mix(in srgb, var(--late) 35%, var(--line)); color: var(--late); background: var(--late-soft); }
+.chk b { font-size: 11px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; padding: 1px 6px; border-radius: 4px; background: var(--late); color: #fff; }
+.chk.yes { border-color: var(--line); background: var(--surface); }
 .chk.yes { color: var(--ink); }
 .chk.yes b { background: var(--done); color: #fff; }
 .chk:hover:not(:disabled) { border-color: var(--accent); }
 
-.note { margin: 0; font-size: 13.5px; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere;
+.note { margin: 0; font-size: 13.5px; line-height: 1.6; color: var(--muted); white-space: pre-wrap; overflow-wrap: anywhere;
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .row.open .note { display: none; }
 
@@ -170,13 +184,13 @@ main { max-width: 980px; margin: 0 auto; padding-block: 22px 80px;
 
 /* ---------- editor ---------- */
 .ed { display: flex; flex-direction: column; gap: 18px; margin-top: 8px; padding-top: 14px; border-top: 1px dashed var(--line); }
-.ed section { display: flex; flex-direction: column; gap: 8px; }
+.ed section { display: flex; flex-direction: column; gap: 9px; }
 .ed h3 { margin: 0; font-size: 11.5px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
 .fld { width: 100%; min-width: 0; background: var(--bg); border: 1px solid var(--line); border-radius: 7px; padding: 7px 10px; font-size: 14.5px; outline: none; }
 .fld:focus { border-color: var(--accent); background: var(--surface); }
 .fld.title-in { font-size: 17px; font-weight: 600; }
 textarea.fld { resize: vertical; min-height: 70px; line-height: 1.45; }
-.srow { display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; align-items: center; gap: 8px; border-radius: 8px; }
+.srow { display: grid; grid-template-columns: 22px 22px minmax(0, 1fr) auto; align-items: center; gap: 8px; border-radius: 8px; }
 .srow.hl { padding: 3px; }
 .srow input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--done); margin: 0; }
 .srow .fld { padding: 5px 9px; }
@@ -202,7 +216,7 @@ textarea.fld { resize: vertical; min-height: 70px; line-height: 1.45; }
 .seg { display: inline-flex; border: 1px solid var(--line); border-radius: 7px; overflow: hidden; flex: none; }
 .seg button { padding: 3px 14px; font-size: 13px; font-weight: 600; color: var(--muted); background: var(--surface); }
 .seg button + button { border-left: 1px solid var(--line); }
-.seg button[aria-pressed="true"].no { background: var(--muted); color: var(--surface); }
+.seg button[aria-pressed="true"].no { background: var(--late); color: #fff; }
 .seg button[aria-pressed="true"].yes { background: var(--done); color: #fff; }
 .edfoot { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding-top: 12px; border-top: 1px solid var(--line); }
 .edfoot .who { font-size: 12.5px; color: var(--faint); flex: 1 1 200px; }
@@ -286,6 +300,7 @@ const I = {
   up: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 15 6-6 6 6"/></svg>',
   down: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>',
   x: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
+  grip: '<svg width="12" height="16" viewBox="0 0 12 16" fill="currentColor"><circle cx="3.5" cy="3" r="1.4"/><circle cx="8.5" cy="3" r="1.4"/><circle cx="3.5" cy="8" r="1.4"/><circle cx="8.5" cy="8" r="1.4"/><circle cx="3.5" cy="13" r="1.4"/><circle cx="8.5" cy="13" r="1.4"/></svg>',
   plus: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
   ext: '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>',
 };
@@ -361,9 +376,61 @@ const S = {
   confirmClear: false,
   frozen: null,
   timedOut: false,
+  adding: null,   // {kind, id} while the inline add-step box is open
 };
 const rowEls = new Map();   // key -> li
 let ED = null;              // open editor {kind,id,base,draft,dirty,timer,el,confirmDel}
+let DRAG = null;            // step being dragged {el}
+
+/* ================= drag to reorder (mouse: drag; touch: press and hold) ================= */
+let swallowClick = false;
+window.addEventListener('click', (e) => { if (swallowClick) { e.stopPropagation(); e.preventDefault(); swallowClick = false; } }, true);
+document.addEventListener('touchmove', (e) => { if (DRAG) e.preventDefault(); }, { passive: false });
+function sortable(container, { item, handle, axis, onDrop }) {
+  container.addEventListener('pointerdown', (e) => {
+    if (!S.canWrite || e.button !== 0) return;
+    const grip = e.target.closest(handle);
+    if (!grip || !container.contains(grip)) return;
+    const el = grip.closest(item);
+    if (!el) return;
+    const id = e.pointerId, x0 = e.clientX, y0 = e.clientY, touch = e.pointerType === 'touch';
+    let active = false, timer = null;
+    const begin = () => { active = true; DRAG = { el }; el.classList.add('dragging'); container.classList.add('sorting'); };
+    const end = () => {
+      clearTimeout(timer); DRAG = null;
+      el.classList.remove('dragging'); container.classList.remove('sorting');
+      window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', cancel);
+    };
+    const move = (ev) => {
+      if (ev.pointerId !== id) return;
+      if (!active) {
+        if (Math.hypot(ev.clientX - x0, ev.clientY - y0) < 6) return;
+        if (touch) { end(); return; }   // a swipe before the hold finished: let the page scroll
+        begin();
+      }
+      ev.preventDefault();
+      if (ev.clientY < 70) window.scrollBy(0, -14); else if (ev.clientY > innerHeight - 70) window.scrollBy(0, 14);
+      const hit = document.elementFromPoint(ev.clientX, ev.clientY);
+      const over = hit && hit.closest(item);
+      if (!over || over === el || over.parentNode !== el.parentNode) return;
+      const r = over.getBoundingClientRect();
+      const after = axis === 'y' ? ev.clientY > r.top + r.height / 2 : ev.clientX > r.left + r.width / 2;
+      const ref = after ? over.nextSibling : over;
+      if (ref !== el) el.parentNode.insertBefore(el, ref);
+    };
+    const up = (ev) => {
+      if (ev.pointerId !== id) return;
+      const was = active; end();
+      if (was) { swallowClick = true; setTimeout(() => { swallowClick = false; }, 0);
+        onDrop([...el.parentNode.children].filter((c) => c.matches(item)).map((c) => c.dataset.sid)); }
+    };
+    const cancel = (ev) => { if (ev.pointerId !== id) return; const was = active; end(); if (was) onDrop(null); };
+    if (touch) timer = setTimeout(() => { begin(); if (navigator.vibrate) try { navigator.vibrate(10); } catch {} }, 350);
+    window.addEventListener('pointermove', move, { passive: false });
+    window.addEventListener('pointerup', up); window.addEventListener('pointercancel', cancel);
+  });
+}
+const reorder = (steps, ids) => { const m = new Map(steps.map((s) => [s.id, s])); const out = ids.map((i) => m.get(i)).filter(Boolean); steps.forEach((s) => { if (!out.includes(s)) out.push(s); }); return out; };
 
 /* ================= stores ================= */
 async function remoteStore() {
@@ -645,6 +712,7 @@ function render() {
 }
 
 function paintRow(kind, it, li) {
+  if (DRAG && li.contains(DRAG.el)) return;
   const u = unseen(kind, it);
   const F = u ? u.fields : new Set();
   const isOpen = ED && ED.kind === kind && ED.id === it.id;
@@ -656,6 +724,8 @@ function paintRow(kind, it, li) {
   circle.setAttribute('aria-label', it.completed ? 'Mark as not complete' : 'Mark complete');
   circle.onclick = () => commit(kind, it.id, (d) => { d.completed = !d.completed; });
 
+  const prevAdd = li.querySelector('.addstep-in');
+  const prevAddState = prevAdd ? { value: prevAdd.value, focused: document.activeElement === prevAdd } : null;
   const sum = li.querySelector('.sum'); sum.replaceChildren();
   const body = h('div', { class: 'body' });
   // line 1
@@ -676,15 +746,18 @@ function paintRow(kind, it, li) {
     const steps = it.steps || [];
     const nextIdx = steps.findIndex((s) => !s.done);
     const ol = h('ol', { class: 'track' + (F.has('steps') ? ' hl' : '') + (steps.length ? '' : ' empty'), 'aria-label': 'Steps' });
-    if (!steps.length) ol.append(h('li', { text: S.canWrite ? 'No steps yet. Open details to add them.' : 'No steps yet.' }));
+    if (!steps.length && !S.canWrite) ol.append(h('li', { text: 'No steps yet.' }));
     steps.forEach((s, i) => {
       const cls = 'step' + (s.done ? ' done' : i === nextIdx && !it.completed ? ' next' : '') + (F.has('step:' + s.id) ? ' hl' : '');
       const b = h('button', { class: cls, disabled: !S.canWrite, title: s.done ? 'Mark step not done' : 'Mark step done',
         onclick: () => commit(kind, it.id, (d) => { const x = (d.steps || []).find((y) => y.id === s.id); if (x) x.done = !x.done; }) },
         h('i', { class: 'bx', icon: 'check' }), h('span', { text: s.text || 'Untitled step' }));
       if (i === nextIdx && !it.completed) b.append(h('span', { class: 'tag', text: 'Next' }));
-      ol.append(h('li', null, b));
+      ol.append(h('li', { 'data-sid': s.id }, b));
     });
+    if (S.canWrite) ol.append(addStepLi(kind, it, prevAddState, !steps.length));
+    sortable(ol, { item: 'li[data-sid]', handle: '.step', axis: 'x',
+      onDrop: (ids) => { if (!ids) return render(); commit(kind, it.id, (d) => { d.steps = reorder(d.steps || [], ids); }); } });
     body.append(ol);
   }
   // due + links
@@ -717,6 +790,38 @@ function paintRow(kind, it, li) {
   sum.style.display = 'contents';
   li.querySelector('.slot').style.display = 'contents';
   if (isOpen && ED.el && ED.el.parentNode !== li.querySelector('.slot')) li.querySelector('.slot').append(ED.el);
+}
+
+function addStepLi(kind, it, prev, empty) {
+  const liEl = h('li', { class: 'addli' });
+  const adding = S.adding && S.adding.kind === kind && S.adding.id === it.id;
+  if (!adding) {
+    liEl.append(h('button', { class: 'addstep' + (empty ? ' wide' : ''), title: 'Add a step', 'aria-label': 'Add a step', icon: 'plus',
+      onclick: () => { S.adding = { kind, id: it.id, focus: true }; render(); } }, empty ? 'Add first step' : null));
+    return liEl;
+  }
+  const add = (text) => { text = text.trim(); if (!text) return; commit(kind, it.id, (d) => { (d.steps ||= []).push({ id: rid(), text, done: false }); }); };
+  const inp = h('input', { class: 'addstep-in', id: 'addstep-' + it.id, placeholder: 'New step, then Enter', 'aria-label': 'New step', autocomplete: 'off',
+    onkeydown: (e) => {
+      if (e.key === 'Enter') { e.preventDefault(); const v = inp.value; inp.value = ''; add(v); }
+      else if (e.key === 'Escape') { e.stopPropagation(); inp.value = ''; S.adding = null; render(); }
+    },
+    onblur: () => setTimeout(() => {
+      const a = document.activeElement;
+      if (a && a.classList && a.classList.contains('addstep-in')) return;   // the row was repainted; focus moved to the new box
+      if (!S.adding || S.adding.id !== it.id) return;
+      S.adding = null; add(inp.value); render();
+    }, 0) });
+  liEl.append(inp);
+  const keep = prev && prev.focused;
+  if (prev) inp.value = prev.value;
+  if (keep) S.adding.focus = true;
+  if (S.adding.focus) queueMicrotask(() => {
+    if (!inp.isConnected || !S.adding) return;   // superseded by a newer repaint
+    S.adding.focus = false; inp.focus();
+    const n = inp.value.length; try { inp.setSelectionRange(n, n); } catch {}
+  });
+  return liEl;
 }
 
 function renderBanner() {
@@ -812,16 +917,24 @@ function buildEditor() {
     const sec = h('section', null, h('h3', { text: 'Steps' }));
     const steps = d.steps ||= [];
     steps.forEach((s, i) => {
-      sec.append(h('div', { class: 'srow' + (F.has('step:' + s.id) ? ' hl' : '') },
+      sec.append(h('div', { class: 'srow' + (F.has('step:' + s.id) ? ' hl' : ''), 'data-sid': s.id },
+        h('button', { class: 'grip writer', icon: 'grip', title: 'Drag to reorder (or use arrow keys)', 'aria-label': 'Reorder step ' + (s.text || ''), disabled: ro,
+          onkeydown: (e) => {
+            const j = e.key === 'ArrowUp' ? i - 1 : e.key === 'ArrowDown' ? i + 1 : -1;
+            if (j < 0 || j >= steps.length) return;
+            e.preventDefault();
+            structural(() => { steps.splice(j, 0, steps.splice(i, 1)[0]); });
+            const g = ED.el.querySelectorAll('.srow .grip')[j]; if (g) g.focus();
+          } }),
         h('input', { type: 'checkbox', checked: !!s.done, disabled: ro, 'aria-label': 'Done', onchange: (e) => structural(() => { s.done = e.target.checked; }) }),
         h('input', { class: 'fld', value: s.text || '', disabled: ro, 'aria-label': 'Step', id: 'ed-step-' + s.id,
           oninput: (e) => { s.text = e.target.value; scheduleSave(); },
           onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); $('#ed-newstep') && $('#ed-newstep').focus(); } } }),
         h('div', { class: 'tools writer' },
-          h('button', { class: 'ibtn', icon: 'up', title: 'Move up', 'aria-label': 'Move up', disabled: i === 0, onclick: () => structural(() => { steps.splice(i - 1, 0, steps.splice(i, 1)[0]); }) }),
-          h('button', { class: 'ibtn', icon: 'down', title: 'Move down', 'aria-label': 'Move down', disabled: i === steps.length - 1, onclick: () => structural(() => { steps.splice(i + 1, 0, steps.splice(i, 1)[0]); }) }),
           h('button', { class: 'ibtn', icon: 'x', title: 'Remove step', 'aria-label': 'Remove step', onclick: () => structural(() => { steps.splice(i, 1); }) }))));
     });
+    sortable(sec, { item: '.srow', handle: '.grip', axis: 'y',
+      onDrop: (ids) => { if (!ids) return buildEditor(); structural(() => { d.steps = reorder(steps, ids); }); } });
     const addStep = (text) => { text = text.trim(); if (!text) return; structural(() => { steps.push({ id: rid(), text, done: false }); }); const n = $('#ed-newstep'); if (n) n.focus(); };
     const inp = h('input', { class: 'fld', id: 'ed-newstep', placeholder: 'Add a step and press Enter', onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); addStep(e.target.value); } } });
     sec.append(h('div', { class: 'addline writer' }, inp, h('button', { class: 'btn', icon: 'plus', onclick: () => addStep(inp.value) }, 'Add step')));
@@ -898,7 +1011,7 @@ function syncEditor() {
   if (!ED) return;
   const it = S.items[ED.kind].get(ED.id);
   if (!it) { closeEditor(true); return; }
-  if (ED.dirty || ED.el.contains(document.activeElement)) return;
+  if (ED.dirty || DRAG || ED.el.contains(document.activeElement)) return;
   const s = JSON.stringify(it);
   if (s === ED.shown) return;
   ED.base = clone(it); ED.draft = clone(it);
