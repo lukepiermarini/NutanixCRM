@@ -36,6 +36,7 @@
   /* status */
   --late: #d63a3a;
   --late-soft: #fdecec;
+  --amber: #d99100;
   --shadow: 0 1px 2px rgba(19, 19, 19, .06), 0 10px 28px rgba(19, 19, 19, .07);
   --font-ui: "Montserrat", Arial, ui-sans-serif, system-ui, sans-serif;
   --font-mono: "Montserrat", Arial, ui-sans-serif, system-ui, sans-serif;
@@ -45,7 +46,7 @@
   :root:not([data-theme="light"]) {
     --page: #131313; --bg: #1d1d21; --surface: #19191c; --ink: #ffffff; --muted: #aeacba; --faint: #737181; --line: #2d2c34; --rule: #7855FA;
     --accent: #8466ff; --accent-text: #a891ff; --accent-soft: #241d43; --on-accent: #ffffff; --link: #5ba4ff;
-    --done: #92DD23; --on-done: #131313; --done-soft: #1f2a12; --late: #ff6464; --late-soft: #3a1717; --flag: #FF9178;
+    --done: #92DD23; --on-done: #131313; --done-soft: #1f2a12; --late: #ff6464; --late-soft: #3a1717; --amber: #f2b531; --flag: #FF9178;
     --hl: #0f3a3d; --hl-ink: #a5f4f8; --hl-edge: #1FDDE9;
     --shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 10px 28px rgba(0, 0, 0, .35);
     color-scheme: dark;
@@ -54,7 +55,7 @@
 :root[data-theme="dark"] {
   --page: #131313; --bg: #1d1d21; --surface: #19191c; --ink: #ffffff; --muted: #aeacba; --faint: #737181; --line: #2d2c34; --rule: #7855FA;
   --accent: #8466ff; --accent-text: #a891ff; --accent-soft: #241d43; --on-accent: #ffffff; --link: #5ba4ff;
-  --done: #92DD23; --on-done: #131313; --done-soft: #1f2a12; --late: #ff6464; --late-soft: #3a1717; --flag: #FF9178;
+  --done: #92DD23; --on-done: #131313; --done-soft: #1f2a12; --late: #ff6464; --late-soft: #3a1717; --amber: #f2b531; --flag: #FF9178;
   --hl: #0f3a3d; --hl-ink: #a5f4f8; --hl-edge: #1FDDE9;
   --shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 10px 28px rgba(0, 0, 0, .35);
   color-scheme: dark;
@@ -64,7 +65,7 @@
 :root[data-ui-theme="light"] {
   --page: #ffffff; --bg: #f5f5f7; --surface: #ffffff; --ink: #131313; --muted: #55545e; --faint: #8e8c9a; --line: #e6e5ec; --rule: #7855FA;
   --accent: #7855FA; --accent-text: #5b37e6; --accent-soft: #f1edff; --on-accent: #ffffff; --link: #1769e0;
-  --done: #92DD23; --on-done: #131313; --done-soft: #eef9dc; --late: #d63a3a; --late-soft: #fdecec; --flag: #FF9178;
+  --done: #92DD23; --on-done: #131313; --done-soft: #eef9dc; --late: #d63a3a; --late-soft: #fdecec; --amber: #d99100; --flag: #FF9178;
   --hl: #d8f8fa; --hl-ink: #0a4a4f; --hl-edge: #1FDDE9;
   --shadow: 0 1px 2px rgba(19, 19, 19, .06), 0 10px 28px rgba(19, 19, 19, .07);
   color-scheme: light;
@@ -72,7 +73,7 @@
 :root[data-ui-theme="dark"] {
   --page: #131313; --bg: #1d1d21; --surface: #19191c; --ink: #ffffff; --muted: #aeacba; --faint: #737181; --line: #2d2c34; --rule: #7855FA;
   --accent: #8466ff; --accent-text: #a891ff; --accent-soft: #241d43; --on-accent: #ffffff; --link: #5ba4ff;
-  --done: #92DD23; --on-done: #131313; --done-soft: #1f2a12; --late: #ff6464; --late-soft: #3a1717; --flag: #FF9178;
+  --done: #92DD23; --on-done: #131313; --done-soft: #1f2a12; --late: #ff6464; --late-soft: #3a1717; --amber: #f2b531; --flag: #FF9178;
   --hl: #0f3a3d; --hl-ink: #a5f4f8; --hl-edge: #1FDDE9;
   --shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 10px 28px rgba(0, 0, 0, .35);
   color-scheme: dark;
@@ -227,6 +228,101 @@ body:not(.ro) .step .slabel { padding-right: 30px; }   /* room for the hover pen
 .prog.is-out .pbar.st { border-color: var(--line); }
 .prog.is-out .pbar.st .pseg { background: var(--bg); color: var(--faint); box-shadow: none; text-decoration: line-through; }
 .olbl { grid-row: 3; grid-column: 7 / span 3; font-size: 10.5px; font-weight: 600; line-height: 1.2; color: var(--accent-text); text-align: center; white-space: nowrap; }
+/* MEDDPICC: strip of eight letter tiles at the bottom of each deal, an evidence panel, and the notes dialog */
+.meddp { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; padding-top: 14px; border-top: 1px dashed var(--line); }
+.mhead { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; }
+.mhead .mt { font-size: 11px; font-weight: 700; letter-spacing: .14em; color: var(--accent-text); }
+.msum { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.mhead .madd { margin-left: auto; }
+.mstrip { container-type: inline-size; }
+.mgrid { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 6px; }
+.mtile { position: relative; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; padding: 9px 10px 10px; border-radius: 10px;
+  border: 1px solid var(--line); background: var(--surface); text-align: left; }
+.mtile:hover:not(:disabled) { border-color: var(--accent); }
+.mtile.sel { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.mletter { font-size: 22px; font-weight: 800; line-height: 1; color: var(--ink); }
+.mname { font-size: 11.5px; font-weight: 600; line-height: 1.25; color: var(--muted); }
+.mnext { margin-top: 2px; font-size: 11.5px; line-height: 1.35; color: var(--ink); overflow-wrap: anywhere; }
+.mrisk { position: absolute; top: 7px; right: 7px; width: 16px; height: 16px; display: grid; place-items: center; border-radius: 50%; background: var(--late); color: #fff; font-size: 11px; font-weight: 800; }
+.mmeter { display: inline-flex; align-items: center; gap: 6px; }
+.mdots { display: inline-flex; gap: 3px; }
+.mdots i { width: 9px; height: 9px; border-radius: 50%; border: 1.5px solid currentColor; }
+.mdots i.on { background: currentColor; }
+.lv-none .mmeter, .mmeter.lv-none { color: var(--faint); }
+.lv-gap .mmeter, .mmeter.lv-gap { color: var(--late); }
+.lv-partial .mmeter, .mmeter.lv-partial { color: var(--amber); }
+.lv-strong .mmeter, .mmeter.lv-strong { color: var(--done); }
+.mlvl { font-size: 12px; font-weight: 700; }
+@container (max-width: 960px) { .mnext { display: none; } }                       /* tight: drop the next step first... */
+@container (max-width: 560px) { .mgrid { grid-template-columns: repeat(4, minmax(0, 1fr)); } .mnext { display: block; } }
+@container (max-width: 480px) { .mnext { display: none; } }
+@container (max-width: 360px) { .mname { display: none; } .mtile { align-items: center; } }   /* ...then the name, never the letter or dots */
+.mpanel { margin-top: 2px; display: flex; flex-direction: column; gap: 12px; padding: 12px 14px 14px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); }
+.mp-head { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; }
+.mp-head .mp-hint { flex: 1; font-size: 12.5px; color: var(--muted); }
+.mgroup { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--line); scroll-margin-block: 90px; }
+.mgroup.mcur { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+@media (prefers-reduced-motion: no-preference) { .mgroup.flash { animation: mflash 1.4s ease-out; } }
+@keyframes mflash { 0% { background: var(--accent-soft); } 100% { background: transparent; } }
+.mg-head { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; }
+.mg-head h4 { margin: 0; font-size: 14px; }
+.mg-head .ml { color: var(--accent-text); font-weight: 800; }
+.mg-meter { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 4px 12px; }
+.mrisk-i { font-size: 12px; font-weight: 700; color: var(--late); }
+.mgnext { font-size: 12.5px; color: var(--muted); }
+.mmean { margin: 0; font-size: 12.5px; color: var(--muted); }
+.mempty { margin: 0; font-size: 12.5px; color: var(--faint); }
+.mbuls { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.mbul { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 210px) minmax(0, 175px) minmax(0, 150px) auto auto; align-items: center; gap: 6px; padding: 4px; border-radius: 8px; }
+.mbul .fld { padding: 5px 8px; font-size: 13px; }
+.mbul.isrisk { background: var(--late-soft); }
+.mbul.isassume .mtext { font-style: italic; color: var(--muted); }
+.mriskbtn { display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 0 10px; border-radius: 7px; border: 1px solid var(--line); background: var(--surface); font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.mriskbtn span { font-weight: 800; }
+.mriskbtn[aria-pressed="true"] { background: var(--late); border-color: var(--late); color: #fff; }
+@media (max-width: 900px) { .mbul { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } .mbul .mtext { grid-column: 1 / -1; } }
+.mnotesec { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; border-radius: 10px; border: 1px dashed var(--line); }
+.mnotes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.mn-row { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 10px; font-size: 13px; }
+.mn-att, .mn-snip { color: var(--muted); min-width: 0; overflow-wrap: anywhere; }
+.mn-snip { flex: 1 1 200px; }
+.mn-acts { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+.mn-text { margin: 6px 0 0; max-height: 280px; overflow: auto; padding: 8px 10px; border-radius: 8px; background: var(--bg); font: 12.5px/1.5 var(--font-ui); white-space: pre-wrap; overflow-wrap: anywhere; }
+.hlb { box-shadow: 0 0 0 2px var(--hl-edge); }
+dialog.mdlg { width: min(880px, calc(100vw - 32px)); max-height: calc(100vh - 48px); padding: 0; border: 1px solid var(--line); border-radius: 14px; background: var(--surface); color: var(--ink); box-shadow: var(--shadow); }
+dialog.mdlg::backdrop { background: rgba(19, 19, 19, .45); }
+.mdlg-in { display: flex; flex-direction: column; gap: 12px; padding: 16px 18px 0; }
+.mdlg-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.mdlg-head h2 { margin: 0; font-size: 18px; }
+.mdlg-sub { margin: -6px 0 0; font-size: 13px; color: var(--muted); }
+.mdlg-row { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px; }
+.mfield { display: flex; flex-direction: column; gap: 4px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.mfield.grow { flex: 1 1 260px; }
+.mfield textarea { min-height: 220px; font: 13px/1.5 var(--font-ui); }
+.mfile { cursor: pointer; }
+.mfile:focus-within { outline: 2px solid var(--accent-text); outline-offset: 2px; }
+.merr { margin: 0; font-size: 13px; color: var(--late); }
+.mprivacy { margin: 0; font-size: 12px; color: var(--muted); }
+.mdlg-foot { position: sticky; bottom: 0; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin: 0 -18px; padding: 12px 18px; border-top: 1px solid var(--line); background: var(--surface); }
+.pgroup { display: flex; flex-direction: column; gap: 8px; }
+.pgroup h3 { margin: 6px 0 0; font-size: 14px; }
+.pgroup h3 .ml { color: var(--accent-text); font-weight: 800; }
+.prop { display: flex; flex-direction: column; gap: 6px; padding: 9px 11px; border-radius: 10px; border: 1px solid var(--line); }
+.prop.accepted { border-color: var(--done); background: var(--done-soft); }
+.prop.rejected { opacity: .6; }
+.prop.rejected .ptext { text-decoration: line-through; }
+.prop-top { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 10px; font-size: 12px; }
+.pcrit { font-weight: 600; color: var(--muted); }
+.pbadge { padding: 1px 7px; border-radius: 999px; background: var(--late); color: #fff; font-size: 11px; font-weight: 700; }
+.pstate { margin-left: auto; font-weight: 700; }
+.ptext { margin: 0; font-size: 14px; }
+.pquote { margin: 0; padding-left: 10px; border-left: 3px solid var(--line); font-size: 12.5px; color: var(--muted); overflow-wrap: anywhere; }
+.pquote cite { font-style: normal; font-weight: 600; }
+.pacts, .pedit { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.pedit .fld { width: auto; flex: 1 1 180px; padding: 5px 8px; font-size: 13px; }
+.pedit .fld.ptxt { flex-basis: 100%; }
+.pacts .btn[aria-pressed="true"] { background: var(--ink); border-color: var(--ink); color: var(--page); }
+.sr { position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 /* small anchored popovers: order status / outcome menus and the help card */
 .pop { position: absolute; z-index: 30; padding: 6px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); box-shadow: var(--shadow); font-size: 13px; }
 .pop .phd { padding: 4px 10px 6px; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
@@ -241,6 +337,11 @@ body:not(.ro) .step .slabel { padding-right: 30px; }   /* room for the hover pen
 .ptip .tt { display: block; font-size: 13px; font-weight: 700; }
 .ptip .tl { margin-top: 8px; font-size: 11px; font-weight: 700; color: color-mix(in srgb, var(--page) 72%, transparent); }
 .ptip p { margin: 2px 0 0; }
+.ptip .tmean { color: color-mix(in srgb, var(--page) 82%, transparent); }
+.ptip .tcrit { list-style: none; margin: 4px 0 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.ptip .tcrit li { display: grid; grid-template-columns: 16px minmax(0, 1fr); gap: 4px; color: color-mix(in srgb, var(--page) 80%, transparent); }
+.ptip .tcrit li.ok { color: var(--page); }
+.ptip .tcrit em { font-style: normal; font-weight: 700; font-size: 11px; color: color-mix(in srgb, var(--page) 65%, transparent); }
 .ptip .th { margin-top: 9px; padding-top: 7px; border-top: 1px solid color-mix(in srgb, var(--page) 22%, transparent); font-size: 11.5px; color: color-mix(in srgb, var(--page) 80%, transparent); }
 /* "Edit" pill that opens the details panel: shows while hovering a deal's name line or anywhere on a task */
 .rowedit { flex: none; margin-top: -2px; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 11px; border-radius: 999px; font-size: 12.5px; font-weight: 600;
@@ -428,6 +529,7 @@ body.ro .add, body.ro .ed .writer, body.ro #clearDone { display: none; }
 </main>
 <div class="toast" id="toast" hidden></div>
 
+<script src="meddpicc.js"></script>
 <script>
 (() => {
 'use strict';
@@ -533,6 +635,7 @@ const S = {
   addingLink: null, // {kind, id, label, url} while the inline add-link box is open
   editDue: null,  // {id, sid, date, time} while a step's date box is open
   openSteps: new Set(), // "dealId:stepId" of steps whose date is shown under the pill
+  mOpen: {},       // dealId -> MEDDPICC letter whose evidence panel is open
   editStep: null,  // {id, sid, text} while a step is being renamed in place
 };
 const rowEls = new Map();   // key -> li
@@ -681,6 +784,13 @@ function diff(kind, base, next) {
       if (a !== b) { (patch.checks ||= {})[c.key] = b; keys.push('check:' + c.key); }
     }
   }
+  if (kind === 'deals') {   // MEDDPICC bullets are tracked per letter; meeting notes as one list
+    const bm = base.meddpicc || {}, nm = next.meddpicc || {};
+    for (const k of new Set([...Object.keys(bm), ...Object.keys(nm)])) {
+      if (JSON.stringify(bm[k] || []) !== JSON.stringify(nm[k] || [])) { (patch.meddpicc ||= {})[k] = nm[k] || []; keys.push('meddpicc:' + k); }
+    }
+    if (JSON.stringify(base.meetingNotes || []) !== JSON.stringify(next.meetingNotes || [])) { patch.meetingNotes = next.meetingNotes || []; keys.push('meetingNotes'); }
+  }
   for (const [field, props] of Object.entries(LISTS)) {
     if (kind === 'tasks' && field === 'steps') continue;
     const b = base[field] || [], n = next[field] || [];
@@ -755,13 +865,14 @@ function allUnseen() {
   for (const kind of ['deals', 'tasks']) for (const it of S.items[kind].values()) { const u = unseen(kind, it); if (u) out.push({ kind, it, u }); }
   return out;
 }
-const FIELD_WORDS = { salesStage: 'sales stage', orderStatus: 'order status', closedOutcome: 'Closed Lost / Disqualified', techClose: 'Tech Close', dealType: 'Land & Expand / Renewal', title: 'name', notes: 'notes', due: 'due date', flagged: 'flag', completed: 'status', deleted: 'deleted', steps: 'steps', links: 'links' };
+const FIELD_WORDS = { meetingNotes: 'meeting notes', salesStage: 'sales stage', orderStatus: 'order status', closedOutcome: 'Closed Lost / Disqualified', techClose: 'Tech Close', dealType: 'Land & Expand / Renewal', title: 'name', notes: 'notes', due: 'due date', flagged: 'flag', completed: 'status', deleted: 'deleted', steps: 'steps', links: 'links' };
 function describeFields(fields) {
   const words = new Set();
   for (const f of fields) {
     if (f.startsWith('step:')) words.add('steps');
     else if (f.startsWith('link:')) words.add('links');
     else if (f.startsWith('check:')) words.add((CHECKS.find((c) => 'check:' + c.key === f) || {}).short || 'checklist');
+    else if (f.startsWith('meddpicc:')) words.add('MEDDPICC ' + ((window.MEDDPICC && window.MEDDPICC.BY_ID[f.slice(9)]) || { name: '' }).name);
     else words.add(FIELD_WORDS[f] || f);
   }
   return [...words].join(', ');
@@ -858,7 +969,7 @@ function render() {
   list.forEach((it, i) => {
     const key = kind + '/' + it.id;
     let li = rowEls.get(key);
-    if (!li) { li = h('li', { class: 'row', 'data-id': it.id }); li.append(h('button', { class: 'circle' }), h('div', { class: 'body' }, h('div', { class: 'sum' }), h('div', { class: 'slot' }))); rowEls.set(key, li); }
+    if (!li) { li = h('li', { class: 'row', 'data-id': it.id }); li.append(h('button', { class: 'circle' }), h('div', { class: 'body' }, h('div', { class: 'sum' }), h('div', { class: 'mslot' }), h('div', { class: 'slot' }))); rowEls.set(key, li); }
     paintRow(kind, it, li);
     if (ul.children[i] !== li) ul.insertBefore(li, ul.children[i] || null);
   });
@@ -976,11 +1087,18 @@ function paintRow(kind, it, li) {
     body.append(ck);
   }
   if (it.notes) body.append(h('p', { class: 'note' + (F.has('notes') ? ' hl' : ''), text: it.notes }));
+  if (kind === 'deals' && MD) body.append(meddpiccSection(kind, it, F));
   sum.append(...body.childNodes);
   if (keepFocus) { const t = sum.querySelector(`[data-fk="${keepFocus}"]`); if (t && !t.disabled) t.focus({ preventScroll: true }); }
   sum.style.display = 'contents';
   li.querySelector('.slot').style.display = 'contents';
   if (isOpen && ED.el && ED.el.parentNode !== li.querySelector('.slot')) li.querySelector('.slot').append(ED.el);
+  const ms = li.querySelector('.mslot');
+  if (ms) {
+    ms.style.display = 'contents';
+    if (kind === 'deals' && MD && S.mOpen[it.id]) mountMPanel(kind, it, ms);
+    else if (ms.firstChild) ms.replaceChildren();
+  }
 }
 
 // One-line rename box: Enter or clicking away saves, Esc cancels.
@@ -1184,7 +1302,8 @@ function showTip(anchor) {
   const it = li && S.items[li.dataset.kind] && S.items[li.dataset.kind].get(li.dataset.id);
   if (!it || POP) return;
   hideTip();
-  const el = h('div', { class: 'ptip', role: 'tooltip', id: 'ptip' }, progressTip(anchor.dataset.fk, it));
+  const fk = anchor.dataset.fk;
+  const el = h('div', { class: 'ptip', role: 'tooltip', id: 'ptip' }, anchor.classList.contains('mtile') ? meddpiccTip(fk.slice(2), it) : progressTip(fk, it));
   document.body.append(el);
   const r = anchor.getBoundingClientRect(), vw = document.documentElement.clientWidth, hgt = el.offsetHeight;
   el.style.left = Math.max(16, Math.min(r.left + r.width / 2 - el.offsetWidth / 2, vw - el.offsetWidth - 16)) + scrollX + 'px';
@@ -1195,10 +1314,10 @@ function showTip(anchor) {
 // a save repaints the row: move the tooltip to the new copy of the cell if it's still hovered or focused
 function refreshTip() {
   if (!TIP || TIP.anchor.isConnected) return;
-  const li = rowEls.get(TIP.row), a = li && li.querySelector(`.prog [data-fk="${TIP.fk}"]`);
+  const li = rowEls.get(TIP.row), a = li && li.querySelector(`.prog [data-fk="${TIP.fk}"], .mstrip [data-fk="${TIP.fk}"]`);
   if (a && (a.matches(':hover') || document.activeElement === a)) showTip(a); else hideTip();
 }
-const progCell = (t) => (t && t.closest ? t.closest('.prog .pseg') : null);
+const progCell = (t) => (t && t.closest ? t.closest('.prog .pseg, .mstrip .mtile') : null);
 document.addEventListener('pointerover', (e) => {
   const a = progCell(e.target);
   if (!a || (TIP && TIP.anchor === a)) return;
@@ -1220,6 +1339,329 @@ document.addEventListener('focusout', (e) => { if (TIP && e.target === TIP.ancho
 document.addEventListener('pointerdown', (e) => { if (TIP && !TIP.anchor.contains(e.target)) hideTip(); }, true);
 window.addEventListener('scroll', hideTip, { passive: true });
 window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && TIP && !POP) { e.stopPropagation(); hideTip(); } }, true);
+
+/* ================= MEDDPICC ================= */
+// Rubric, scoreLetter and the notes extractor live in meddpicc.js (window.MEDDPICC). Strength is always calculated, never stored.
+const MD = window.MEDDPICC || null;
+const mList = (it, id) => (((it && it.meddpicc) || {})[id]) || [];
+const todayISO = () => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const fmtDay = (iso) => {
+  const d = iso ? new Date(iso + 'T00:00') : null;
+  return d && !isNaN(d) ? d.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: d.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined }) : '';
+};
+const sourceText = (b) => (b.source === 'notes' ? `From notes${b.noteDate ? ' (' + fmtDay(b.noteDate) + ')' : ''}` : (MD.SOURCES.find((x) => x.v === b.source) || MD.SOURCES[0]).label);
+const snippet = (t) => { const x = String(t || '').replace(/\s+/g, ' ').trim(); return x.length > 110 ? x.slice(0, 107) + '…' : x; };
+function meter(sc, withLabel) {
+  return h('span', { class: 'mmeter lv-' + sc.level },
+    h('span', { class: 'mdots', 'aria-hidden': 'true' }, [0, 1, 2].map((i) => h('i', { class: i < sc.dots ? 'on' : null }))),
+    h('span', { class: withLabel ? 'mlvl' : 'sr', text: sc.label }));
+}
+
+function meddpiccSection(kind, it, F) {
+  const scores = MD.RUBRIC.map((L) => [L, MD.scoreLetter(L, mList(it, L.id))]);
+  const strong = scores.filter(([, x]) => x.level === 'strong').length, risky = scores.filter(([, x]) => x.risk).length;
+  const open = S.mOpen[it.id];
+  return h('section', { class: 'meddp', 'aria-label': 'MEDDPICC' },
+    h('div', { class: 'mhead' },
+      h('span', { class: 'mt', text: 'MEDDPICC' }),
+      h('span', { class: 'msum', text: `${strong} of 8 strong` + (risky ? ` · ${risky} with a risk` : '') }),
+      S.canWrite ? h('button', { type: 'button', class: 'btn sm madd', icon: 'plus', 'data-fk': 'm-notes', onclick: () => openNotesDialog(it.id) }, 'Add meeting notes') : null),
+    h('div', { class: 'mstrip' }, h('div', { class: 'mgrid' }, scores.map(([L, sc]) =>
+      h('button', { type: 'button', class: 'mtile lv-' + sc.level + (open === L.id ? ' sel' : '') + (F.has('meddpicc:' + L.id) ? ' hl' : ''), 'data-fk': 'm-' + L.id,
+        'aria-expanded': String(!!open), 'aria-controls': open ? 'mp-' + it.id : null,
+        'aria-label': `${L.name}: ${sc.label}${sc.risk ? ', risk flagged' : ''}. Next step: ${sc.next}`,
+        onclick: () => toggleMeddpicc(it.id, L.id) },
+        h('span', { class: 'mletter', 'aria-hidden': 'true', text: L.letter }),
+        h('span', { class: 'mname', 'aria-hidden': 'true', text: L.name }),
+        meter(sc, false),
+        h('span', { class: 'mnext', 'aria-hidden': 'true', text: sc.next }),
+        sc.risk ? h('span', { class: 'mrisk', 'aria-hidden': 'true', text: '!' }) : null)))));
+}
+function meddpiccTip(letterId, it) {
+  const L = MD.BY_ID[letterId], sc = MD.scoreLetter(L, mList(it, L.id));
+  return [h('strong', { class: 'tt', text: `${L.name} · ${sc.label}` }), h('p', { class: 'tmean', text: L.meaning }),
+    h('div', { class: 'tl', text: 'To be strong:' }),
+    h('ul', { class: 'tcrit' }, L.criteria.map((c) => {
+      const ok = sc.met.includes(c.id);
+      return h('li', { class: ok ? 'ok' : null }, h('span', { 'aria-hidden': 'true', text: ok ? '✓' : '○' }),
+        h('span', null, c.text, c.required ? h('em', { text: ' · required' }) : null, h('span', { class: 'sr', text: ok ? ' (met)' : ' (not met)' })));
+    })),
+    h('div', { class: 'th', text: sc.risk ? '! A bullet is flagged as a risk, so this letter is capped at Partial.' : 'Click to see and edit the evidence.' })];
+}
+
+/* the evidence panel lives outside the repainted summary, so typing in it survives live updates */
+const MP = new Map();   // dealId -> { kind, id, el, pending, timer, ui, sig, force, focusBid }
+function toggleMeddpicc(id, letter) {
+  if (S.mOpen[id] === letter) return closeMeddpicc(id);
+  S.mOpen[id] = letter;
+  const P = MP.get(id); if (P) P.force = true;
+  render();
+  requestAnimationFrame(() => {
+    const g = document.getElementById(`mg-${id}-${letter}`); if (!g) return;
+    g.scrollIntoView({ block: 'nearest', behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' });
+    g.classList.remove('flash'); void g.offsetWidth; g.classList.add('flash');
+  });
+}
+function closeMeddpicc(id) {
+  const P = MP.get(id);
+  if (P) { flushM(P); P.el.remove(); MP.delete(id); }
+  delete S.mOpen[id];
+  render();
+}
+function mountMPanel(kind, it, slot) {
+  let P = MP.get(it.id);
+  if (!P) {
+    P = { kind, id: it.id, el: h('div', { class: 'mpanel', id: 'mp-' + it.id, role: 'region', 'aria-label': 'MEDDPICC evidence' }), pending: new Map(), timer: null, ui: {}, sig: null, force: true };
+    P.el.addEventListener('focusout', () => setTimeout(() => { if (MP.get(P.id) === P && !P.el.contains(document.activeElement)) { flushM(P); render(); } }, 0));
+    MP.set(it.id, P);
+  }
+  if (P.el.parentNode !== slot) slot.append(P.el);
+  const sig = JSON.stringify([it.meddpicc || {}, it.meetingNotes || [], S.mOpen[it.id], S.canWrite, P.ui, it.changes || {}]);
+  if (!P.force && (P.el.contains(document.activeElement) || P.pending.size)) { refreshMeters(P, it); return; }   // someone is editing: only the meters move
+  if (!P.force && sig === P.sig) return;
+  P.force = false; P.sig = sig;
+  buildMPanel(P, it);
+}
+const meterFull = (sc) => [meter(sc, true), sc.risk ? h('span', { class: 'mrisk-i', text: '! ' + (sc.riskCount === 1 ? '1 risk' : sc.riskCount + ' risks') }) : null,
+  h('span', { class: 'mgnext', text: 'Next: ' + sc.next })].filter(Boolean);
+function refreshMeters(P, it) {
+  for (const L of MD.RUBRIC) { const m = P.el.querySelector(`[data-meter="${L.id}"]`); if (m) m.replaceChildren(...meterFull(MD.scoreLetter(L, mList(it, L.id)))); }
+}
+function buildMPanel(P, it) {
+  const ro = !S.canWrite, cur = S.mOpen[it.id], u = unseen('deals', it), F = u ? u.fields : new Set();
+  const keep = P.el.contains(document.activeElement) ? document.activeElement.dataset.mk : null;
+  const el = P.el; el.replaceChildren();
+  el.append(h('div', { class: 'mp-head' }, h('strong', { text: 'MEDDPICC evidence' }),
+    h('span', { class: 'mp-hint', text: ro ? '' : 'Assumptions are reminders of what to check, not evidence. Flag bad news as a risk.' }),
+    h('button', { type: 'button', class: 'ibtn', icon: 'x', 'data-mk': 'close', title: 'Close', 'aria-label': 'Close MEDDPICC details', onclick: () => closeMeddpicc(it.id) })));
+  for (const L of MD.RUBRIC) {
+    const list = mList(it, L.id);
+    el.append(h('section', { class: 'mgroup' + (cur === L.id ? ' mcur' : '') + (F.has('meddpicc:' + L.id) ? ' hlb' : ''), id: `mg-${it.id}-${L.id}`, 'aria-labelledby': `mgh-${it.id}-${L.id}` },
+      h('div', { class: 'mg-head' },
+        h('h4', { id: `mgh-${it.id}-${L.id}` }, h('span', { class: 'ml', text: L.letter }), ' ', L.name),
+        h('span', { class: 'mg-meter', 'data-meter': L.id }, meterFull(MD.scoreLetter(L, list)))),
+      h('p', { class: 'mmean', text: L.meaning }),
+      list.length ? h('ul', { class: 'mbuls' }, list.map((b) => bulletRow(P, L, b))) : h('p', { class: 'mempty', text: 'No evidence yet.' }),
+      ro ? null : h('div', null, h('button', { type: 'button', class: 'btn sm', icon: 'plus', 'data-mk': 'add-' + L.id, onclick: () => addBullet(P, it, L) }, `Add ${L.name} evidence`))));
+  }
+  el.append(notesSection(P, it, F));
+  const target = (P.focusBid && el.querySelector(`[data-bid="${P.focusBid}"] .mtext`)) || (P.focusMk && el.querySelector(`[data-mk="${P.focusMk}"]`)) || (keep && el.querySelector(`[data-mk="${keep}"]`));
+  P.focusBid = null; P.focusMk = null;
+  if (target) target.focus();
+}
+function bulletRow(P, L, b) {
+  const ro = !S.canWrite;
+  const crit = h('select', { class: 'fld', 'aria-label': 'Criterion', 'data-mk': 'c-' + b.id, disabled: ro, onchange: (e) => saveBullet(P, L.id, b.id, { criterion: e.target.value }) },
+    L.criteria.map((c) => h('option', { value: c.id, text: c.text + (c.required ? ' (required)' : '') })), h('option', { value: MD.OTHER, text: 'Other' }));
+  crit.value = L.criteria.some((c) => c.id === b.criterion) ? b.criterion : MD.OTHER;
+  const src = h('select', { class: 'fld', 'aria-label': 'Source', 'data-mk': 's-' + b.id, disabled: ro,
+    onchange: (e) => {
+      const v = e.target.value;
+      e.target.closest('.mbul').classList.toggle('isassume', v === 'assumption');
+      saveBullet(P, L.id, b.id, v === 'notes' ? { source: v, noteDate: b.noteDate || todayISO() } : { source: v });
+    } },
+    MD.SOURCES.map((x) => h('option', { value: x.v, text: x.v === 'notes' ? sourceText({ source: 'notes', noteDate: b.noteDate }) : x.label })));
+  src.value = MD.SOURCES.some((x) => x.v === b.source) ? b.source : 'customer';
+  return h('li', { class: 'mbul' + (b.risk ? ' isrisk' : '') + (b.source === 'assumption' ? ' isassume' : ''), 'data-bid': b.id },
+    h('input', { class: 'fld mtext', value: b.text || '', placeholder: 'What did you learn?', 'aria-label': `${L.name} evidence`, 'data-mk': 't-' + b.id, disabled: ro,
+      oninput: (e) => pendM(P, L.id, b.id, { text: e.target.value }), onblur: () => flushM(P),
+      onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); flushM(P); } } }),
+    crit, src,
+    h('input', { class: 'fld mwho', value: b.who || '', placeholder: 'Who said it (optional)', 'aria-label': 'Who said it', 'data-mk': 'w-' + b.id, disabled: ro,
+      oninput: (e) => pendM(P, L.id, b.id, { who: e.target.value }), onblur: () => flushM(P) }),
+    h('button', { type: 'button', class: 'mriskbtn', 'aria-pressed': String(!!b.risk), 'data-mk': 'r-' + b.id, disabled: ro,
+      title: 'Flag as a risk: bad news such as criteria written around a competitor',
+      onclick: (e) => {
+        const now = !(mList(S.items.deals.get(P.id), L.id).find((y) => y.id === b.id) || b).risk;
+        e.currentTarget.setAttribute('aria-pressed', String(now)); e.currentTarget.closest('.mbul').classList.toggle('isrisk', now);
+        saveBullet(P, L.id, b.id, { risk: now });
+      } }, h('span', { 'aria-hidden': 'true', text: '!' }), 'Risk'),
+    ro ? null : h('button', { type: 'button', class: 'ibtn', icon: 'x', title: 'Delete', 'aria-label': `Delete evidence: ${b.text || 'empty'}`,
+      onclick: () => { P.focusMk = 'add-' + L.id; saveBullet(P, L.id, b.id, null); } }));
+}
+function pendM(P, letter, bid, patch) {
+  const k = letter + '|' + bid;
+  P.pending.set(k, { ...(P.pending.get(k) || {}), ...patch });
+  clearTimeout(P.timer); P.timer = setTimeout(() => flushM(P), 700);
+}
+// Typing is batched; any other change takes the batch with it in ONE save. A letter's bullets are written as a
+// whole list, so two saves in a row could otherwise build on the same stale copy and drop the first one's change.
+function takePending(P) { clearTimeout(P.timer); const items = [...P.pending.entries()]; P.pending.clear(); return items; }
+function applyPending(d, items) {
+  const now = Date.now(), m = (d.meddpicc ||= {});
+  for (const [k, patch] of items) { const [letter, bid] = k.split('|'); const x = (m[letter] || []).find((y) => y.id === bid); if (x) Object.assign(x, patch, { updatedAt: now }); }
+}
+function flushM(P) {
+  const items = takePending(P);
+  if (items.length) commit(P.kind, P.id, (d) => applyPending(d, items));
+}
+function saveBullet(P, letter, bid, patch) {   // patch null = delete
+  const items = takePending(P);
+  if (patch === null) P.force = true;
+  commit(P.kind, P.id, (d) => {
+    applyPending(d, items);
+    const arr = ((d.meddpicc ||= {})[letter] ||= []), i = arr.findIndex((y) => y.id === bid);
+    if (i < 0) return;
+    if (patch === null) arr.splice(i, 1); else Object.assign(arr[i], patch, { updatedAt: Date.now() });
+  });
+}
+function addBullet(P, it, L) {
+  const items = takePending(P);
+  const sc = MD.scoreLetter(L, mList(it, L.id)), now = Date.now(), id = rid();
+  P.force = true; P.focusBid = id;
+  commit(P.kind, P.id, (d) => { applyPending(d, items); ((d.meddpicc ||= {})[L.id] ||= []).push({ id, text: '', criterion: sc.nextCriterion || L.criteria[0].id, source: 'customer', who: '', risk: false, createdAt: now, updatedAt: now }); });
+}
+function notesSection(P, it, F) {
+  const ro = !S.canWrite;
+  const notes = [...(it.meetingNotes || [])].sort((a, b) => String(b.date || '').localeCompare(String(a.date || '')) || (b.createdAt || 0) - (a.createdAt || 0));
+  const redraw = (patch) => { Object.assign(P.ui, patch); P.force = true; render(); };
+  return h('section', { class: 'mnotesec' + (F.has('meetingNotes') ? ' hlb' : ''), 'aria-labelledby': 'mnh-' + it.id },
+    h('div', { class: 'mg-head' }, h('h4', { id: 'mnh-' + it.id, text: 'Meeting notes' }),
+      ro ? null : h('button', { type: 'button', class: 'btn sm', icon: 'plus', 'data-mk': 'notes-add', onclick: () => openNotesDialog(it.id) }, 'Add meeting notes')),
+    notes.length ? h('ul', { class: 'mnotes' }, notes.map((n) => {
+      const open = P.ui.view === n.id, del = P.ui.del === n.id;
+      return h('li', null,
+        h('div', { class: 'mn-row' },
+          h('strong', { text: fmtDay(n.date) || 'Undated' }),
+          n.attendees ? h('span', { class: 'mn-att', text: n.attendees }) : null,
+          h('span', { class: 'mn-snip', text: snippet(n.text) }),
+          h('span', { class: 'mn-acts' },
+            h('button', { type: 'button', class: 'linkbtn', 'data-mk': 'nv-' + n.id, 'aria-expanded': String(open), onclick: () => redraw({ view: open ? null : n.id }) }, open ? 'Hide' : 'Read'),
+            ro ? null : h('button', { type: 'button', class: 'linkbtn', 'data-mk': 'nr-' + n.id, onclick: () => openNotesDialog(it.id, n) }, 'Re-process'),
+            ro ? null : del
+              ? h('span', { class: 'confirm' }, 'Delete these notes? Bullets already added stay.',
+                h('button', { type: 'button', class: 'btn sm danger solid', 'data-mk': 'nd2-' + n.id, text: 'Delete',
+                  onclick: () => { P.ui.del = null; P.force = true; P.focusMk = 'notes-add'; commit('deals', it.id, (d) => { d.meetingNotes = (d.meetingNotes || []).filter((x) => x.id !== n.id); }); } }),
+                h('button', { type: 'button', class: 'btn sm', 'data-mk': 'nc-' + n.id, text: 'Cancel', onclick: () => { P.focusMk = 'nd-' + n.id; redraw({ del: null }); } }))
+              : h('button', { type: 'button', class: 'linkbtn danger', 'data-mk': 'nd-' + n.id, onclick: () => { P.focusMk = 'nd2-' + n.id; redraw({ del: n.id }); } }, 'Delete'))),
+        open ? h('pre', { class: 'mn-text', tabindex: '0', 'aria-label': 'Meeting notes ' + (fmtDay(n.date) || ''), text: n.text }) : null);
+    })) : h('p', { class: 'mempty', text: 'No meeting notes yet. Paste or upload them to fill in evidence automatically.' }));
+}
+
+/* ---- meeting notes → proposed bullets → review → apply ---- */
+const NOTE_BUDGET = 230 * 1024;   // a deal is one stored document (256 KB max); leave room for everything else
+const docBytes = (o) => new TextEncoder().encode(JSON.stringify(o)).length;
+function openNotesDialog(dealId, note) {
+  const it = S.items.deals.get(dealId);
+  if (!it || !MD || !S.canWrite) return;
+  hideTip(); closePop(false);
+  const opener = document.activeElement;
+  const D = { id: dealId, step: 'input', date: note ? note.date || todayISO() : todayISO(), attendees: note ? note.attendees || '' : '', text: note ? note.text || '' : '',
+    noteId: note ? note.id : null, fileName: '', proposals: [], error: '' };
+  D.dlg = h('dialog', { class: 'mdlg', 'aria-labelledby': 'mdlg-title' });
+  D.dlg.addEventListener('keydown', (e) => { if (e.key === 'Escape') e.stopPropagation(); });   // Esc closes only the dialog
+  D.dlg.addEventListener('close', () => { D.dlg.remove(); if (opener && opener.isConnected) opener.focus(); });
+  document.body.append(D.dlg);
+  if (D.dlg.showModal) D.dlg.showModal(); else D.dlg.setAttribute('open', '');
+  if (note) runExtract(D); else drawDlg(D);
+}
+function drawDlg(D) {
+  const it = S.items.deals.get(D.id);
+  if (!it) { D.dlg.close(); return; }
+  const fk = D.dlg.contains(document.activeElement) ? document.activeElement.dataset.dk : null;
+  D.dlg.replaceChildren(h('div', { class: 'mdlg-in' }, (D.step === 'input' ? dlgInput(D, it) : dlgReview(D, it)).flat(3)));
+  const t = (fk && D.dlg.querySelector(`[data-dk="${fk}"]`)) || D.dlg.querySelector('[data-dk="first"]');
+  if (t) t.focus();
+}
+function dlgHead(D, it, title) {
+  return [h('div', { class: 'mdlg-head' }, h('h2', { id: 'mdlg-title', text: title }),
+    h('button', { type: 'button', class: 'ibtn', icon: 'x', title: 'Close', 'aria-label': 'Close without saving', onclick: () => D.dlg.close() })),
+    h('p', { class: 'mdlg-sub', text: it.title || 'Untitled deal' })];
+}
+function dlgInput(D, it) {
+  const go = h('button', { type: 'button', class: 'btn primary', 'data-dk': 'go', text: 'Find evidence', disabled: !D.text.trim(), onclick: () => runExtract(D) });
+  return [...dlgHead(D, it, 'Add meeting notes'),
+    h('div', { class: 'mdlg-row' },
+      h('label', { class: 'mfield' }, 'Meeting date', h('input', { class: 'fld', type: 'date', value: D.date, 'data-dk': 'date', oninput: (e) => { D.date = e.target.value; } })),
+      h('label', { class: 'mfield grow' }, 'Attendees (optional)', h('input', { class: 'fld', value: D.attendees, 'data-dk': 'att', placeholder: 'e.g. Dana Whitfield, Mark Lee', oninput: (e) => { D.attendees = e.target.value; } }))),
+    h('label', { class: 'mfield' }, 'Notes or transcript',
+      h('textarea', { class: 'fld', rows: '12', 'data-dk': 'first', placeholder: 'Paste meeting notes, a Zoom summary or a transcript…', oninput: (e) => { D.text = e.target.value; go.disabled = !D.text.trim(); } }, D.text)),
+    h('div', { class: 'mdlg-row' },
+      h('label', { class: 'btn sm mfile' }, 'Upload .txt, .md, .vtt or .srt',
+        h('input', { type: 'file', class: 'sr', 'data-dk': 'file', accept: '.txt,.md,.vtt,.srt,text/plain,text/markdown,text/vtt',
+          onchange: async (e) => {
+            const f = e.target.files && e.target.files[0]; if (!f) return;
+            if (!/\.(txt|md|vtt|srt)$/i.test(f.name)) { D.error = `${f.name} can't be read here. Upload a .txt, .md, .vtt or .srt file, or paste the text.`; return drawDlg(D); }
+            if (f.size > 2 * 1024 * 1024) { D.error = `${f.name} is over 2 MB. Paste the relevant part instead.`; return drawDlg(D); }
+            D.text = await f.text(); D.fileName = f.name; D.error = ''; drawDlg(D);
+          } })),
+      D.fileName ? h('span', { class: 'mprivacy', text: 'Loaded ' + D.fileName }) : null),
+    D.error ? h('p', { class: 'merr', role: 'alert', text: D.error }) : null,
+    h('p', { class: 'mprivacy', text: 'Notes are read in your browser with built-in keyword rules and are not sent to any AI service. They are saved on this deal, so everyone with access to this list can read them.' }),
+    h('div', { class: 'mdlg-foot' }, h('button', { type: 'button', class: 'btn', text: 'Cancel', onclick: () => D.dlg.close() }), go)];
+}
+async function runExtract(D) {
+  const it = S.items.deals.get(D.id);
+  try {
+    const ps = await MD.extractMeddpiccFromNotes({ text: D.text, date: D.date || todayISO(), attendees: D.attendees }, (it && it.meddpicc) || {}, MD.RUBRIC);
+    D.proposals = (ps || []).map((x, i) => ({ ...x, id: x.id || 'p' + i, state: 'pending', editing: false }));
+    D.step = 'review'; D.error = '';
+  } catch (e) { console.warn(e); D.error = 'Couldn’t read those notes. Check the text and try again.'; D.step = 'input'; }
+  drawDlg(D);
+}
+function dlgReview(D, it) {
+  const acc = D.proposals.filter((x) => x.state === 'accepted').length;
+  const groups = MD.RUBRIC.map((L) => [L, D.proposals.filter((x) => x.letter === L.id)]).filter(([, ps]) => ps.length);
+  const setAll = (state) => { D.proposals.forEach((x) => { x.state = state; x.editing = false; }); drawDlg(D); };
+  const applyLabel = acc ? `Apply ${acc} accepted` + (D.noteId ? '' : ' and save notes') : D.noteId ? 'Apply' : 'Save notes only';
+  return [...dlgHead(D, it, D.noteId ? 'Re-process meeting notes' : 'Review proposed evidence'),
+    h('p', { class: 'mprivacy', 'data-dk': 'first', tabindex: '-1', text: D.proposals.length
+      ? `${D.proposals.length} proposed bullet${D.proposals.length === 1 ? '' : 's'} from the ${fmtDay(D.date) || 'undated'} notes. Nothing is saved until you apply.`
+      : 'The keyword rules found no MEDDPICC evidence in these notes. You can still save the notes on the deal.' }),
+    D.proposals.length ? h('div', { class: 'mdlg-row' },
+      h('button', { type: 'button', class: 'btn sm', 'data-dk': 'accall', onclick: () => setAll('accepted') }, 'Accept all'),
+      h('button', { type: 'button', class: 'btn sm', 'data-dk': 'rejall', onclick: () => setAll('rejected') }, 'Reject all')) : null,
+    groups.map(([L, ps]) => h('section', { class: 'pgroup', 'aria-label': L.name }, h('h3', null, h('span', { class: 'ml', text: L.letter }), ' ', L.name), ps.map((x) => propCard(D, L, x)))),
+    h('div', { class: 'mdlg-foot' },
+      D.noteId ? null : h('button', { type: 'button', class: 'btn', 'data-dk': 'back', text: 'Back to notes', onclick: () => { D.step = 'input'; drawDlg(D); } }),
+      h('button', { type: 'button', class: 'btn', text: 'Cancel', onclick: () => D.dlg.close() }),
+      h('button', { type: 'button', class: 'btn primary', 'data-dk': 'apply', text: applyLabel, disabled: !!D.noteId && !acc, onclick: () => applyNotes(D) }))];
+}
+function propCard(D, L, x) {
+  const crit = L.criteria.find((c) => c.id === x.criterion);
+  const st = x.state, k = x.id;
+  const flip = (to) => { x.state = st === to ? 'pending' : to; x.editing = false; drawDlg(D); };
+  const editor = x.editing ? (() => {
+    const sel = h('select', { class: 'fld', 'aria-label': 'Criterion', 'data-dk': 'c-' + k, onchange: (e) => { x.criterion = e.target.value; } },
+      L.criteria.map((c) => h('option', { value: c.id, text: c.text })), h('option', { value: MD.OTHER, text: 'Other' }));
+    sel.value = crit ? x.criterion : MD.OTHER;
+    const risk = h('input', { type: 'checkbox', checked: !!x.risk, onchange: (e) => { x.risk = e.target.checked; } });
+    return h('div', { class: 'pedit' },
+      h('input', { class: 'fld ptxt', value: x.text, 'aria-label': 'Bullet text', 'data-dk': 't-' + k, oninput: (e) => { x.text = e.target.value; } }),
+      sel, h('input', { class: 'fld', value: x.who || '', placeholder: 'Who said it', 'aria-label': 'Who said it', 'data-dk': 'w-' + k, oninput: (e) => { x.who = e.target.value; } }),
+      h('label', { class: 'mfield', style: 'flex-direction:row;align-items:center' }, risk, 'Risk'));
+  })() : h('p', { class: 'ptext', text: x.text });
+  return h('article', { class: 'prop ' + st, 'aria-label': `${crit ? crit.text : 'Other'}: ${x.text}` },
+    h('div', { class: 'prop-top' }, h('span', { class: 'pcrit', text: crit ? crit.text : 'Other' }),
+      x.risk ? h('span', { class: 'pbadge', text: '! Risk' }) : null,
+      h('span', { class: 'pstate', text: st === 'accepted' ? '✓ Accepted' : st === 'rejected' ? '✕ Rejected' : '' })),
+    editor,
+    h('blockquote', { class: 'pquote' }, '“' + x.quote + '”', x.who ? h('cite', { text: ' — ' + x.who }) : null),
+    h('div', { class: 'pacts' },
+      h('button', { type: 'button', class: 'btn sm', 'aria-pressed': String(st === 'accepted'), 'data-dk': 'a-' + k, onclick: () => flip('accepted') }, 'Accept'),
+      h('button', { type: 'button', class: 'btn sm', 'aria-expanded': String(!!x.editing), 'data-dk': 'e-' + k,
+        onclick: () => { if (x.editing) { x.editing = false; x.state = 'accepted'; } else x.editing = true; drawDlg(D); } }, x.editing ? 'Done' : 'Edit'),
+      h('button', { type: 'button', class: 'btn sm', 'aria-pressed': String(st === 'rejected'), 'data-dk': 'r-' + k, onclick: () => flip('rejected') }, 'Reject')));
+}
+function applyNotes(D) {
+  const acc = D.proposals.filter((x) => x.state === 'accepted' && String(x.text || '').trim());
+  const now = Date.now(), date = D.date || todayISO();
+  let tooBig = false;
+  commit('deals', D.id, (d) => {
+    const m = (d.meddpicc ||= {});
+    for (const x of acc) (m[x.letter] ||= []).push({ id: rid(), text: x.text.trim(), criterion: x.criterion, source: 'notes', noteDate: date, who: (x.who || '').trim(), risk: !!x.risk, createdAt: now, updatedAt: now });
+    if (!D.noteId && D.text.trim()) {
+      const notes = [...(d.meetingNotes || []), { id: rid(), date, attendees: D.attendees.trim(), text: D.text, createdAt: now }];
+      if (docBytes({ ...d, meetingNotes: notes }) <= NOTE_BUDGET) d.meetingNotes = notes; else tooBig = true;
+    }
+  });
+  D.dlg.close();
+  if (acc.length && !S.mOpen[D.id]) S.mOpen[D.id] = acc[0].letter;
+  const P = MP.get(D.id); if (P) P.force = true;
+  render();
+  toast((acc.length ? `Added ${acc.length} bullet${acc.length === 1 ? '' : 's'}.` : 'Saved.') +
+    (tooBig ? ' The notes were too large to keep on this deal, so they weren’t saved. Delete older notes, or paste a shorter excerpt.' : D.noteId ? '' : ' Notes saved on the deal.'));
+}
 
 function openDueEditor(it, s, isNext) {
   const [date, time] = stepDue(it, s, isNext).split('T');

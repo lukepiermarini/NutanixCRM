@@ -6,7 +6,7 @@ import { createRequire } from 'node:module';
 import { execSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import assert from 'node:assert/strict';
 
@@ -23,6 +23,7 @@ const dir = join(tmpdir(), 'deal-tracker-e2e'); mkdirSync(dir, { recursive: true
 const file = join(dir, 'index.html');
 writeFileSync(file, '<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"></head><body style="margin:0">'
   + readFileSync(join(root, 'deals', 'deal-tracker.html'), 'utf8') + '</body></html>');
+copyFileSync(join(root, 'deals', 'meddpicc.js'), join(dir, 'meddpicc.js'));   // the page loads the MEDDPICC rubric/scoring module next to it
 const url = pathToFileURL(file).href;
 
 const browser = await playwright.chromium.launch();
@@ -369,7 +370,7 @@ assert.equal(await row.locator('.step.done').count(), 2, 'dragging does not togg
 // Drag in the details panel using the grip handle, then remove the two test steps
 await row.locator('.info').click();
 await me.waitForSelector('.ed .grip');
-await me.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+await me.locator('.ed .srow').nth(2).evaluate((e) => e.scrollIntoView({ block: 'center', behavior: 'instant' }));
 await me.waitForTimeout(400);
 const grips = me.locator('.ed .srow .grip');
 await dragTo(grips.nth(0), me.locator('.ed .srow').nth(5), false);
@@ -382,6 +383,180 @@ await me.click('.ed .btn.primary');
 await me.waitForTimeout(100);
 assert.deepEqual(await texts(), ['Sizer', 'Frontline', 'Meeting with Wilden', 'Discuss with Ogden']);
 await me.screenshot({ path: join(shots, 'deals-0-list.png'), fullPage: true });
+
+// ---------- MEDDPICC ----------
+{
+const strip = row.locator('.mstrip'), tiles = strip.locator('.mtile');
+const tile = (i) => tiles.nth(i);
+const dotsOn = (i) => tile(i).locator('.mdots i.on').count();
+const doc = () => me.evaluate(() => Object.values(JSON.parse(localStorage.getItem('crm.localdb.v1')).deals)[0]);
+assert.equal(await tiles.count(), 8);
+assert.deepEqual(await tiles.locator('.mletter').allTextContents(), ['M', 'E', 'D', 'D', 'P', 'I', 'C', 'C']);
+assert.deepEqual(await tiles.locator('.mname').allTextContents(), ['Metrics', 'Economic Buyer', 'Decision Criteria', 'Decision Process', 'Paper Process', 'Identified Pain', 'Champion', 'Competition']);
+assert.equal(await row.locator('.msum').textContent(), '0 of 8 strong');
+// at the bottom of the deal, across its full width, eight even tiles
+{ const sb = await strip.boundingBox(), body = await row.locator('.body').boundingBox(), ck = await row.locator('.checks').boundingBox();
+  const ws = await tiles.evaluateAll((els) => els.map((e) => e.getBoundingClientRect().width));
+  assert.ok(Math.max(...ws) - Math.min(...ws) < 1, 'tiles are evenly sized');
+  assert.ok(Math.abs(sb.width - body.width) < 2, 'strip spans the deal');
+  assert.ok(sb.y > ck.y + ck.height, 'strip sits below the rest of the deal'); }
+assert.equal(await dotsOn(0), 0);
+assert.equal(await tile(0).getAttribute('aria-label'), 'Metrics: Not started. Next step: Get a number the customer owns');
+assert.equal(await tile(0).locator('.mnext').textContent(), 'Get a number the customer owns');
+assert.ok(await tile(0).locator('.mnext').isVisible(), 'next step shown on a wide screen');
+// hover: what "Strong" needs
+let mtip = await tipFor(tile(1));
+assert.ok(mtip.startsWith('Economic Buyer · Not started'), mtip);
+assert.ok(mtip.includes('The person with the authority and discretionary budget to say the final yes, or no.'));
+assert.ok(mtip.includes('To be strong:'));
+assert.ok(mtip.includes('○Named · required (not met)') && mtip.includes('○Funding confirmed (not met)'), mtip);
+await me.locator('.head h1').hover(); await me.waitForSelector('.ptip', { state: 'detached' });
+
+// click: the detail panel with all eight letters, focused on the one clicked
+await tile(1).click();
+await me.waitForSelector('.row .mpanel');
+assert.equal(await me.locator('.mpanel .mgroup').count(), 8);
+assert.equal(await me.locator('.mpanel .mgroup.mcur h4').textContent(), 'E Economic Buyer');
+assert.equal(await tile(1).getAttribute('aria-expanded'), 'true');
+const group = (name) => me.locator('.mpanel .mgroup', { has: me.locator('h4', { hasText: name }) });
+const addEv = async (name, text, { criterion, source, who, risk } = {}) => {
+  const g = group(name), n = await g.locator('.mbul').count();
+  await g.getByRole('button', { name: `Add ${name} evidence` }).click();
+  await me.waitForFunction(([sel, n]) => document.querySelectorAll(sel).length === n + 1, [`#${await g.getAttribute('id')} .mbul`, n]);
+  const r = g.locator('.mbul').last();
+  assert.equal(await me.evaluate(() => document.activeElement.classList.contains('mtext')), true, 'new bullet is focused');
+  await me.keyboard.type(text);
+  if (criterion) await r.locator('select').first().selectOption(criterion);
+  if (source) await r.locator('select').nth(1).selectOption(source);
+  if (who) await r.locator('.mwho').fill(who);
+  if (risk) await r.locator('.mriskbtn').click();
+  await me.locator('.mp-head strong').click();   // focus leaves the panel: saves
+  await me.waitForTimeout(80);
+};
+await addEv('Economic Buyer', 'Dana Whitfield, the CFO, signs the PO', { who: 'Dana Whitfield' });
+assert.equal((await doc()).meddpicc.economicBuyer[0].criterion, 'named', 'new bullets default to the first unmet required criterion');
+assert.equal(await dotsOn(1), 1, 'one of six met: Gap');
+assert.equal(await tile(1).getAttribute('aria-label'), 'Economic Buyer: Gap. Next step: Confirm the EB with a second person');
+await addEv('Economic Buyer', 'Mark confirmed Dana has the final say', { criterion: 'named', who: 'Mark Lee' });   // two people: confirmed
+await addEv('Economic Buyer', 'Cutting VMware licensing is a top priority for her this year', { criterion: 'priorities', who: 'Mark Lee' });
+assert.equal(await dotsOn(1), 2, '3 of 6 (half) is Partial');
+assert.equal(await me.locator('.mpanel [data-meter="economicBuyer"] .mlvl').textContent(), 'Partial', 'meter label in the panel');
+await addEv('Economic Buyer', 'Budget is approved for this fiscal year', { criterion: 'funding' });
+assert.equal(await dotsOn(1), 2, '4 of 6: Partial (needs 75%)');
+await addEv('Economic Buyer', 'About $400k, decision by March', { criterion: 'howMuch' });
+assert.equal(await dotsOn(1), 3, '5 of 6 with both required: Strong');
+assert.equal(await row.locator('.msum').textContent(), '1 of 8 strong');
+assert.equal(await tile(1).locator('.mnext').textContent(), 'Get a meeting or an access plan');
+// assumptions are reminders, not evidence
+await addEv('Champion', 'Mark probably wants us to win', { criterion: 'identified', source: 'assumption' });
+assert.equal(await dotsOn(6), 0, 'an assumption does not count');
+// a risk caps at Partial and shows "!"
+await addEv('Economic Buyer', 'CFO pushed back on the price', { criterion: 'funding', risk: true });
+assert.equal(await dotsOn(1), 2, 'risk caps at Partial');
+assert.equal(await tile(1).locator('.mrisk').textContent(), '!');
+assert.match(await tile(1).getAttribute('aria-label'), /Economic Buyer: Partial, risk flagged\./);
+assert.equal(await row.locator('.msum').textContent(), '0 of 8 strong · 1 with a risk');
+mtip = await tipFor(tile(1));
+assert.ok(mtip.includes('✓Named · required (met)') && mtip.includes('✓Confirmed by two or more people · required (met)') && mtip.includes('○Met, or an access plan agreed (not met)'), mtip);
+assert.ok(mtip.includes('capped at Partial'));
+await me.locator('.head h1').hover();
+// survives a reload, with the data shape the spec asks for
+await me.reload(); await me.waitForSelector('.row .mstrip');
+assert.equal(await dotsOn(1), 2); assert.equal(await tile(1).locator('.mrisk').count(), 1);
+{ const d = await doc(), eb = d.meddpicc.economicBuyer;
+  assert.equal(eb.length, 6);
+  for (const k of ['id', 'text', 'criterion', 'source', 'who', 'risk', 'createdAt', 'updatedAt']) assert.ok(k in eb[0], 'bullet has ' + k);
+  assert.equal(eb[5].risk, true); assert.equal(d.meddpicc.champion[0].source, 'assumption');
+  assert.ok(!('strength' in d.meddpicc) && !JSON.stringify(d).includes('"level"'), 'strength is calculated, never stored'); }
+// the panel was closed by the reload; open it again with the keyboard
+await tile(0).focus(); await me.keyboard.press('Shift+Tab'); await me.keyboard.press('Tab');
+await me.waitForSelector('.ptip'); assert.ok((await me.locator('.ptip').textContent()).startsWith('Metrics · Not started'), 'tooltip on keyboard focus');
+await me.keyboard.press('Escape'); await me.waitForSelector('.ptip', { state: 'detached' });
+await me.keyboard.press('Tab'); await me.keyboard.press('Enter');   // Economic Buyer
+await me.waitForSelector('.mpanel .mgroup.mcur');
+assert.equal(await me.locator('.mpanel .mgroup.mcur h4').textContent(), 'E Economic Buyer');
+// delete the risk -> Strong again; inline edit of text persists
+await group('Economic Buyer').locator('.mbul').last().getByRole('button', { name: /Delete evidence/ }).click();
+await me.waitForFunction(() => document.querySelectorAll('.row .mtile')[1].querySelectorAll('.mdots i.on').length === 3);
+assert.equal(await tile(1).locator('.mrisk').count(), 0);
+await group('Economic Buyer').locator('.mbul').first().locator('.mtext').fill('Dana Whitfield (CFO) signs every PO over $100k');
+await me.locator('.mp-head strong').click(); await me.waitForTimeout(80);
+await me.reload(); await me.waitForSelector('.row .mstrip');
+assert.equal((await doc()).meddpicc.economicBuyer[0].text, 'Dana Whitfield (CFO) signs every PO over $100k');
+// clicking the same letter again collapses; so does the close button
+await tile(3).click(); await me.waitForSelector('.mpanel');
+await tile(3).click(); await me.waitForSelector('.mpanel', { state: 'detached' });
+await tile(3).click(); await me.waitForSelector('.mpanel');
+await me.getByRole('button', { name: 'Close MEDDPICC details' }).click(); await me.waitForSelector('.mpanel', { state: 'detached' });
+
+// meeting notes -> proposals -> review -> apply
+const NOTES = `Maria Gomez: We're paying way too much for VMware since the Broadcom renewal, it went up 300% to about $400k a year.
+Lee Park: Procurement and legal will need to review the MSA, that usually takes about six weeks.
+Maria Gomez: Our CIO has the final say on the budget.
+Lee Park: Honestly the RFP criteria were written around VxRail.`;
+await row.locator('.mhead').getByRole('button', { name: 'Add meeting notes' }).click();
+await me.waitForSelector('dialog.mdlg[open]');
+assert.equal(await me.evaluate(() => document.activeElement.tagName), 'TEXTAREA', 'focus starts in the notes box');
+await me.fill('dialog.mdlg input[type=date]', '2026-10-30');
+await me.fill('dialog.mdlg input[data-dk="att"]', 'Maria Gomez, Lee Park');
+await me.fill('dialog.mdlg textarea', NOTES);
+await me.click('dialog.mdlg [data-dk="go"]');
+await me.waitForSelector('dialog.mdlg .prop');
+const props = me.locator('dialog.mdlg .prop');
+const nProps = await props.count();
+assert.ok(nProps >= 5, 'several proposals (' + nProps + ')');
+assert.deepEqual(await me.locator('dialog.mdlg .pgroup h3').allTextContents(),
+  ['E Economic Buyer', 'D Decision Criteria', 'P Paper Process', 'I Identified Pain', 'C Competition'], 'grouped by letter in MEDDPICC order');
+{ const pp = me.locator('dialog.mdlg .prop', { hasText: 'Procurement' }).first();
+  assert.match(await pp.locator('.pquote').textContent(), /“Procurement and legal will need to review the MSA, that usually takes about six weeks\.” — Lee Park/); }
+assert.equal(await me.locator('dialog.mdlg .prop', { hasText: 'VxRail' }).first().locator('.pbadge').textContent(), '! Risk', 'risk suggested');
+assert.equal((await doc()).meetingNotes, undefined, 'nothing saved before applying');
+await me.click('dialog.mdlg [data-dk="accall"]');
+assert.equal(await me.locator('dialog.mdlg .prop.accepted').count(), nProps);
+await me.locator('dialog.mdlg .prop', { hasText: 'VxRail' }).first().getByRole('button', { name: 'Reject' }).click();
+const ebProp = me.locator('dialog.mdlg .pgroup', { hasText: 'Economic Buyer' }).locator('.prop').first();
+await ebProp.getByRole('button', { name: 'Edit' }).click();
+await ebProp.locator('.ptxt').fill('Maria: the CIO has the final say on the budget');
+await ebProp.getByRole('button', { name: 'Done' }).click();
+assert.equal(await me.locator('dialog.mdlg .prop.accepted').count(), nProps - 1);
+await me.click('dialog.mdlg [data-dk="apply"]');
+await me.waitForSelector('dialog.mdlg', { state: 'detached' });
+await me.waitForSelector('.row .mpanel');   // opens on the first letter that got evidence
+assert.ok(await dotsOn(5) >= 1, 'Identified Pain meter moved');
+assert.ok(await dotsOn(4) >= 1, 'Paper Process meter moved');
+{ const d = await doc();
+  assert.equal(d.meetingNotes.length, 1);
+  assert.deepEqual([d.meetingNotes[0].date, d.meetingNotes[0].attendees, d.meetingNotes[0].text], ['2026-10-30', 'Maria Gomez, Lee Park', NOTES]);
+  assert.ok(d.meddpicc.economicBuyer.some((b) => b.text === 'Maria: the CIO has the final say on the budget' && b.source === 'notes' && b.noteDate === '2026-10-30'), 'edited proposal applied');
+  assert.ok(!(d.meddpicc.decisionCriteria || []).some((b) => /VxRail/.test(b.text)), 'rejected proposal not applied');
+  assert.ok(d.meddpicc.paperProcess.some((b) => b.who === 'Lee Park')); }
+assert.ok((await me.locator('.mpanel .mgroup', { hasText: 'Paper Process' }).locator('select').nth(1).locator('option:checked').textContent()).startsWith('From notes (Oct 30'), 'source shows the notes date');
+assert.match(await me.locator('.mpanel .mnotes').textContent(), /Oct 30.*Maria Gomez, Lee Park/);
+await me.reload(); await me.waitForSelector('.row .mstrip');
+assert.ok(await dotsOn(5) >= 1, 'applied bullets survive a reload');
+// re-process: only the rejected proposal comes back (duplicates are skipped); Esc closes without saving
+await tile(0).click(); await me.waitForSelector('.mpanel .mnotes');
+await me.locator('.mpanel .mnotes').getByRole('button', { name: 'Re-process' }).click();
+await me.waitForSelector('dialog.mdlg[open]');
+{ const groups = await me.locator('dialog.mdlg .pgroup h3').allTextContents(), texts = await me.locator('dialog.mdlg .prop .ptext').allTextContents();
+  assert.ok(!groups.includes('P Paper Process') && !groups.includes('I Identified Pain'), 'already-applied evidence is not proposed again: ' + groups);
+  assert.ok(!texts.some((t) => /final say/.test(t)), 'the edited-and-applied EB bullet is not proposed again');
+  assert.ok(texts.some((t) => /VxRail/.test(t)), 'the rejected proposal comes back'); }
+await me.keyboard.press('Escape');
+await me.waitForSelector('dialog.mdlg', { state: 'detached' });
+assert.equal(await me.locator('.row .mpanel').count(), 1, 'Esc closed only the dialog');
+assert.equal((await doc()).meetingNotes.length, 1, 'cancel saved nothing');
+// read, then delete the notes (bullets stay)
+await me.locator('.mpanel .mnotes').getByRole('button', { name: 'Read' }).click();
+assert.equal(await me.locator('.mpanel .mn-text').textContent(), NOTES);
+const before = JSON.stringify((await doc()).meddpicc);
+await me.locator('.mpanel .mnotes').getByRole('button', { name: 'Delete' }).click();
+await me.locator('.mpanel .mnotes .confirm').getByRole('button', { name: 'Delete' }).click();
+await me.waitForSelector('.mpanel .mnotes', { state: 'detached' });
+assert.equal((await doc()).meetingNotes.length, 0);
+assert.equal(JSON.stringify((await doc()).meddpicc), before, 'deleting notes keeps the bullets');
+await me.getByRole('button', { name: 'Close MEDDPICC details' }).click();
+}
 
 // A task on the Tasks page
 await me.click('#tab-tasks');
@@ -415,6 +590,11 @@ await josh.locator('.row .step', { hasText: 'Meeting with Wilden' }).locator('.b
 await josh.locator('.row .chk', { hasText: 'Impl. plan' }).click();
 await josh.locator('.row .dtype button.land').click();
 await josh.locator('.row .prog [data-fk="st2"]').click();
+await josh.locator('.row .mtile').nth(6).click(); await josh.waitForSelector('.row .mpanel');
+await josh.getByRole('button', { name: 'Add Champion evidence' }).click();
+await josh.waitForFunction(() => document.activeElement && document.activeElement.classList.contains('mtext'));
+await josh.keyboard.type('Mark walked us through the business case he is taking to the board');
+await josh.locator('.mp-head strong').click(); await josh.waitForTimeout(100);
 await josh.waitForTimeout(150);
 
 // Back to me: the change shows up live, highlighted, with who did it
@@ -425,6 +605,9 @@ assert.match(await me.textContent('.updchip'), /Josh changed (?=.*steps)(?=.*Imp
 assert.equal(await me.locator('.dtype.hl').count(), 1, 'deal type change highlighted');
 assert.equal(await me.locator('.prog.hl').count(), 1, 'sales stage change highlighted');
 assert.match(await me.textContent('.updchip'), /sales stage/);
+assert.equal(await me.locator('.row .mtile.hl').count(), 1, 'the MEDDPICC letter Josh changed is highlighted');
+assert.equal(await me.locator('.row .mtile.hl .mletter').textContent(), 'C');
+assert.match(await me.textContent('.updchip'), /MEDDPICC Champion/);
 assert.equal(await me.locator('.step.hl').count(), 1, 'only the changed step is highlighted');
 assert.match(await me.locator('.step.hl').textContent(), /Meeting with Wilden/);
 assert.equal(await me.locator('.chk.hl').count(), 1);
@@ -495,6 +678,12 @@ await me.waitForFunction(() => document.querySelector('.row .prog.is-out'));
   assert.equal(await n.locator('.short').textContent(), 'DQ');
   assert.ok(nb.x + nb.width <= 390 - 16 + 1, 'badge fits inside the gutter');
   assert.ok(await me.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), 'still no horizontal scroll'); }
+// Phone width: the MEDDPICC strip wraps to two rows of four; letters and dots stay, the next step goes first
+{ const t = me.locator('.row .mstrip').first().locator('.mtile');
+  const ys = await t.evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().top)));
+  assert.deepEqual([...new Set(ys)].length, 2, 'two rows'); assert.equal(ys.filter((y) => y === ys[0]).length, 4, 'four per row');
+  assert.ok(await t.first().locator('.mletter').isVisible() && await t.first().locator('.mdots').isVisible());
+  assert.equal(await t.first().locator('.mnext').isVisible(), false, 'next step dropped first'); }
 await me.screenshot({ path: join(shots, 'deals-3-phone.png'), fullPage: true });
 
 assert.deepEqual(errors, [], 'no page errors');
