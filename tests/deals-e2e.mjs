@@ -73,7 +73,7 @@ assert.equal(await me.locator('.row.upd').count(), 0, 'own edits are not highlig
 // "No" answers are red, "Yes" answers are not
 const noBg = await row.locator('.chk:not(.yes) b').first().evaluate((b) => getComputedStyle(b).backgroundColor);
 const yesBg = await row.locator('.chk.yes b').first().evaluate((b) => getComputedStyle(b).backgroundColor);
-assert.equal(noBg, 'rgb(201, 58, 58)', 'No badge is red');
+assert.equal(noBg, 'rgb(214, 58, 58)', 'No badge is red');
 assert.notEqual(yesBg, noBg);
 
 // The + after the last step adds steps inline (Enter keeps the box open for the next one)
