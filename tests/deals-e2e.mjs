@@ -115,23 +115,34 @@ assert.equal(await prog.locator('[aria-current]').count(), 0, 'new deals start u
 assert.equal(await prog.locator('.pseg.on').count(), 0);
 assert.equal(await prog.locator('.plbl').first().textContent(), 'Stage');
 assert.equal(await prog.locator('.plbl').nth(1).textContent(), 'Tech Close');
-// Alignment: Tech Close sits under Stages 1–5 and ends at Stage 5; 75/99 split Stage 4
-{ const s = {}; for (const n of [1, 2, 3, 4, 5, 6]) s[n] = await box(st(n));
-  const t = {}; for (const v of [0, 25, 50, 75, 99, 100]) t[v] = await box(tc(v));
-  const near = (a, b, msg) => assert.ok(Math.abs(a - b) <= 1.5, `${msg} (${a.toFixed(1)} vs ${b.toFixed(1)})`);
-  near(t[0].x, s[1].x, '0% under Stage 1'); near(t[0].x + t[0].width, s[1].x + s[1].width, '0% under Stage 1 (right)');
-  near(t[25].x, s[2].x, '25% under Stage 2'); near(t[50].x, s[3].x, '50% under Stage 3');
-  near(t[75].x, s[4].x, '75% starts at Stage 4'); near(t[99].x + t[99].width, s[4].x + s[4].width, '99% ends at Stage 4');
-  assert.ok(t[75].x + t[75].width <= t[99].x + 0.5 && t[75].width < s[4].width * 0.6, '75% and 99% split Stage 4');
-  near(t[100].x, s[5].x, '100% under Stage 5'); near(t[100].x + t[100].width, s[5].x + s[5].width, 'Tech Close ends at Stage 5');
-  assert.ok(t[100].x + t[100].width < s[6].x, 'nothing under Stages 6–8');
-  assert.ok(t[0].y > s[1].y + s[1].height - 1, 'Tech Close is below Sales Stage');
-  const h = await box(prog.locator('.phelp'));
-  assert.ok(h.x > (await box(st(8))).x && Math.abs((h.y + h.height / 2) - ((s[1].y + t[0].y + t[0].height) / 2)) < 6, 'help is right of the bars, centred between them'); }
+// Shape: each bar is one capsule of equal cells; Tech Close spans Stages 1–5 and ends at Stage 5; "?" is as tall as both bars
+{ const near = (a, b, tol, msg) => assert.ok(Math.abs(a - b) <= tol, `${msg} (${a.toFixed(1)} vs ${b.toFixed(1)})`);
+  const stBar = await box(prog.locator('.pbar.st')), tcBar = await box(prog.locator('.pbar.tc'));
+  assert.equal(await prog.locator('.pbar.st > .pseg').count(), 8, 'eight stage cells inside the Sales Stage bar');
+  assert.equal(await prog.locator('.pbar.tc > .pseg').count(), 6, 'six cells inside the Tech Close bar');
+  for (const sel of ['.pbar.st > .pseg', '.pbar.tc > .pseg']) {
+    const ws = await prog.locator(sel).evaluateAll((els) => els.map((e) => e.getBoundingClientRect().width));
+    assert.ok(Math.max(...ws) - Math.min(...ws) < 1, `${sel} cells are all the same size (${ws.map((w) => w.toFixed(1)).join(', ')})`);
+  }
+  assert.equal(await prog.locator('.pbar.st').evaluate((e) => getComputedStyle(e).borderTopLeftRadius), '999px', 'capsule shape');
+  const s1 = await box(st(1)), s5 = await box(st(5)), s6 = await box(st(6));
+  near(tcBar.x, stBar.x, 1, 'Tech Close starts with Sales Stage');
+  near(tcBar.x + tcBar.width, s5.x + s5.width, 4, 'Tech Close ends at Stage 5');
+  assert.ok(tcBar.x + tcBar.width < s6.x, 'nothing under Stages 6–8');
+  near(tcBar.height, stBar.height, 0.5, 'both bars are the same height');
+  assert.ok(tcBar.y > stBar.y + stBar.height - 1, 'Tech Close is below Sales Stage');
+  assert.deepEqual(await prog.locator('.pseg.tc').allTextContents(), ['0%', '25%', '50%', '75%', '99%', '100%'], 'percentages inside the cells');
+  assert.deepEqual(await prog.locator('.pbar.st > .pseg').allTextContents(), ['1', '2', '3', '4', '5', '6', '7', '8'], 'stage numbers inside the cells');
+  const hb = await box(prog.locator('.phelp'));
+  near(hb.y, stBar.y, 1, '"?" top aligns with the top bar'); near(hb.y + hb.height, tcBar.y + tcBar.height, 1, '"?" bottom aligns with the bottom bar');
+  near(hb.width, hb.height, 0.5, '"?" is a circle');
+  assert.ok(hb.x > stBar.x + stBar.width, '"?" is right of the bars'); }
 // Click sets immediately; fill up to and including current
 await st(3).click();
 await me.waitForFunction(() => document.querySelector('.row [data-fk="st3"]')?.getAttribute('aria-current') === 'step');
 assert.deepEqual(await prog.locator('.pseg.st.on').evaluateAll((els) => els.map((e) => e.dataset.fk)), ['st1', 'st2', 'st3']);
+assert.notEqual(await st(3).evaluate((e) => getComputedStyle(e).boxShadow), 'none', 'current stage has a ring as well as the fill');
+assert.equal(await st(2).evaluate((e) => getComputedStyle(e).boxShadow), 'none');
 await tc(50).click();
 await me.waitForFunction(() => document.querySelector('.row [data-fk="tc50"]')?.getAttribute('aria-current') === 'step');
 assert.deepEqual(await prog.locator('.pseg.tc.on').evaluateAll((els) => els.map((e) => e.dataset.fk)), ['tc0', 'tc25', 'tc50']);

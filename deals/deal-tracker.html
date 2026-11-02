@@ -197,26 +197,36 @@ body:not(.ro) .step .slabel { padding-right: 30px; }   /* room for the hover pen
 .dtype button[aria-pressed="true"].land { background: var(--accent); color: var(--on-accent); }
 .dtype button[aria-pressed="true"].renewal { background: var(--ink); color: var(--page); }
 .dtype.hl { box-shadow: 0 0 0 2px var(--hl-edge); }
-/* Deal progress: Sales Stage over Tech Close on one 16-column grid (two sub-columns per stage),
-   so each Tech Close segment sits under its stage and 75% / 99% split Stage 4's column. */
-.prog { flex: 0 1 auto; min-width: 0; max-width: 100%; display: inline-grid; align-items: center; row-gap: 4px;
-  grid-template-columns: auto repeat(16, minmax(11px, 18px)) auto auto; margin-top: -3px; padding: 2px 4px; border-radius: 8px; }
+/* Deal progress: two capsule-shaped progress bars. Sales Stage spans eight equal stage columns; Tech Close
+   spans the first five (it ends at Stage 5) and splits them into six equal cells. "?" is as tall as both bars. */
+.prog { --barh: 26px; --pgap: 5px; --colmin: 26px;
+  flex: 0 1 auto; min-width: 0; max-width: 100%; display: inline-grid; align-items: center; row-gap: var(--pgap);
+  grid-template-columns: auto repeat(8, minmax(var(--colmin), 36px)) auto auto; margin-top: -4px; padding: 2px 4px; border-radius: 8px; }
 .plbl { grid-column: 1; padding-right: 8px; font-size: 10.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); white-space: nowrap; text-align: right; }
-.pseg { min-width: 0; height: 22px; margin: 0 1.5px; padding: 0; overflow: hidden; display: grid; place-items: center; border-radius: 4px;
-  border: 1px solid var(--line); background: var(--surface); color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
-.pseg.tc { height: 18px; font-size: 9px; letter-spacing: -.06em; }
-.pseg.tc.cur { box-shadow: inset 0 0 0 1.5px var(--ink); }
-.pseg:hover:not(:disabled) { border-color: var(--accent); color: var(--ink); }
-.pseg.st.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
-.pseg.tc.on { background: var(--done); border-color: var(--done); color: var(--on-done); }
-.pseg.cur { box-shadow: inset 0 0 0 2px var(--ink); font-weight: 800; }
-.pseg.nine { grid-column: 18; min-width: max-content; margin-left: 8px; padding: 0 7px; border-style: dashed; white-space: nowrap; }
-.pseg.nine.on { background: var(--late); border: 1px solid var(--late); color: #fff; box-shadow: none; }
+.pbar { height: var(--barh); display: grid; gap: 2px; padding: 2px; border-radius: 999px; border: 1.5px solid var(--accent); background: var(--surface); }
+.pbar.st { grid-row: 1; grid-column: 2 / span 8; grid-template-columns: repeat(8, minmax(0, 1fr)); }
+.pbar.tc { grid-row: 2; grid-column: 2 / span 5; grid-template-columns: repeat(6, minmax(0, 1fr)); border-color: var(--done); }
+.pseg { min-width: 0; height: 100%; padding: 0; overflow: hidden; display: grid; grid-auto-flow: column; place-content: center; border-radius: 3px;
+  background: transparent; color: var(--muted); box-shadow: inset 0 0 0 1px var(--line);
+  font-size: 11px; font-weight: 600; letter-spacing: -.01em; font-variant-numeric: tabular-nums; }
+.pbar > .pseg:first-child { border-radius: 999px 3px 3px 999px; }
+.pbar > .pseg:last-child { border-radius: 3px 999px 999px 3px; }
+.pseg:hover:not(:disabled) { box-shadow: inset 0 0 0 1.5px var(--accent); color: var(--ink); }
+.pseg:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 1px; position: relative; z-index: 1; }
+.pseg.tc { font-size: 10px; }
+.pseg.st.on { background: var(--accent); color: var(--on-accent); box-shadow: none; }
+.pseg.tc.on { background: var(--done); color: var(--on-done); box-shadow: none; }
+.pseg.st.cur, .pseg.tc.cur, .pseg.cur:hover:not(:disabled) { box-shadow: inset 0 0 0 2px var(--ink); font-weight: 800; }
+.pseg.nine { grid-row: 1; grid-column: 10; height: var(--barh); min-width: max-content; margin-left: 8px; padding: 0 9px; border-radius: 999px;
+  box-shadow: none; border: 1.5px dashed var(--faint); white-space: nowrap; }
+.pseg.nine:hover:not(:disabled) { border-color: var(--late); color: var(--late); box-shadow: none; }
+.pseg.nine.on { background: var(--late); border: 1.5px solid var(--late); color: #fff; }
 .pseg.nine .short { display: none; }
-.prog.is-out .pseg.st:not(.nine) { background: var(--bg); border-color: var(--line); color: var(--faint); box-shadow: none; text-decoration: line-through; }
-.olbl { grid-row: 3; grid-column: 12 / span 6; font-size: 10.5px; font-weight: 600; line-height: 1.2; color: var(--accent-text); text-align: center; white-space: nowrap; }
-.phelp { grid-column: 19; grid-row: 1 / span 2; align-self: center; margin-left: 8px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%;
-  border: 1px solid var(--line); background: var(--surface); color: var(--muted); font-size: 12px; font-weight: 700; }
+.prog.is-out .pbar.st { border-color: var(--line); }
+.prog.is-out .pbar.st .pseg { background: var(--bg); color: var(--faint); box-shadow: none; text-decoration: line-through; }
+.olbl { grid-row: 3; grid-column: 7 / span 3; font-size: 10.5px; font-weight: 600; line-height: 1.2; color: var(--accent-text); text-align: center; white-space: nowrap; }
+.phelp { grid-column: 11; grid-row: 1 / span 2; align-self: start; margin-left: 8px; width: calc(2 * var(--barh) + var(--pgap)); height: calc(2 * var(--barh) + var(--pgap));
+  display: grid; place-items: center; border-radius: 50%; border: 1.5px solid var(--line); background: var(--surface); color: var(--muted); font-size: 20px; font-weight: 700; line-height: 1; }
 .phelp:hover { border-color: var(--accent); color: var(--accent-text); }
 /* small anchored popovers: order status / outcome menus and the help card */
 .pop { position: absolute; z-index: 30; padding: 6px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); box-shadow: var(--shadow); font-size: 13px; }
@@ -362,11 +372,13 @@ body.ro .add, body.ro .ed .writer, body.ro #clearDone { display: none; }
   .lrow .fld:first-child { grid-column: 1 / -1; }
   .row.open { margin-inline: -8px; padding-inline: 8px; }
   .row.upd::before { left: -9px; }
-  .prog { grid-template-columns: auto repeat(16, minmax(10px, 18px)) auto auto; padding-inline: 0; }
+  .prog { --barh: 22px; --pgap: 4px; --colmin: 21px; padding-inline: 0; }
   .plbl { padding-right: 5px; font-size: 10px; letter-spacing: 0; text-transform: none; }
-  .pseg.nine { margin-left: 4px; padding: 0 5px; }
-  .pseg.tc.half { font-size: 0; }   /* 75% / 99% are too narrow for digits here; name and tooltip still say them */
-  .phelp { margin-left: 4px; }
+  .pseg { font-size: 10px; }
+  .pseg.tc { font-size: 9px; letter-spacing: -.04em; }
+  .pseg.tc .pc { display: none; }   /* "100%" doesn't fit a phone-width cell; the bar is labelled Tech Close */
+  .pseg.nine { margin-left: 4px; padding: 0 6px; }
+  .phelp { margin-left: 4px; font-size: 17px; }
   .pseg.nine .full { display: none; }
   .pseg.nine .short { display: inline; }
 }
@@ -1005,14 +1017,14 @@ const ORDER_STATUSES = [
   { v: 'spproxy', label: 'SP Proxy Closed', short: 'SP Proxy' },
 ];
 const OUTCOMES = [{ v: 'lost', label: 'Closed Lost', short: 'Lost' }, { v: 'disqualified', label: 'Disqualified', short: 'DQ' }];
-// col/span are in half-stage sub-columns (1 = left half of Stage 1). Tech Close ends at Stage 5.
+// Tech Close fills the width of Stages 1–5 (it ends at Stage 5) in six equal cells.
 const TECH = [
-  { v: 0, label: 'Acknowledgement', col: 1, span: 2 },
-  { v: 25, label: 'Discovery', col: 3, span: 2 },
-  { v: 50, label: 'Solutioning', col: 5, span: 2 },
-  { v: 75, label: 'Proposal Review', col: 7, span: 1 },
-  { v: 99, label: 'Executive Validation', col: 8, span: 1 },
-  { v: 100, label: 'Tech Closed', col: 9, span: 2 },
+  { v: 0, label: 'Acknowledgement' },
+  { v: 25, label: 'Discovery' },
+  { v: 50, label: 'Solutioning' },
+  { v: 75, label: 'Proposal Review' },
+  { v: 99, label: 'Executive Validation' },
+  { v: 100, label: 'Tech Closed' },
 ];
 const HELP_STAGES = [
   ['1. Identified Opportunity', 'fit or need discussed with the customer or partner; next steps planned on requirements and timing.'],
@@ -1045,36 +1057,36 @@ function progressTracker(kind, it, changed) {
   const stage = stageOf(it), tc = techOf(it), ro = !S.canWrite;
   const out = stage === 9 ? OUTCOMES.find((o) => o.v === it.closedOutcome) : null;
   const os = stage === 7 ? ORDER_STATUSES.find((o) => o.v === it.orderStatus) : null;
-  const g = h('div', { class: 'prog' + (changed ? ' hl' : '') + (stage === 9 ? ' is-out' : ''), role: 'group', 'aria-label': 'Deal progress' },
-    h('span', { class: 'plbl', style: 'grid-row:1', 'aria-hidden': 'true', text: 'Stage' }),
-    h('span', { class: 'plbl', style: 'grid-row:2', 'aria-hidden': 'true', text: 'Tech Close' }));
+  const stBar = h('div', { class: 'pbar st', role: 'group', 'aria-label': 'Sales Stage' });
   STAGES.forEach((name, i) => {
     const n = i + 1, cur = stage === n;
     const label = `Stage ${n}: ${name}` + (n === 7 && os ? ` (${os.label})` : '');
-    g.append(h('button', { type: 'button', class: 'pseg st' + (stage && stage <= 8 && n <= stage ? ' on' : '') + (cur ? ' cur' : ''), 'data-fk': 'st' + n,
-      style: `grid-row:1;grid-column:${2 + i * 2} / span 2`, disabled: ro, title: label, 'aria-label': label, 'aria-current': cur ? 'step' : null,
-      'aria-haspopup': n === 7 ? 'menu' : null,
+    stBar.append(h('button', { type: 'button', class: 'pseg st' + (stage && stage <= 8 && n <= stage ? ' on' : '') + (cur ? ' cur' : ''), 'data-fk': 'st' + n,
+      disabled: ro, title: label, 'aria-label': label, 'aria-current': cur ? 'step' : null, 'aria-haspopup': n === 7 ? 'menu' : null,
       onclick: (e) => {
         if (n !== 7) return setStage(kind, it.id, n);
         if (stage !== 7) setStage(kind, it.id, 7);
         openOrderMenu(kind, it, e.currentTarget);
       } }, String(n)));
   });
-  g.append(h('button', { type: 'button', class: 'pseg st nine' + (out ? ' on' : ''), 'data-fk': 'st9', style: 'grid-row:1', disabled: ro, 'aria-haspopup': 'menu',
-    title: out ? `Stage 9: ${out.label}` : 'Stage 9: Closed Lost / Disqualified',
-    'aria-label': 'Stage 9: Closed Lost / Disqualified' + (out ? ` (${out.label})` : ''), 'aria-current': stage === 9 ? 'step' : null,
-    onclick: (e) => openOutcomeMenu(kind, it, e.currentTarget) },
-    out ? [h('span', { class: 'full', text: out.label }), h('span', { class: 'short', text: out.short })] : '9'));
-  if (os) g.append(h('span', { class: 'olbl', title: os.label, text: '▲ ' + os.short }));
+  const tcBar = h('div', { class: 'pbar tc', role: 'group', 'aria-label': 'Tech Close' });
   for (const t of TECH) {
     const cur = tc === t.v, label = `Tech Close ${t.v}%: ${t.label}`;
-    g.append(h('button', { type: 'button', class: 'pseg tc' + (t.span === 1 ? ' half' : '') + (tc != null && t.v <= tc ? ' on' : '') + (cur ? ' cur' : ''), 'data-fk': 'tc' + t.v,
-      style: `grid-row:2;grid-column:${1 + t.col} / span ${t.span}`, disabled: ro, title: label, 'aria-label': label, 'aria-current': cur ? 'step' : null,
-      onclick: () => setTech(kind, it.id, t.v) }, String(t.v)));
+    tcBar.append(h('button', { type: 'button', class: 'pseg tc' + (tc != null && t.v <= tc ? ' on' : '') + (cur ? ' cur' : ''), 'data-fk': 'tc' + t.v,
+      disabled: ro, title: label, 'aria-label': label, 'aria-current': cur ? 'step' : null, onclick: () => setTech(kind, it.id, t.v) },
+      h('span', { class: 'n', text: String(t.v) }), h('span', { class: 'pc', text: '%' })));
   }
-  g.append(h('button', { type: 'button', class: 'phelp', 'data-fk': 'help', title: 'What the stages and percentages mean', 'aria-label': 'Help: what the stages and percentages mean',
-    'aria-haspopup': 'dialog', onclick: (e) => openProgressHelp(kind, it, e.currentTarget) }, '?'));
-  return g;
+  return h('div', { class: 'prog' + (changed ? ' hl' : '') + (stage === 9 ? ' is-out' : ''), role: 'group', 'aria-label': 'Deal progress' },
+    h('span', { class: 'plbl', style: 'grid-row:1', 'aria-hidden': 'true', text: 'Stage' }), stBar,
+    h('button', { type: 'button', class: 'pseg st nine' + (out ? ' on' : ''), 'data-fk': 'st9', disabled: ro, 'aria-haspopup': 'menu',
+      title: out ? `Stage 9: ${out.label}` : 'Stage 9: Closed Lost / Disqualified',
+      'aria-label': 'Stage 9: Closed Lost / Disqualified' + (out ? ` (${out.label})` : ''), 'aria-current': stage === 9 ? 'step' : null,
+      onclick: (e) => openOutcomeMenu(kind, it, e.currentTarget) },
+      out ? [h('span', { class: 'full', text: out.label }), h('span', { class: 'short', text: out.short })] : '9'),
+    h('span', { class: 'plbl', style: 'grid-row:2', 'aria-hidden': 'true', text: 'Tech Close' }), tcBar,
+    os ? h('span', { class: 'olbl', title: os.label, text: '▲ ' + os.short }) : null,
+    h('button', { type: 'button', class: 'phelp', 'data-fk': 'help', title: 'What the stages and percentages mean', 'aria-label': 'Help: what the stages and percentages mean',
+      'aria-haspopup': 'dialog', onclick: (e) => openProgressHelp(kind, it, e.currentTarget) }, '?'));
 }
 
 /* anchored popover: Esc or a click outside closes it and returns focus to the control that opened it */
