@@ -45,24 +45,31 @@ assert.match(await me.textContent('#empty'), /No deals yet/);
 // Create a deal, add steps, a due date, links and a checklist answer.
 await me.fill('#addIn', 'Ogden School District build (3:1 ratio) HPE and NX');
 await me.press('#addIn', 'Enter');
-await me.waitForSelector('#ed-newstep');
-for (const s of ['Sizer', 'Frontline', 'Meeting with Wilden', 'Discuss with Ogden']) { await me.fill('#ed-newstep', s); await me.press('#ed-newstep', 'Enter'); }
-assert.equal(await me.locator('.ed .srow').count(), 4);
-await me.locator('.ed .srow input[type=checkbox]').nth(0).check();
-await me.locator('.ed .srow input[type=checkbox]').nth(1).check();
-await me.locator('.ed .srow').nth(2).locator('.sdate').fill('2030-03-05');
-await me.locator('.ed .srow').nth(2).locator('.stime').fill('11:30');
-await me.click('text=Add link');
-await me.locator('.ed .lrow input').nth(0).fill('Hybrid');
-await me.locator('.ed .lrow input').nth(1).fill('https://sizer.nutanix.com/#/scenario/S-1753764');
-await me.click('text=Add link');
-await me.locator('.ed .lrow input').nth(2).fill('All flash');
-await me.locator('.ed .lrow input').nth(3).fill('sizer.nutanix.com/#/scenario/S-1753621');
-await me.locator('.crow', { hasText: 'Implementation Strategy' }).locator('button.yes').click();
-await me.click('.ed .btn.primary'); // Done
-await me.waitForSelector('.row:not(.open)');
-
+// A new deal goes straight into adding steps inline (no separate edit page)
+await me.waitForSelector('.row .addstep-in');
+assert.equal(await me.evaluate(() => document.activeElement.classList.contains('addstep-in')), true, 'add-step box is focused');
 const row = me.locator('.row').first();
+for (const [i, s] of ['Sizer', 'Frontline', 'Meeting with Wilden', 'Discuss with Ogden'].entries()) {
+  await me.keyboard.type(s); await me.keyboard.press('Enter');
+  await me.waitForFunction((n) => document.querySelectorAll('.row .step').length === n, i + 1);
+}
+await me.keyboard.press('Escape');
+assert.equal(await me.locator('.ed').count(), 0, 'no edit page for deals');
+await row.locator('.step').nth(0).locator('.bx').click();
+await me.waitForFunction(() => document.querySelectorAll('.row .step.done').length === 1);
+await row.locator('.step').nth(1).locator('.bx').click();
+await me.waitForFunction(() => document.querySelectorAll('.row .step.done').length === 2);
+await row.locator('.step.next .slabel').click();
+await me.fill('.duedit input[type=date]', '2030-03-05'); await me.fill('.duedit input[type=time]', '11:30');
+await me.click('.duedit .btn.primary');
+for (const [label, url] of [['Hybrid', 'https://sizer.nutanix.com/#/scenario/S-1753764'], ['All flash', 'sizer.nutanix.com/#/scenario/S-1753621']]) {
+  await row.locator('.lnkadd').click();
+  await me.fill('.linkadd .u', url); await me.fill('.linkadd .l', label); await me.press('.linkadd .l', 'Enter');
+  await me.waitForSelector('.linkadd', { state: 'detached' });
+}
+await row.locator('.chk', { hasText: 'Impl. strategy' }).click();
+await me.waitForFunction(() => /Yes/.test(document.querySelectorAll('.row .chk')[1]?.textContent || ''));
+
 assert.equal(await row.locator('.step').count(), 4);
 assert.equal(await row.locator('.step.done').count(), 2);
 assert.match(await row.locator('.step.next').textContent(), /Meeting with Wilden/);
@@ -293,25 +300,60 @@ await row.locator('.step', { hasText: 'Frontline' }).locator('.bx').click();
 await me.waitForFunction(() => document.querySelectorAll('.row .step.done').length === 1);
 await row.locator('.step', { hasText: 'Frontline' }).locator('.bx').click();
 await me.waitForFunction(() => document.querySelectorAll('.row .step.done').length === 2);
-// Remove the extra link again so later checks see two
-await row.locator('.info').click();
-await me.locator('.ed .lrow').nth(2).locator('.ibtn').click();
-await me.click('.ed .btn.primary');
+// Links edit in place: hover shows a pencil; change the label and address, then delete it
+const l3 = row.locator('.lnkw').nth(2);
+assert.equal(await l3.locator('.lnkedit').evaluate((e) => getComputedStyle(e).opacity), '0', 'link pencil hidden until hover');
+await l3.hover();
+assert.equal(await l3.locator('.lnkedit').evaluate((e) => getComputedStyle(e).opacity), '1', 'link pencil shows on hover');
+await l3.locator('.lnkedit').click();
+await me.waitForSelector('.linkadd .l');
+assert.equal(await me.inputValue('.linkadd .l'), 'Half the cores');
+await me.fill('.linkadd .l', 'Half the cores v2');
+await me.fill('.linkadd .u', 'https://sizer.nutanix.com/#/scenario/S-1757999');
+await me.press('.linkadd .u', 'Enter');
+await me.waitForSelector('.linkadd', { state: 'detached' });
+assert.match(await row.locator('.lnk').nth(2).textContent(), /Half the cores v2.*S-1757999/);
+await row.locator('.lnkw').nth(2).hover(); await row.locator('.lnkw').nth(2).locator('.lnkedit').click();
+await me.press('.linkadd .l', 'Escape'); await me.waitForSelector('.linkadd', { state: 'detached' });
+assert.equal(await row.locator('.lnk').count(), 3, 'Esc cancels');
+await row.locator('.lnkw').nth(2).hover(); await row.locator('.lnkw').nth(2).locator('.lnkedit').click();
+await me.locator('.linkadd').getByRole('button', { name: 'Delete' }).click();
 await me.waitForFunction(() => document.querySelectorAll('.row .lnk').length === 2);
 
-// Hovering a deal's name line shows an Edit button that opens the editor (not when hovering its steps)
-const op2 = (loc) => loc.evaluate((e) => getComputedStyle(e).opacity);
-await row.locator('.step').first().hover();
-assert.equal(await op2(row.locator('.rowedit')), '0', 'no deal Edit button while hovering a step');
-await row.locator('.title').hover();
-assert.equal(await op2(row.locator('.rowedit')), '1', 'deal Edit button shows on hovering the name');
-const tb = await row.locator('.prog').boundingBox(), eb = await row.locator('.rowedit').boundingBox();
-assert.ok(eb.x - (tb.x + tb.width) < 20, 'Edit follows the name, deal-type toggle and progress tracker (gap ' + Math.round(eb.x - (tb.x + tb.width)) + 'px)');
-await row.locator('.rowedit').click();
-await me.waitForSelector('.row.open .ed');
-assert.equal(await row.locator('.rowedit').count(), 0, 'Edit button hides while the editor is open');
-await me.click('.ed .btn.primary');
-await me.waitForSelector('.row.open', { state: 'detached' });
+// The deal name: text cursor on hover, click to rename in place; no Edit pill or details page for deals
+assert.equal(await row.locator('.title').evaluate((e) => getComputedStyle(e).cursor), 'text');
+assert.equal(await row.locator('.rowedit').count(), 0); assert.equal(await row.locator('.info').count(), 0);
+await row.locator('.title').click();
+await me.waitForSelector('.titleedit input');
+assert.equal(await me.inputValue('.titleedit input'), 'Ogden School District build (3:1 ratio) HPE and NX');
+await me.fill('.titleedit input', 'Ogden SD build');
+await me.press('.titleedit input', 'Enter');
+await me.waitForFunction(() => document.querySelector('.row .title')?.textContent === 'Ogden SD build');
+await row.locator('.title').click(); await me.fill('.titleedit input', 'zzz'); await me.press('.titleedit input', 'Escape');
+await me.waitForFunction(() => document.querySelector('.row .title')?.textContent === 'Ogden SD build');
+assert.equal(await me.locator('.ed').count(), 0, 'Esc only cancelled the rename');
+await row.locator('.title').click(); await me.fill('.titleedit input', 'Ogden School District build (3:1 ratio) HPE and NX');
+await me.locator('.head h1').click();   // clicking away saves
+await me.waitForFunction(() => document.querySelector('.row .title')?.textContent === 'Ogden School District build (3:1 ratio) HPE and NX');
+// notes in place: "Add a note" on hover, click the note to edit it
+await row.locator('.addnote').click();
+await me.waitForSelector('.noteedit textarea');
+await me.keyboard.type('Ogden wants HPE and Nutanix side by side');
+await me.locator('.head h1').click();
+await me.waitForFunction(() => document.querySelector('.row .note')?.textContent === 'Ogden wants HPE and Nutanix side by side');
+await row.locator('.note').click(); await me.keyboard.type(' (3:1)'); await me.keyboard.press('Escape');
+await me.waitForFunction(() => document.querySelector('.row .note')?.textContent === 'Ogden wants HPE and Nutanix side by side');
+await me.reload(); await me.waitForSelector('.row .note');
+assert.equal(await row.locator('.note').textContent(), 'Ogden wants HPE and Nutanix side by side', 'notes saved');
+// deleting a deal is inline too (with a confirm)
+await me.fill('#addIn', 'Temporary deal'); await me.press('#addIn', 'Enter');
+await me.waitForSelector('.row .addstep-in'); await me.keyboard.press('Escape');
+const tmp = me.locator('.row', { hasText: 'Temporary deal' });
+await tmp.getByRole('button', { name: 'Delete deal: Temporary deal' }).click();
+await tmp.getByRole('button', { name: 'Cancel' }).click();
+await tmp.getByRole('button', { name: 'Delete deal: Temporary deal' }).click();
+await tmp.locator('.delask').getByRole('button', { name: 'Delete' }).click();
+await me.waitForFunction(() => ![...document.querySelectorAll('.row .title')].some((e) => e.textContent === 'Temporary deal'));
 
 // Hovering a step shows a pencil on its right; clicking it renames the step in place
 const fl = row.locator('.step', { hasText: 'Frontline' });
@@ -367,20 +409,15 @@ await me.reload(); await me.waitForSelector('.row .step');
 assert.equal((await texts())[0], 'PO received', 'reorder is saved');
 assert.equal(await row.locator('.step.done').count(), 2, 'dragging does not toggle steps');
 
-// Drag in the details panel using the grip handle, then remove the two test steps
-await row.locator('.info').click();
-await me.waitForSelector('.ed .grip');
-await me.locator('.ed .srow').nth(2).evaluate((e) => e.scrollIntoView({ block: 'center', behavior: 'instant' }));
-await me.waitForTimeout(400);
-const grips = me.locator('.ed .srow .grip');
-await dragTo(grips.nth(0), me.locator('.ed .srow').nth(5), false);
-await me.waitForTimeout(150);
-const edOrder = await me.locator('.ed .srow input.fld:not(.sdate):not(.stime)').evaluateAll((els) => els.map((e) => e.value));
-assert.deepEqual(edOrder, ['Sizer', 'Frontline', 'Meeting with Wilden', 'Discuss with Ogden', 'Proposal', 'PO received'], 'editor drag reorders');
-await me.locator('.ed .srow').nth(5).locator('.ibtn').click();
-await me.locator('.ed .srow').nth(4).locator('.ibtn').click();
-await me.click('.ed .btn.primary');
-await me.waitForTimeout(100);
+// Remove the two test steps from the step's rename box (× next to the name)
+for (const name of ['PO received', 'Proposal']) {
+  const pill = row.locator('.step', { hasText: name });
+  await pill.hover(); await pill.locator('.sedit').click();
+  await me.waitForSelector('.stepedit-in');
+  await row.locator('.step.editing .sdel').click();
+  await me.waitForFunction((n) => ![...document.querySelectorAll('.row .stext')].some((e) => e.textContent === n), name);
+}
+await me.reload(); await me.waitForSelector('.row .step');
 assert.deepEqual(await texts(), ['Sizer', 'Frontline', 'Meeting with Wilden', 'Discuss with Ogden']);
 await me.screenshot({ path: join(shots, 'deals-0-list.png'), fullPage: true });
 
@@ -629,11 +666,6 @@ assert.match(await me.locator('.step.hl').textContent(), /Meeting with Wilden/);
 assert.equal(await me.locator('.chk.hl').count(), 1);
 await me.screenshot({ path: join(shots, 'deals-1-highlight.png'), fullPage: true });
 
-// Open details: the editor also highlights
-await me.locator('.row .info').first().click();
-await me.waitForSelector('.ed .crow.hl');
-await me.screenshot({ path: join(shots, 'deals-2-editor.png'), fullPage: true });
-await me.click('.ed .btn.primary');
 
 // Mark seen clears it (and it stays cleared after reload)
 await me.click('.updchip button');
