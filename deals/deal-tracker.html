@@ -59,6 +59,24 @@
   color-scheme: dark;
 }
 
+/* Theme picked with the page's own Light / Dark switch; overrides the system and host theme. */
+:root[data-ui-theme="light"] {
+  --page: #ffffff; --bg: #f5f5f7; --surface: #ffffff; --ink: #131313; --muted: #55545e; --faint: #8e8c9a; --line: #e6e5ec; --rule: #7855FA;
+  --accent: #7855FA; --accent-text: #5b37e6; --accent-soft: #f1edff; --on-accent: #ffffff;
+  --done: #92DD23; --on-done: #131313; --done-soft: #eef9dc; --late: #d63a3a; --late-soft: #fdecec; --flag: #FF9178;
+  --hl: #d8f8fa; --hl-ink: #0a4a4f; --hl-edge: #1FDDE9;
+  --shadow: 0 1px 2px rgba(19, 19, 19, .06), 0 10px 28px rgba(19, 19, 19, .07);
+  color-scheme: light;
+}
+:root[data-ui-theme="dark"] {
+  --page: #131313; --bg: #1d1d21; --surface: #19191c; --ink: #ffffff; --muted: #aeacba; --faint: #737181; --line: #2d2c34; --rule: #7855FA;
+  --accent: #8466ff; --accent-text: #a891ff; --accent-soft: #241d43; --on-accent: #ffffff;
+  --done: #92DD23; --on-done: #131313; --done-soft: #1f2a12; --late: #ff6464; --late-soft: #3a1717; --flag: #FF9178;
+  --hl: #0f3a3d; --hl-ink: #a5f4f8; --hl-edge: #1FDDE9;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 10px 28px rgba(0, 0, 0, .35);
+  color-scheme: dark;
+}
+
 * { box-sizing: border-box; }
 body { background: var(--page); color: var(--ink); font-family: var(--font-ui); font-size: 14.5px; line-height: 1.6; font-variant-numeric: tabular-nums; }
 body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--surface); }
@@ -71,15 +89,19 @@ svg { flex: none; }
 
 /* ---------- top bar ---------- */
 .top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--surface); border-bottom: 1px solid var(--line); }
-.top-in { max-width: 980px; margin: 0 auto; display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-  padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+.top-in { display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  padding-block: 10px; padding-left: max(16px, env(safe-area-inset-left, 0px), 2.5vw); padding-right: max(16px, env(safe-area-inset-right, 0px), 2.5vw); }
+.theme { display: flex; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 2px; gap: 2px; }
+.theme button { display: flex; align-items: center; gap: 5px; padding: 4px 9px; border-radius: 6px; font-size: 12.5px; font-weight: 600; color: var(--muted); }
+.theme button[aria-pressed="true"] { background: var(--surface); color: var(--ink); box-shadow: 0 0 0 1px var(--line); }
+.theme button:hover { color: var(--ink); }
 .tabs { display: flex; background: var(--bg); border: 1px solid var(--line); border-radius: 9px; padding: 3px; gap: 2px; }
 .tab { display: flex; align-items: center; gap: 7px; padding: 5px 15px; border-radius: 6px; font-weight: 600; font-size: 13.5px; color: var(--muted); }
 .tab[aria-selected="true"] { background: var(--ink); color: var(--page); }
 .tab[aria-selected="true"] .n { color: inherit; opacity: .7; }
 .tab .n { font-variant-numeric: tabular-nums; font-weight: 500; color: var(--faint); font-size: 13px; }
 .tab .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--hl-edge); }
-.search { flex: 1 1 200px; display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 340px; margin-left: auto;
+.search { flex: 1 1 200px; display: flex; align-items: center; gap: 8px; min-width: 0; max-width: 420px; margin-left: auto;
   background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; color: var(--faint); }
 .search input { border: 0; background: none; outline: none; width: 100%; min-width: 0; color: var(--ink); font-size: 14px; }
 .sync { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
@@ -89,8 +111,8 @@ svg { flex: none; }
 .sync[data-s="off"] i { background: var(--late); }
 
 /* ---------- page ---------- */
-main { max-width: 980px; margin: 0 auto; padding-block: 22px 80px;
-  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+main { padding-block: 22px 80px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px), 2.5vw); padding-right: max(16px, env(safe-area-inset-right, 0px), 2.5vw); }
 .head { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; }
 .head h1 { margin: 0; font-size: clamp(26px, 4.6vw, 36px); font-weight: 700; letter-spacing: -.01em; color: var(--ink); text-wrap: balance; }
 .head .count { font-size: clamp(26px, 4.6vw, 36px); font-weight: 700; color: var(--accent); font-variant-numeric: tabular-nums; }
@@ -247,6 +269,9 @@ body.ro .add, body.ro .ed .writer, body.ro #clearDone { display: none; }
 
 @media (max-width: 560px) {
   .search { order: 3; max-width: none; flex-basis: 100%; }
+  .theme span { display: none; }
+  .theme button[data-t="auto"] span { display: inline; }
+  .sync span { display: none; }
   .lrow { grid-template-columns: minmax(0, 1fr) auto; }
   .lrow .fld:first-child { grid-column: 1 / -1; }
   .row.open { margin-inline: -8px; padding-inline: 8px; }
@@ -266,6 +291,11 @@ body.ro .add, body.ro .ed .writer, body.ro #clearDone { display: none; }
     <label class="search"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
       <input id="q" type="search" placeholder="Search deals, steps, links" autocomplete="off"></label>
     <span class="sync" id="sync" data-s="wait"><i></i><span>Connecting…</span></span>
+    <div class="theme" role="group" aria-label="Theme">
+      <button type="button" data-t="light" aria-pressed="false" title="Light theme (white background)"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><span>Light</span></button>
+      <button type="button" data-t="dark" aria-pressed="false" title="Dark theme"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></svg><span>Dark</span></button>
+      <button type="button" data-t="auto" aria-pressed="false" title="Match your system setting"><span>Auto</span></button>
+    </div>
   </div>
 </header>
 
@@ -1062,6 +1092,16 @@ $('#addIn').addEventListener('keydown', (e) => {
 });
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && ED) closeEditor(); });
 setInterval(() => { if (!ED || !ED.el.contains(document.activeElement)) render(); }, 60000);
+
+/* ================= theme switch (remembered in this browser) ================= */
+function applyTheme(t) {
+  if (!['light', 'dark', 'auto'].includes(t)) t = 'auto';
+  if (t === 'auto') document.documentElement.removeAttribute('data-ui-theme');
+  else document.documentElement.setAttribute('data-ui-theme', t);
+  document.querySelectorAll('.theme button').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.t === t)));
+}
+applyTheme(ls.get('crm.theme', 'auto'));
+document.querySelectorAll('.theme button').forEach((b) => b.addEventListener('click', () => { ls.set('crm.theme', b.dataset.t); applyTheme(b.dataset.t); }));
 
 /* ================= boot ================= */
 async function boot() {

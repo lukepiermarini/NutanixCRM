@@ -182,6 +182,24 @@ await me.locator('.row .circle').first().click();
 await me.waitForSelector('.empty:not([hidden])');
 assert.match(await me.textContent('#doneGrp'), /1 Completed/);
 
+// Full width: the list spans the window on a wide monitor
+await me.setViewportSize({ width: 2400, height: 1000 });
+const mainW = await me.evaluate(() => document.querySelector('main').getBoundingClientRect().width);
+assert.ok(mainW > 2300, 'page stretches across a wide window (' + mainW + 'px)');
+
+// Theme switch: Light forces a white background even when the system is dark
+await me.emulateMedia({ colorScheme: 'dark' });
+assert.equal(await me.evaluate(() => getComputedStyle(document.body).backgroundColor), 'rgb(19, 19, 19)', 'auto follows dark system');
+await me.click('.theme button[data-t="light"]');
+assert.equal(await me.evaluate(() => getComputedStyle(document.body).backgroundColor), 'rgb(255, 255, 255)', 'light = white');
+await me.reload(); await me.waitForSelector('.theme');
+assert.equal(await me.evaluate(() => getComputedStyle(document.body).backgroundColor), 'rgb(255, 255, 255)', 'choice remembered');
+await me.click('.theme button[data-t="dark"]');
+await me.emulateMedia({ colorScheme: 'light' });
+assert.equal(await me.evaluate(() => getComputedStyle(document.body).backgroundColor), 'rgb(19, 19, 19)', 'dark forced');
+await me.click('.theme button[data-t="auto"]');
+assert.equal(await me.evaluate(() => getComputedStyle(document.body).backgroundColor), 'rgb(255, 255, 255)', 'auto back to system');
+
 // Phone width: no horizontal scroll
 await me.click('#doneGrp >> text=Show');
 await me.setViewportSize({ width: 390, height: 844 });
