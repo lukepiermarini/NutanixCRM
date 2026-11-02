@@ -142,7 +142,7 @@ main { padding-block: 22px 80px;
 
 /* ---------- rows ---------- */
 .list { list-style: none; margin: 0; padding: 0; }
-.row { position: relative; display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 0 12px; padding: 22px 0 24px; border-bottom: 1px solid var(--line); }
+.row { position: relative; display: grid; grid-template-columns: 30px minmax(0, 1fr); gap: 0 12px; padding: 22px 0 24px; border-bottom: 2px solid color-mix(in srgb, var(--ink) 32%, var(--line)); }
 .row.upd::before { content: ""; position: absolute; left: -12px; top: 18px; bottom: 18px; width: 3px; border-radius: 3px; background: var(--hl-edge); }
 .row.open { background: var(--surface); box-shadow: var(--shadow); border-radius: 12px; border-bottom-color: transparent;
   margin: 10px -14px; padding-inline: 14px; }
@@ -397,15 +397,19 @@ body:not(.ro) .row[data-kind="deals"] .title:hover { box-shadow: 0 1px 0 0 var(-
 @media (hover: none) { .lnkedit { opacity: .8; pointer-events: auto; } }
 .sdel { display: grid; place-items: center; width: 24px; margin-right: 4px; color: var(--muted); border-radius: 50%; }
 .sdel:hover { color: var(--late); }
-.note.edit { cursor: text; border-radius: 4px; }
-.note.edit:hover { box-shadow: 0 1px 0 0 var(--faint); }
-.addnote { align-self: flex-start; font-size: 12.5px; color: var(--faint); opacity: 0; }
-.row:hover .addnote, .addnote:focus-visible { opacity: 1; }
-.addnote:hover { color: var(--accent-text); }
-@media (hover: none) { .addnote { opacity: 1; } }
-.noteedit { display: flex; flex-direction: column; gap: 4px; }
-.noteedit textarea { min-height: 64px; font-size: 13.5px; line-height: 1.5; resize: vertical; }
-.noteedit .mut { font-size: 11.5px; color: var(--faint); }
+/* step notes: a post-it under the step, shown when the step is clicked */
+.addpost { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 500; padding: 3px 9px; border-radius: 6px; border: 1px dashed var(--faint); color: var(--muted); }
+.addpost:hover { border-style: solid; border-color: var(--amber); color: var(--amber); }
+.snote { position: relative; z-index: 1; width: 250px; margin-right: -480px; display: flex; align-items: flex-start; gap: 6px; padding: 7px 9px; text-align: left;
+  border-radius: 3px 10px 10px 10px; border: 1px solid color-mix(in srgb, var(--amber) 45%, var(--line)); background: color-mix(in srgb, var(--amber) 14%, var(--surface));
+  color: var(--ink); font-size: 12.5px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; -webkit-user-select: text; user-select: text; }
+.snote[role="button"] { cursor: text; }
+.snote[role="button"]:hover { border-color: var(--amber); }
+.snote .snote-ic { flex: none; display: grid; margin-top: 2px; color: var(--amber); }
+.snote.editing { flex-direction: column; gap: 4px; z-index: 3; }
+.snote.editing textarea { width: 100%; min-height: 70px; font-size: 12.5px; line-height: 1.45; resize: vertical; background: var(--surface); }
+.snote.editing .mut { font-size: 11px; color: var(--faint); }
+.snote-mk { display: inline-grid; color: var(--amber); }
 .delask { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--late); }
 .step .tag { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--accent-text); font-weight: 700; }
 .step:hover { border-color: var(--accent); }
@@ -510,6 +514,7 @@ body.ro .add, body.ro .ed .writer, body.ro #clearDone { display: none; }
   .sync span { display: none; }
   .lrow { grid-template-columns: minmax(0, 1fr) auto; }
   .sdue { margin-right: 0; flex-wrap: wrap; white-space: normal; }
+  .snote { margin-right: 0; width: max-content; max-width: calc(100vw - 100px); }
   .srow { grid-template-columns: 22px 22px minmax(0, 1fr) auto; }
   .srow .sdates { grid-column: 3 / 4; grid-row: 2; }
   .lrow .fld:first-child { grid-column: 1 / -1; }
@@ -595,6 +600,7 @@ const I = {
   x: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg>',
   grip: '<svg width="12" height="16" viewBox="0 0 12 16" fill="currentColor"><circle cx="3.5" cy="3" r="1.4"/><circle cx="8.5" cy="3" r="1.4"/><circle cx="3.5" cy="8" r="1.4"/><circle cx="8.5" cy="8" r="1.4"/><circle cx="3.5" cy="13" r="1.4"/><circle cx="8.5" cy="13" r="1.4"/></svg>',
   trash: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/></svg>',
+  postit: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 4h16v10l-6 6H4z"/><path d="M14 20v-6h6"/></svg>',
   pencil: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9a2.8 2.8 0 0 0-4-4L4 16z"/><path d="m13.5 6.5 4 4"/></svg>',
   plus: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
   ext: '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>',
@@ -679,7 +685,7 @@ const S = {
   editStep: null,  // {id, sid, text} while a step is being renamed in place
   editTitle: null, // {id, text} while a deal's name is being edited in place
   editLink: null,  // {id, lid, label, url} while a link is being edited in place
-  editNote: null,  // {id, text} while a deal's notes are being edited in place
+  editStepNote: null, // {id, sid, text} while a step's note is being edited
   askDelete: null, // deal id showing "Delete this deal?"
 };
 const rowEls = new Map();   // key -> li
@@ -806,8 +812,10 @@ function writeDoc(kind, id, fn) {
   return enqueue(kind + '/' + id, fn).catch(onWriteError);
 }
 
-const LISTS = { steps: ['text', 'done', 'due'], links: ['label', 'url'] };
+const LISTS = { steps: ['text', 'done', 'due', 'note'], links: ['label', 'url'] };
 // Each step carries its own due date/time. Older deals kept one deal-level "next step due"; it still shows on the next step.
+// Older deals kept one deal-level note; it shows on the next step until that step gets its own.
+function stepNote(it, s, isNext) { return (s && s.note) || (isNext ? it.notes || '' : ''); }
 function stepDue(it, s, isNext) { return (s && s.due) || (isNext ? it.due || '' : ''); }
 function effDue(kind, it) {
   if (kind !== 'deals') return it.due || '';
@@ -1086,20 +1094,24 @@ function paintRow(kind, it, li) {
     if (!steps.length && !S.canWrite) ol.append(h('li', { text: 'No steps yet.' }));
     steps.forEach((s, i) => {
       const isNext = i === nextIdx, key = it.id + ':' + s.id;
-      const shown = isNext || S.openSteps.has(key);
+      const open = S.openSteps.has(key), shown = isNext || open, note = stepNote(it, s, isNext);
+      const noteEditing = S.canWrite && S.editStepNote && S.editStepNote.id === it.id && S.editStepNote.sid === s.id;
       const renaming = S.canWrite && S.editStep && S.editStep.id === it.id && S.editStep.sid === s.id;
       const pill = h('div', { class: 'step' + (s.done ? ' done' : isNext ? ' next' : '') + (F.has('step:' + s.id) ? ' hl' : '') + (renaming ? ' editing inl' : '') },
         h('button', { class: 'bx', disabled: !S.canWrite, title: s.done ? 'Mark not done' : 'Mark done', 'aria-label': (s.done ? 'Mark not done: ' : 'Mark done: ') + (s.text || 'step'),
           onclick: () => commit(kind, it.id, (d) => { const x = (d.steps || []).find((y) => y.id === s.id); if (x) x.done = !x.done; }) },
           h('i', { class: 'box', icon: 'check' })),
-        h('button', { class: 'slabel', 'aria-expanded': String(shown), title: isNext ? 'Set this step’s date and time' : (shown ? 'Hide this step’s date' : 'Show this step’s date and time'),
+        h('button', { class: 'slabel', 'aria-expanded': String(open), title: open ? 'Hide this step’s date and notes' : 'Show this step’s date and notes',
           onclick: () => {
-            if (isNext) { if (S.canWrite) openDueEditor(it, s, true); return; }
-            if (S.openSteps.has(key)) { S.openSteps.delete(key); if (S.editDue && S.editDue.id === it.id && S.editDue.sid === s.id) S.editDue = null; }
-            else S.openSteps.add(key);
+            if (S.openSteps.has(key)) {
+              S.openSteps.delete(key);
+              if (S.editDue && S.editDue.id === it.id && S.editDue.sid === s.id) S.editDue = null;
+              if (S.editStepNote && S.editStepNote.id === it.id && S.editStepNote.sid === s.id) S.editStepNote = null;
+            } else S.openSteps.add(key);
             render();
           } },
-          h('span', { class: 'stext', text: s.text || 'Untitled step' }), isNext ? h('span', { class: 'tag', text: 'Next' }) : null),
+          h('span', { class: 'stext', text: s.text || 'Untitled step' }), isNext ? h('span', { class: 'tag', text: 'Next' }) : null,
+          note && !open ? h('span', { class: 'snote-mk', icon: 'postit', title: 'This step has a note', 'aria-label': 'has a note' }) : null),
         S.canWrite && !renaming ? h('button', { class: 'sedit', icon: 'pencil', title: 'Edit step', 'aria-label': 'Edit step: ' + (s.text || ''),
           onclick: () => { S.editStep = { id: it.id, sid: s.id, text: s.text || '', focus: true }; render(); } }) : null);
       if (renaming) {
@@ -1110,7 +1122,14 @@ function paintRow(kind, it, li) {
       }
       const col = h('div', { class: 'scol' }, pill);
       const editing = S.editDue && S.editDue.id === it.id && S.editDue.sid === s.id;
-      if (shown || editing) { const a = stepDueArea(kind, it, s, isNext, editing); if (a) col.append(a); }
+      if (shown || editing) {
+        const a = stepDueArea(kind, it, s, isNext, editing);
+        if (a) col.append(a);
+      }
+      if (open && S.canWrite && !note && !noteEditing)   // its own line, so it never runs into the next step's date
+        col.append(h('div', { class: 'sdue' }, h('button', { type: 'button', class: 'addpost', icon: 'postit', title: 'Add a note to this step', 'aria-label': `Add a note to step: ${s.text || ''}`,
+          onclick: () => { S.editStepNote = { id: it.id, sid: s.id, text: '', focus: true }; render(); } }, 'Add note')));
+      if (open || noteEditing) { const n = stepNoteArea(kind, it, s, isNext); if (n) col.append(n); }
       ol.append(h('li', { 'data-sid': s.id }, col));
     });
     if (S.canWrite) ol.append(addStepLi(kind, it, prevAddState, !steps.length));
@@ -1146,13 +1165,7 @@ function paintRow(kind, it, li) {
     }
     body.append(ck);
   }
-  if (kind === 'deals' && S.canWrite) {
-    if (S.editNote && S.editNote.id === it.id) body.append(noteEditor(kind, it));
-    else if (it.notes) body.append(h('p', { class: 'note edit' + (F.has('notes') ? ' hl' : ''), text: it.notes, tabindex: '0', role: 'button', title: 'Click to edit',
-      'aria-label': 'Edit notes: ' + it.notes, onclick: () => { S.editNote = { id: it.id, text: it.notes, focus: true }; render(); },
-      onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); S.editNote = { id: it.id, text: it.notes, focus: true }; render(); } } }));
-    else body.append(h('button', { type: 'button', class: 'addnote', icon: 'plus', onclick: () => { S.editNote = { id: it.id, text: '', focus: true }; render(); } }, ' Add a note'));
-  } else if (it.notes) body.append(h('p', { class: 'note' + (F.has('notes') ? ' hl' : ''), text: it.notes }));
+  if (kind !== 'deals' && it.notes) body.append(h('p', { class: 'note' + (F.has('notes') ? ' hl' : ''), text: it.notes }));
   if (kind === 'deals' && MD) body.append(meddpiccSection(kind, it, F));
   sum.append(...body.childNodes);
   if (keepFocus) { const t = sum.querySelector(`[data-fk="${keepFocus}"]`); if (t && !t.disabled) t.focus({ preventScroll: true }); }
@@ -1184,21 +1197,6 @@ function titleEditor(kind, it) {
     if (text && text !== it.title) commit(kind, it.id, (d) => { d.title = text; });
     blurActive(); render();
   }));
-}
-function noteEditor(kind, it) {
-  const E = S.editNote;
-  const finish = (save) => {
-    if (E.done) return; E.done = true;
-    if (S.editNote === E) S.editNote = null;
-    if (save && E.text.trim() !== (it.notes || '').trim()) commit(kind, it.id, (d) => { d.notes = E.text.trim(); });
-    blurActive(); render();
-  };
-  const ta = h('textarea', { class: 'fld', rows: '3', 'aria-label': 'Deal notes', placeholder: 'Context, who you’re waiting on…',
-    oninput: (e) => { E.text = e.target.value; },
-    onkeydown: (e) => { if (e.key === 'Escape') { e.stopPropagation(); finish(false); } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); finish(true); } },
-    onblur: () => setTimeout(() => finish(true), 0) }, E.text);
-  if (E.focus) { E.focus = false; queueMicrotask(() => { if (ta.isConnected) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); } }); }
-  return h('div', { class: 'noteedit inl' }, ta, h('span', { class: 'mut', text: 'Saves when you click away · Esc cancels' }));
 }
 function linkEditor(kind, it, l) {
   const E = S.editLink;
@@ -1781,6 +1779,30 @@ function openDueEditor(it, s, isNext) {
   render();
 }
 const blurActive = () => { const a = document.activeElement; if (a && a !== document.body && a.blur) a.blur(); };
+function stepNoteArea(kind, it, s, isNext) {
+  const note = stepNote(it, s, isNext);
+  const E = S.canWrite && S.editStepNote && S.editStepNote.id === it.id && S.editStepNote.sid === s.id ? S.editStepNote : null;
+  const startEdit = () => { if (S.canWrite) { S.editStepNote = { id: it.id, sid: s.id, text: note, focus: true }; render(); } };
+  if (E) {
+    const finish = (save) => {
+      if (E.done) return; E.done = true;
+      if (S.editStepNote === E) S.editStepNote = null;
+      if (save && E.text.trim() !== note.trim()) commit(kind, it.id, (d) => { const x = (d.steps || []).find((y) => y.id === s.id); if (!x) return; x.note = E.text.trim(); if (isNext && d.notes) d.notes = ''; });
+      blurActive(); render();
+    };
+    const ta = h('textarea', { class: 'fld', rows: '3', 'aria-label': `Note for step: ${s.text || ''}`, placeholder: 'Note for this step…',
+      oninput: (e) => { E.text = e.target.value; },
+      onkeydown: (e) => { if (e.key === 'Escape') { e.stopPropagation(); finish(false); } else if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) { e.preventDefault(); finish(true); } },
+      onblur: () => setTimeout(() => finish(true), 0) }, E.text);
+    if (E.focus) { E.focus = false; queueMicrotask(() => { if (ta.isConnected) { ta.focus(); ta.setSelectionRange(ta.value.length, ta.value.length); } }); }
+    return h('div', { class: 'snote editing inl' }, ta, h('span', { class: 'mut', text: 'Saves when you click away · Esc cancels' }));
+  }
+  if (!note) return null;
+  return h('div', { class: 'snote', role: S.canWrite ? 'button' : null, tabindex: S.canWrite ? '0' : null, title: S.canWrite ? 'Click to edit' : null,
+    'aria-label': S.canWrite ? `Edit note for step ${s.text || ''}: ${note}` : null, onclick: startEdit,
+    onkeydown: (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); startEdit(); } } },
+    h('span', { class: 'snote-ic', icon: 'postit' }), h('span', { class: 'snote-t', text: note }));
+}
 function stepDueArea(kind, it, s, isNext, editing) {
   const due = stepDue(it, s, isNext);
   const box = h('div', { class: 'sdue' });

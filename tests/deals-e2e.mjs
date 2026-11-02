@@ -59,7 +59,7 @@ await row.locator('.step').nth(0).locator('.bx').click();
 await me.waitForFunction(() => document.querySelectorAll('.row .step.done').length === 1);
 await row.locator('.step').nth(1).locator('.bx').click();
 await me.waitForFunction(() => document.querySelectorAll('.row .step.done').length === 2);
-await row.locator('.step.next .slabel').click();
+await row.locator('li:has(.step.next) .adddate').click();
 await me.fill('.duedit input[type=date]', '2030-03-05'); await me.fill('.duedit input[type=time]', '11:30');
 await me.click('.duedit .btn.primary');
 for (const [label, url] of [['Hybrid', 'https://sizer.nutanix.com/#/scenario/S-1753764'], ['All flash', 'sizer.nutanix.com/#/scenario/S-1753621']]) {
@@ -78,6 +78,7 @@ assert.match(await row.locator('.lnk').nth(1).getAttribute('href'), /^https:\/\/
 assert.match(await row.locator('.chk', { hasText: 'Impl. strategy' }).textContent(), /Yes/);
 assert.match(await row.locator('li:has(.step.next) .sdue .due').textContent(), /11:30/, 'next step date sits under the NEXT pill');
 assert.equal(await me.locator('.row.upd').count(), 0, 'own edits are not highlighted');
+assert.equal(await row.evaluate((e) => getComputedStyle(e).borderBottomWidth), '2px', 'bold divider between deals');
 
 // "No" answers are red, "Yes" answers are not
 const noBg = await row.locator('.chk:not(.yes) b').first().evaluate((b) => getComputedStyle(b).backgroundColor);
@@ -338,16 +339,46 @@ assert.equal(await me.locator('.ed').count(), 0, 'Esc only cancelled the rename'
 await row.locator('.title').click(); await me.fill('.titleedit input', 'Ogden School District build (3:1 ratio) HPE and NX');
 await me.locator('.head h1').click();   // clicking away saves
 await me.waitForFunction(() => document.querySelector('.row .title')?.textContent === 'Ogden School District build (3:1 ratio) HPE and NX');
-// notes in place: "Add a note" on hover, click the note to edit it
-await row.locator('.addnote').click();
-await me.waitForSelector('.noteedit textarea');
-await me.keyboard.type('Ogden wants HPE and Nutanix side by side');
-await me.locator('.head h1').click();
-await me.waitForFunction(() => document.querySelector('.row .note')?.textContent === 'Ogden wants HPE and Nutanix side by side');
-await row.locator('.note').click(); await me.keyboard.type(' (3:1)'); await me.keyboard.press('Escape');
-await me.waitForFunction(() => document.querySelector('.row .note')?.textContent === 'Ogden wants HPE and Nutanix side by side');
-await me.reload(); await me.waitForSelector('.row .note');
-assert.equal(await row.locator('.note').textContent(), 'Ogden wants HPE and Nutanix side by side', 'notes saved');
+// No deal-level notes: notes live on steps. Click a step to reveal its date and a post-it button
+assert.equal(await row.locator('.addnote, p.note').count(), 0, 'no deal-level notes section');
+const sz = () => row.locator('.step', { hasText: 'Sizer' });
+await sz().locator('.slabel').click();
+assert.equal(await sz().locator('.slabel').getAttribute('aria-expanded'), 'true');
+await row.locator('li:has(.step:has-text("Sizer")) .addpost').click();
+await me.waitForSelector('.snote textarea');
+await me.keyboard.type('Sizer run with 3:1 ratio for HPE and NX');
+await me.locator('.head h1').click();   // click away saves
+await me.waitForFunction(() => document.querySelector('.row .snote .snote-t')?.textContent === 'Sizer run with 3:1 ratio for HPE and NX');
+assert.equal(await row.locator('li:has(.step:has-text("Sizer")) .addpost').count(), 0, 'post-it button gives way to the note');
+{ const nb = await row.locator('.snote').boundingBox(), pb = await sz().boundingBox();
+  assert.ok(nb.y > pb.y + pb.height && Math.abs(nb.x - pb.x) < 12, 'note sits directly under its step'); }
+// click the step again: note hidden, a small post-it mark shows it has one
+await sz().locator('.slabel').click();
+assert.equal(await row.locator('.snote').count(), 0);
+assert.equal(await sz().locator('.snote-mk').count(), 1);
+// reveal and edit: Esc cancels, click-away saves
+await sz().locator('.slabel').click();
+await row.locator('.snote').click(); await me.keyboard.type(' zzz'); await me.keyboard.press('Escape');
+await me.waitForFunction(() => document.querySelector('.row .snote .snote-t')?.textContent === 'Sizer run with 3:1 ratio for HPE and NX');
+await row.locator('.snote').click(); await me.keyboard.type(' (confirmed)'); await me.locator('.head h1').click();
+await me.waitForFunction(() => document.querySelector('.row .snote .snote-t')?.textContent === 'Sizer run with 3:1 ratio for HPE and NX (confirmed)');
+// the next step works the same way (its date stays visible; the note shows on click)
+await row.locator('.step.next .slabel').click();
+await row.locator('li:has(.step.next) .addpost').click();
+await me.keyboard.type('Bring the HPE quote'); await me.locator('.head h1').click();
+await me.waitForFunction(() => document.querySelectorAll('.row .snote').length === 2);
+await row.locator('.step.next .slabel').click();
+assert.equal(await row.locator('li:has(.step.next) .due').count(), 1, 'next step keeps its date visible');
+await me.reload(); await me.waitForSelector('.row .step');
+assert.equal(await row.locator('.snote').count(), 0, 'notes start hidden');
+assert.equal(await row.locator('.snote-mk').count(), 2, 'marks show which steps have notes');
+{ const d = await me.evaluate(() => Object.values(JSON.parse(localStorage.getItem('crm.localdb.v1')).deals)[0]);
+  assert.equal(d.steps.find((st) => st.text === 'Sizer').note, 'Sizer run with 3:1 ratio for HPE and NX (confirmed)'); }
+// clear the next step's note again so later checks start from a clean step
+await row.locator('.step.next .slabel').click(); await row.locator('li:has(.step.next) .snote').click();
+await me.keyboard.press('ControlOrMeta+a'); await me.keyboard.press('Delete'); await me.locator('.head h1').click();
+await me.waitForFunction(() => document.querySelectorAll('.row .snote').length === 0);
+await row.locator('.step.next .slabel').click();
 // deleting a deal is inline too (with a confirm)
 await me.fill('#addIn', 'Temporary deal'); await me.press('#addIn', 'Enter');
 await me.waitForSelector('.row .addstep-in'); await me.keyboard.press('Escape');
