@@ -24,6 +24,7 @@
   --accent-text: #5b37e6;
   --accent-soft: #f1edff;
   --on-accent: #ffffff;
+  --link: #1769e0;
   /* secondary, used only as highlights */
   --done: #92DD23;
   --on-done: #131313;
@@ -43,7 +44,7 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --page: #131313; --bg: #1d1d21; --surface: #19191c; --ink: #ffffff; --muted: #aeacba; --faint: #737181; --line: #2d2c34; --rule: #7855FA;
-    --accent: #8466ff; --accent-text: #a891ff; --accent-soft: #241d43; --on-accent: #ffffff;
+    --accent: #8466ff; --accent-text: #a891ff; --accent-soft: #241d43; --on-accent: #ffffff; --link: #5ba4ff;
     --done: #92DD23; --on-done: #131313; --done-soft: #1f2a12; --late: #ff6464; --late-soft: #3a1717; --flag: #FF9178;
     --hl: #0f3a3d; --hl-ink: #a5f4f8; --hl-edge: #1FDDE9;
     --shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 10px 28px rgba(0, 0, 0, .35);
@@ -52,7 +53,7 @@
 }
 :root[data-theme="dark"] {
   --page: #131313; --bg: #1d1d21; --surface: #19191c; --ink: #ffffff; --muted: #aeacba; --faint: #737181; --line: #2d2c34; --rule: #7855FA;
-  --accent: #8466ff; --accent-text: #a891ff; --accent-soft: #241d43; --on-accent: #ffffff;
+  --accent: #8466ff; --accent-text: #a891ff; --accent-soft: #241d43; --on-accent: #ffffff; --link: #5ba4ff;
   --done: #92DD23; --on-done: #131313; --done-soft: #1f2a12; --late: #ff6464; --late-soft: #3a1717; --flag: #FF9178;
   --hl: #0f3a3d; --hl-ink: #a5f4f8; --hl-edge: #1FDDE9;
   --shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 10px 28px rgba(0, 0, 0, .35);
@@ -62,7 +63,7 @@
 /* Theme picked with the page's own Light / Dark switch; overrides the system and host theme. */
 :root[data-ui-theme="light"] {
   --page: #ffffff; --bg: #f5f5f7; --surface: #ffffff; --ink: #131313; --muted: #55545e; --faint: #8e8c9a; --line: #e6e5ec; --rule: #7855FA;
-  --accent: #7855FA; --accent-text: #5b37e6; --accent-soft: #f1edff; --on-accent: #ffffff;
+  --accent: #7855FA; --accent-text: #5b37e6; --accent-soft: #f1edff; --on-accent: #ffffff; --link: #1769e0;
   --done: #92DD23; --on-done: #131313; --done-soft: #eef9dc; --late: #d63a3a; --late-soft: #fdecec; --flag: #FF9178;
   --hl: #d8f8fa; --hl-ink: #0a4a4f; --hl-edge: #1FDDE9;
   --shadow: 0 1px 2px rgba(19, 19, 19, .06), 0 10px 28px rgba(19, 19, 19, .07);
@@ -70,7 +71,7 @@
 }
 :root[data-ui-theme="dark"] {
   --page: #131313; --bg: #1d1d21; --surface: #19191c; --ink: #ffffff; --muted: #aeacba; --faint: #737181; --line: #2d2c34; --rule: #7855FA;
-  --accent: #8466ff; --accent-text: #a891ff; --accent-soft: #241d43; --on-accent: #ffffff;
+  --accent: #8466ff; --accent-text: #a891ff; --accent-soft: #241d43; --on-accent: #ffffff; --link: #5ba4ff;
   --done: #92DD23; --on-done: #131313; --done-soft: #1f2a12; --late: #ff6464; --late-soft: #3a1717; --flag: #FF9178;
   --hl: #0f3a3d; --hl-ink: #a5f4f8; --hl-edge: #1FDDE9;
   --shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 10px 28px rgba(0, 0, 0, .35);
@@ -163,25 +164,46 @@ main { padding-block: 22px 80px;
   background: var(--hl); color: var(--hl-ink); border-radius: 999px; padding: 2px 4px 2px 10px; }
 .updchip button { font-weight: 600; color: var(--hl-ink); background: color-mix(in srgb, var(--hl-edge) 25%, transparent); border-radius: 999px; padding: 1px 9px; }
 
-.track { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: 10px 5px; }
-.track > li { display: flex; align-items: center; gap: 4px; min-width: 0; }
-.track > li + li::before { content: ""; width: 12px; height: 1.5px; background: var(--line); border-radius: 2px; }
-.step { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; text-align: left; font-size: 13px; padding: 5px 11px 5px 8px;
+.track { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: flex-start; gap: 10px 5px; }
+.track > li { display: flex; align-items: flex-start; gap: 4px; min-width: 0; }
+.track > li + li::before { content: ""; flex: none; width: 12px; height: 1.5px; margin-top: 15.5px; background: var(--line); border-radius: 2px; }
+.scol { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
+.step { display: inline-flex; align-items: stretch; max-width: 100%; min-height: 32px; font-size: 13px;
   -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
   border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); }
-.step span { overflow-wrap: anywhere; }
-.step .bx { width: 15px; height: 15px; border-radius: 4px; border: 1.5px solid var(--faint); display: grid; place-items: center; color: transparent; }
+.step .bx { display: grid; place-items: center; padding: 0 3px 0 9px; border-radius: 999px 0 0 999px; }
+.step .box { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--faint); display: grid; place-items: center; color: transparent; }
+.step .bx:hover:not(:disabled) .box { border-color: var(--accent); }
+.step .slabel { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px 4px 5px; text-align: left; color: inherit; font-weight: inherit; border-radius: 0 999px 999px 0; }
+.step .stext { overflow-wrap: anywhere; }
 .step.done { color: var(--ink); border-color: transparent; background: var(--done-soft); }
-.step.done .bx { background: var(--done); border-color: var(--done); color: var(--on-done); }
+.step.done .box { background: var(--done); border-color: var(--done); color: var(--on-done); }
 .step.next { border-color: var(--accent); color: var(--ink); font-weight: 600; background: var(--accent-soft); }
-.step.next .bx { border-color: var(--accent); }
+.step.next .box { border-color: var(--accent); }
+.sdue { display: flex; flex-wrap: nowrap; align-items: center; gap: 6px; padding-left: 4px; white-space: nowrap;
+  margin-right: -480px; position: relative; z-index: 1; }   /* hang below the pill without widening the step */
+.sdue.duedit { z-index: 3; }
+.sdue .due { font-size: 12.5px; padding: 3px 9px; }
+button.due:hover { box-shadow: 0 0 0 1px var(--accent) inset; }
+.adddate { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 500; padding: 3px 9px; border-radius: 6px; border: 1px dashed var(--faint); color: var(--muted); }
+.adddate:hover { border-style: solid; border-color: var(--accent); color: var(--accent-text); }
+.nodate { font-size: 12px; color: var(--faint); }
+.duedit, .linkadd { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 6px; border-radius: 9px; background: var(--surface); box-shadow: var(--shadow); border: 1px solid var(--line); }
+.duedit .fld, .linkadd .fld { width: auto; padding: 4px 8px; font-size: 13px; }
+.linkadd .fld.u { width: 260px; max-width: 100%; }
+.linkadd .fld.l { width: 150px; max-width: 100%; }
+.linkadd .lnkico { color: var(--link); display: grid; place-items: center; padding: 0 2px 0 4px; }
+.btn.sm { padding: 4px 10px; font-size: 12.5px; }
+.lnk > svg:first-child { color: var(--link); }
+.lnkadd { width: 32px; height: 32px; display: grid; place-items: center; border-radius: 7px; border: 1px solid var(--line); background: var(--bg); color: var(--link); }
+.lnkadd:hover { border-color: var(--link); }
 .step .tag { font-size: 10px; text-transform: uppercase; letter-spacing: .08em; color: var(--accent-text); font-weight: 700; }
-.step:hover:not(:disabled) { border-color: var(--accent); }
+.step:hover { border-color: var(--accent); }
 .track.empty { font-size: 13px; color: var(--faint); }
-.addstep { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 50%; border: 1.5px dashed var(--faint); color: var(--muted); background: var(--surface); }
+.addstep { width: 26px; height: 26px; margin-top: 3px; display: grid; place-items: center; border-radius: 50%; border: 1.5px dashed var(--faint); color: var(--muted); background: var(--surface); }
 .addstep:hover { border-style: solid; border-color: var(--accent); color: var(--accent-text); }
-.addstep.wide { width: auto; display: inline-flex; gap: 6px; padding: 3px 12px 3px 9px; border-radius: 999px; font-size: 13px; }
-.addstep-in { font-size: 13.5px; padding: 4px 11px; border-radius: 999px; border: 1.5px solid var(--accent); background: var(--surface); outline: none; width: 220px; max-width: 100%; color: var(--ink); }
+.addstep.wide { width: auto; height: 32px; margin-top: 0; display: inline-flex; align-items: center; gap: 6px; padding: 3px 12px 3px 9px; border-radius: 999px; font-size: 13px; }
+.addstep-in { height: 32px; font-size: 13.5px; padding: 4px 11px; border-radius: 999px; border: 1.5px solid var(--accent); background: var(--surface); outline: none; width: 220px; max-width: 100%; color: var(--ink); }
 .track > li.addli { min-width: 0; }
 body:not(.ro) .track .step { cursor: grab; }
 .track .step.dragging, .srow.dragging { opacity: .45; }
@@ -195,7 +217,7 @@ body:not(.ro) .track .step { cursor: grab; }
 .due { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 500; padding: 4px 10px; border-radius: 6px; background: var(--bg); color: var(--muted); font-variant-numeric: tabular-nums; }
 .due.today, .due.soon { background: var(--accent-soft); color: var(--accent-text); }
 .due.overdue { background: var(--late-soft); color: var(--late); }
-.lnk { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; font-size: 13px; padding: 4px 10px; border-radius: 6px;
+.lnk { display: inline-flex; align-items: center; gap: 6px; max-width: 100%; min-height: 32px; font-size: 13px; padding: 4px 10px; border-radius: 7px;
   background: var(--bg); color: var(--ink); text-decoration: none; border: 1px solid var(--line); }
 .lnk:hover { border-color: var(--accent); color: var(--accent-text); }
 .lnk .lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 260px; }
@@ -227,7 +249,9 @@ body:not(.ro) .track .step { cursor: grab; }
 .fld:focus { border-color: var(--accent); background: var(--surface); }
 .fld.title-in { font-size: 17px; font-weight: 600; }
 textarea.fld { resize: vertical; min-height: 70px; line-height: 1.45; }
-.srow { display: grid; grid-template-columns: 22px 22px minmax(0, 1fr) auto; align-items: center; gap: 8px; border-radius: 8px; }
+.srow { display: grid; grid-template-columns: 22px 22px minmax(0, 1fr) auto auto; align-items: center; gap: 8px; border-radius: 8px; }
+.sdates { display: flex; gap: 6px; }
+.srow .sdates .fld { width: auto; }
 .srow.hl { padding: 3px; }
 .srow input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--done); margin: 0; }
 .srow .fld { padding: 5px 9px; }
@@ -273,6 +297,9 @@ body.ro .add, body.ro .ed .writer, body.ro #clearDone { display: none; }
   .theme button[data-t="auto"] span { display: inline; }
   .sync span { display: none; }
   .lrow { grid-template-columns: minmax(0, 1fr) auto; }
+  .sdue { margin-right: 0; flex-wrap: wrap; white-space: normal; }
+  .srow { grid-template-columns: 22px 22px minmax(0, 1fr) auto; }
+  .srow .sdates { grid-column: 3 / 4; grid-row: 2; }
   .lrow .fld:first-child { grid-column: 1 / -1; }
   .row.open { margin-inline: -8px; padding-inline: 8px; }
   .row.upd::before { left: -9px; }
@@ -327,7 +354,7 @@ body.ro .add, body.ro .ed .writer, body.ro #clearDone { display: none; }
 
 /* ================= constants & helpers ================= */
 const CHECKS = [
-  { key: 'notes', label: 'Updated Nutanix Recent Notes', short: 'Recent notes' },
+  { key: 'notes', label: 'Updated Nutanix Recent Notes', short: 'Updated Recent Notes' },
   { key: 'strategy', label: 'Implementation Strategy', short: 'Impl. strategy' },
   { key: 'plan', label: 'Implementation Plan', short: 'Impl. plan' },
 ];
@@ -422,6 +449,9 @@ const S = {
   frozen: null,
   timedOut: false,
   adding: null,   // {kind, id} while the inline add-step box is open
+  addingLink: null, // {kind, id, label, url} while the inline add-link box is open
+  editDue: null,  // {id, sid, date, time} while a step's date box is open
+  openSteps: new Set(), // "dealId:stepId" of steps whose date is shown under the pill
 };
 const rowEls = new Map();   // key -> li
 let ED = null;              // open editor {kind,id,base,draft,dirty,timer,el,confirmDel}
@@ -547,7 +577,14 @@ function writeDoc(kind, id, fn) {
   return enqueue(kind + '/' + id, fn).catch(onWriteError);
 }
 
-const LISTS = { steps: ['text', 'done'], links: ['label', 'url'] };
+const LISTS = { steps: ['text', 'done', 'due'], links: ['label', 'url'] };
+// Each step carries its own due date/time. Older deals kept one deal-level "next step due"; it still shows on the next step.
+function stepDue(it, s, isNext) { return (s && s.due) || (isNext ? it.due || '' : ''); }
+function effDue(kind, it) {
+  if (kind !== 'deals') return it.due || '';
+  const st = it.steps || [], i = st.findIndex((x) => !x.done);
+  return i >= 0 ? stepDue(it, st[i], true) : (st.length ? '' : it.due || '');
+}
 function diff(kind, base, next) {
   const patch = {}, keys = [];
   const scalar = { title: '', notes: '', due: '', flagged: false, completed: false, deleted: false };
@@ -677,8 +714,8 @@ function visible(kind) {
     .join(' \n ').toLowerCase().includes(q));
   const open = arr.filter((it) => !it.completed), done = arr.filter((it) => it.completed);
   const by = {
-    due: (a, b) => dueEnd(a.due) - dueEnd(b.due) || (a.createdAt || 0) - (b.createdAt || 0),
-    flag: (a, b) => (b.flagged ? 1 : 0) - (a.flagged ? 1 : 0) || dueEnd(a.due) - dueEnd(b.due),
+    due: (a, b) => dueEnd(effDue(kind, a)) - dueEnd(effDue(kind, b)) || (a.createdAt || 0) - (b.createdAt || 0),
+    flag: (a, b) => (b.flagged ? 1 : 0) - (a.flagged ? 1 : 0) || dueEnd(effDue(kind, a)) - dueEnd(effDue(kind, b)),
     updated: (a, b) => (b.updatedAt || 0) - (a.updatedAt || 0),
     name: (a, b) => (a.title || '').localeCompare(b.title || ''),
   }[S.sort] || (() => 0);
@@ -758,6 +795,8 @@ function render() {
 
 function paintRow(kind, it, li) {
   if (DRAG && li.contains(DRAG.el)) return;
+  const ae = document.activeElement;
+  if (ae && ae !== document.body && li.contains(ae) && ae.closest('.inl')) return;
   const u = unseen(kind, it);
   const F = u ? u.fields : new Set();
   const isOpen = ED && ED.kind === kind && ED.id === it.id;
@@ -789,16 +828,28 @@ function paintRow(kind, it, li) {
   // steps
   if (kind === 'deals') {
     const steps = it.steps || [];
-    const nextIdx = steps.findIndex((s) => !s.done);
+    const nextIdx = it.completed ? -1 : steps.findIndex((s) => !s.done);
     const ol = h('ol', { class: 'track' + (F.has('steps') ? ' hl' : '') + (steps.length ? '' : ' empty'), 'aria-label': 'Steps' });
     if (!steps.length && !S.canWrite) ol.append(h('li', { text: 'No steps yet.' }));
     steps.forEach((s, i) => {
-      const cls = 'step' + (s.done ? ' done' : i === nextIdx && !it.completed ? ' next' : '') + (F.has('step:' + s.id) ? ' hl' : '');
-      const b = h('button', { class: cls, disabled: !S.canWrite, title: s.done ? 'Mark step not done' : 'Mark step done',
-        onclick: () => commit(kind, it.id, (d) => { const x = (d.steps || []).find((y) => y.id === s.id); if (x) x.done = !x.done; }) },
-        h('i', { class: 'bx', icon: 'check' }), h('span', { text: s.text || 'Untitled step' }));
-      if (i === nextIdx && !it.completed) b.append(h('span', { class: 'tag', text: 'Next' }));
-      ol.append(h('li', { 'data-sid': s.id }, b));
+      const isNext = i === nextIdx, key = it.id + ':' + s.id;
+      const shown = isNext || S.openSteps.has(key);
+      const pill = h('div', { class: 'step' + (s.done ? ' done' : isNext ? ' next' : '') + (F.has('step:' + s.id) ? ' hl' : '') },
+        h('button', { class: 'bx', disabled: !S.canWrite, title: s.done ? 'Mark not done' : 'Mark done', 'aria-label': (s.done ? 'Mark not done: ' : 'Mark done: ') + (s.text || 'step'),
+          onclick: () => commit(kind, it.id, (d) => { const x = (d.steps || []).find((y) => y.id === s.id); if (x) x.done = !x.done; }) },
+          h('i', { class: 'box', icon: 'check' })),
+        h('button', { class: 'slabel', 'aria-expanded': String(shown), title: isNext ? 'Set this step’s date and time' : (shown ? 'Hide this step’s date' : 'Show this step’s date and time'),
+          onclick: () => {
+            if (isNext) { if (S.canWrite) openDueEditor(it, s, true); return; }
+            if (S.openSteps.has(key)) { S.openSteps.delete(key); if (S.editDue && S.editDue.id === it.id && S.editDue.sid === s.id) S.editDue = null; }
+            else S.openSteps.add(key);
+            render();
+          } },
+          h('span', { class: 'stext', text: s.text || 'Untitled step' }), isNext ? h('span', { class: 'tag', text: 'Next' }) : null));
+      const col = h('div', { class: 'scol' }, pill);
+      const editing = S.editDue && S.editDue.id === it.id && S.editDue.sid === s.id;
+      if (shown || editing) { const a = stepDueArea(kind, it, s, isNext, editing); if (a) col.append(a); }
+      ol.append(h('li', { 'data-sid': s.id }, col));
     });
     if (S.canWrite) ol.append(addStepLi(kind, it, prevAddState, !steps.length));
     sortable(ol, { item: 'li[data-sid]', handle: '.step', axis: 'x',
@@ -807,15 +858,15 @@ function paintRow(kind, it, li) {
   }
   // due + links
   const meta = h('div', { class: 'meta' });
-  const fd = fmtDue(it.due);
-  if (fd && !it.completed) meta.append(h('span', { class: 'due ' + fd.state + (F.has('due') ? ' hl' : ''), icon: 'clock' }, fd.label));
-  else if (fd) meta.append(h('span', { class: 'due' + (F.has('due') ? ' hl' : ''), icon: 'clock' }, fd.label));
+  const fd = kind === 'deals' ? null : fmtDue(it.due);
+  if (fd) meta.append(h('span', { class: 'due' + (it.completed ? '' : ' ' + fd.state) + (F.has('due') ? ' hl' : ''), icon: 'clock' }, fd.label));
   for (const l of it.links || []) {
     const url = safeUrl(l.url); if (!url) continue;
     const sid = sizerId(url);
     meta.append(h('a', { class: 'lnk' + (F.has('link:' + l.id) ? ' hl' : ''), href: url, target: '_blank', rel: 'noopener noreferrer', title: url, icon: 'link' },
       h('span', { class: 'lbl', text: l.label || (sid ? 'Sizer' : hostOf(url)) }), sid ? h('code', { text: sid }) : null, h('span', { icon: 'ext' })));
   }
+  if (S.canWrite) meta.append(linkAdder(kind, it));
   if (F.has('links')) meta.classList.add('hl');
   if (meta.children.length) body.append(meta);
   // yes/no checklist
@@ -835,6 +886,70 @@ function paintRow(kind, it, li) {
   sum.style.display = 'contents';
   li.querySelector('.slot').style.display = 'contents';
   if (isOpen && ED.el && ED.el.parentNode !== li.querySelector('.slot')) li.querySelector('.slot').append(ED.el);
+}
+
+function openDueEditor(it, s, isNext) {
+  const [date, time] = stepDue(it, s, isNext).split('T');
+  S.editDue = { id: it.id, sid: s.id, date: date || '', time: time || '', focus: true };
+  render();
+}
+const blurActive = () => { const a = document.activeElement; if (a && a !== document.body && a.blur) a.blur(); };
+function stepDueArea(kind, it, s, isNext, editing) {
+  const due = stepDue(it, s, isNext);
+  const box = h('div', { class: 'sdue' });
+  if (editing && S.canWrite) {
+    const E = S.editDue;
+    const val = () => (E.date ? (E.time ? E.date + 'T' + E.time : E.date) : '');
+    const save = (v) => {
+      S.editDue = null; blurActive();
+      commit(kind, it.id, (d) => { const x = (d.steps || []).find((y) => y.id === s.id); if (!x) return; x.due = v; if (isNext && d.due) d.due = ''; });
+      render();
+    };
+    const cancel = () => { S.editDue = null; blurActive(); render(); };
+    const keys = (e) => { if (e.key === 'Enter') { e.preventDefault(); save(val()); } else if (e.key === 'Escape') { e.stopPropagation(); cancel(); } };
+    const di = h('input', { class: 'fld', type: 'date', value: E.date, 'aria-label': 'Date for ' + (s.text || 'step'), onkeydown: keys,
+      oninput: (e) => { E.date = e.target.value; }, onchange: (e) => { E.date = e.target.value; } });
+    const ti = h('input', { class: 'fld', type: 'time', value: E.time, 'aria-label': 'Time (optional)', onkeydown: keys,
+      oninput: (e) => { E.time = e.target.value; }, onchange: (e) => { E.time = e.target.value; } });
+    box.className = 'sdue duedit inl';
+    box.append(di, ti, h('button', { class: 'btn primary sm', text: 'Save', onclick: () => save(val()) }),
+      due ? h('button', { class: 'btn sm', text: 'Remove', onclick: () => save('') }) : null,
+      h('button', { class: 'ibtn', icon: 'x', title: 'Cancel', 'aria-label': 'Cancel', onclick: cancel }));
+    if (E.focus) { E.focus = false; queueMicrotask(() => { if (di.isConnected) di.focus(); }); }
+    return box;
+  }
+  const fd = fmtDue(due);
+  if (fd) {
+    const cls = 'due' + (isNext ? ' ' + fd.state : '');
+    box.append(S.canWrite ? h('button', { class: cls, icon: 'clock', title: 'Change the date and time', onclick: () => openDueEditor(it, s, isNext) }, fd.label)
+      : h('span', { class: cls, icon: 'clock' }, fd.label));
+    return box;
+  }
+  if (S.canWrite) { box.append(h('button', { class: 'adddate', icon: 'plus', onclick: () => openDueEditor(it, s, isNext) }, 'Add date & time')); return box; }
+  if (!isNext) { box.append(h('span', { class: 'nodate', text: 'No date set' })); return box; }
+  return null;
+}
+function linkAdder(kind, it) {
+  const A = S.addingLink;
+  if (!A || A.kind !== kind || A.id !== it.id) {
+    return h('button', { class: 'lnkadd', icon: 'plus', title: 'Add a link', 'aria-label': 'Add a link',
+      onclick: () => { S.addingLink = { kind, id: it.id, label: '', url: '', focus: true }; render(); } });
+  }
+  const close = () => { S.addingLink = null; blurActive(); render(); };
+  const add = () => {
+    const url = safeUrl(A.url);
+    if (!url) { toast('Paste a web address, like https://sizer.nutanix.com/#/scenario/S-1234567.'); return; }
+    const label = A.label.trim();
+    commit(kind, it.id, (d) => { (d.links ||= []).push({ id: rid(), label, url }); });
+    close();
+  };
+  const keys = (e) => { if (e.key === 'Enter') { e.preventDefault(); add(); } else if (e.key === 'Escape') { e.stopPropagation(); close(); } };
+  const ui = h('input', { class: 'fld u', placeholder: 'Paste link', value: A.url, inputmode: 'url', autocomplete: 'off', 'aria-label': 'Link address', onkeydown: keys, oninput: (e) => { A.url = e.target.value; } });
+  const lb = h('input', { class: 'fld l', placeholder: 'Label (optional)', value: A.label, autocomplete: 'off', 'aria-label': 'Link label', onkeydown: keys, oninput: (e) => { A.label = e.target.value; } });
+  if (A.focus) { A.focus = false; queueMicrotask(() => { if (ui.isConnected) ui.focus(); }); }
+  return h('span', { class: 'linkadd inl' }, h('span', { class: 'lnkico', icon: 'link' }), ui, lb,
+    h('button', { class: 'btn primary sm', text: 'Add', onclick: add }),
+    h('button', { class: 'ibtn', icon: 'x', title: 'Cancel', 'aria-label': 'Cancel', onclick: close }));
 }
 
 function addStepLi(kind, it, prev, empty) {
@@ -961,7 +1076,13 @@ function buildEditor() {
   if (kind === 'deals') {
     const sec = h('section', null, h('h3', { text: 'Steps' }));
     const steps = d.steps ||= [];
+    const nIdx = steps.findIndex((x) => !x.done);
     steps.forEach((s, i) => {
+      const [sd, st] = stepDue(d, s, i === nIdx).split('T');
+      const dIn = h('input', { class: 'fld sdate', type: 'date', value: sd || '', disabled: ro, 'aria-label': 'Date for ' + (s.text || 'step') });
+      const tIn = h('input', { class: 'fld stime', type: 'time', value: st || '', disabled: ro, 'aria-label': 'Time for ' + (s.text || 'step') });
+      const setS = () => { s.due = dIn.value ? (tIn.value ? dIn.value + 'T' + tIn.value : dIn.value) : ''; if (i === nIdx && d.due) d.due = ''; scheduleSave(); };
+      dIn.addEventListener('change', setS); tIn.addEventListener('change', setS);
       sec.append(h('div', { class: 'srow' + (F.has('step:' + s.id) ? ' hl' : ''), 'data-sid': s.id },
         h('button', { class: 'grip writer', icon: 'grip', title: 'Drag to reorder (or use arrow keys)', 'aria-label': 'Reorder step ' + (s.text || ''), disabled: ro,
           onkeydown: (e) => {
@@ -975,6 +1096,7 @@ function buildEditor() {
         h('input', { class: 'fld', value: s.text || '', disabled: ro, 'aria-label': 'Step', id: 'ed-step-' + s.id,
           oninput: (e) => { s.text = e.target.value; scheduleSave(); },
           onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); $('#ed-newstep') && $('#ed-newstep').focus(); } } }),
+        h('div', { class: 'sdates' }, dIn, tIn),
         h('div', { class: 'tools writer' },
           h('button', { class: 'ibtn', icon: 'x', title: 'Remove step', 'aria-label': 'Remove step', onclick: () => structural(() => { steps.splice(i, 1); }) }))));
     });
@@ -991,18 +1113,20 @@ function buildEditor() {
     el.append(sec);
   }
 
-  // due
+  // due (tasks only; deal dates live on each step)
+  if (kind !== 'deals') {
   const [dDate, dTime] = (d.due || '').split('T');
   const setDue = () => {
     const date = $('#ed-date').value, time = $('#ed-time').value;
     d.due = date ? (time ? date + 'T' + time : date) : '';
     scheduleSave();
   };
-  el.append(h('section', null, h('h3', { text: kind === 'deals' ? 'Next step due' : 'Due' }),
+  el.append(h('section', null, h('h3', { text: 'Due' }),
     h('div', { class: 'duegrid' + (F.has('due') ? ' hl' : '') },
       h('input', { class: 'fld', type: 'date', id: 'ed-date', value: dDate || '', disabled: ro, 'aria-label': 'Date', onchange: setDue }),
       h('input', { class: 'fld', type: 'time', id: 'ed-time', value: dTime || '', disabled: ro, 'aria-label': 'Time (optional)', onchange: setDue }),
       d.due && !ro ? h('button', { class: 'btn', text: 'Clear', onclick: () => structural(() => { d.due = ''; }) }) : null)));
+  }
 
   // links
   const lsec = h('section', null, h('h3', { text: 'Links' }));

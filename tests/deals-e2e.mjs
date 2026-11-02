@@ -49,7 +49,8 @@ for (const s of ['Sizer', 'Frontline', 'Meeting with Wilden', 'Discuss with Ogde
 assert.equal(await me.locator('.ed .srow').count(), 4);
 await me.locator('.ed .srow input[type=checkbox]').nth(0).check();
 await me.locator('.ed .srow input[type=checkbox]').nth(1).check();
-await me.fill('#ed-date', '2030-03-05'); await me.fill('#ed-time', '11:30');
+await me.locator('.ed .srow').nth(2).locator('.sdate').fill('2030-03-05');
+await me.locator('.ed .srow').nth(2).locator('.stime').fill('11:30');
 await me.click('text=Add link');
 await me.locator('.ed .lrow input').nth(0).fill('Hybrid');
 await me.locator('.ed .lrow input').nth(1).fill('https://sizer.nutanix.com/#/scenario/S-1753764');
@@ -67,7 +68,7 @@ assert.match(await row.locator('.step.next').textContent(), /Meeting with Wilden
 assert.equal(await row.locator('.lnk').count(), 2, 'unlimited links render');
 assert.match(await row.locator('.lnk').nth(1).getAttribute('href'), /^https:\/\/sizer/);
 assert.match(await row.locator('.chk', { hasText: 'Impl. strategy' }).textContent(), /Yes/);
-assert.match(await row.locator('.due').textContent(), /11:30/);
+assert.match(await row.locator('li:has(.step.next) .sdue .due').textContent(), /11:30/, 'next step date sits under the NEXT pill');
 assert.equal(await me.locator('.row.upd').count(), 0, 'own edits are not highlighted');
 
 // "No" answers are red, "Yes" answers are not
@@ -75,6 +76,39 @@ const noBg = await row.locator('.chk:not(.yes) b').first().evaluate((b) => getCo
 const yesBg = await row.locator('.chk.yes b').first().evaluate((b) => getComputedStyle(b).backgroundColor);
 assert.equal(noBg, 'rgb(214, 58, 58)', 'No badge is red');
 assert.notEqual(yesBg, noBg);
+
+// Checklist pill wording
+assert.match(await row.locator('.chk').first().textContent(), /^Updated Recent Notes/);
+
+// Links: blue icons and a + square after the last link opens an inline add box
+assert.equal(await row.locator('.lnk > svg').first().evaluate((e) => getComputedStyle(e).color), 'rgb(23, 105, 224)', 'link icons are blue');
+await row.locator('.lnkadd').click();
+await me.fill('.linkadd .u', 'https://sizer.nutanix.com/#/scenario/S-1757241');
+await me.fill('.linkadd .l', 'Half the cores');
+await me.press('.linkadd .l', 'Enter');
+await me.waitForFunction(() => document.querySelectorAll('.row .lnk').length === 3);
+assert.match(await row.locator('.lnk').nth(2).textContent(), /Half the cores.*S-1757241/);
+assert.equal(await row.locator('.lnkadd').count(), 1, 'the + returns after adding');
+
+// Past step: the check box still unticks, but clicking the name shows its date (or a place to add one)
+await row.locator('.step', { hasText: 'Sizer' }).locator('.slabel').click();
+await row.locator('li:has(.step:has-text("Sizer")) .adddate').click();
+await me.fill('.duedit input[type=date]', '2030-01-02');
+await me.fill('.duedit input[type=time]', '09:15');
+await me.click('.duedit .btn.primary');
+await me.waitForFunction(() => /9:15/.test(document.querySelector('.row li:first-child .sdue')?.textContent || ''));
+assert.equal(await row.locator('.step.done').count(), 2, 'clicking the name does not untick the step');
+await row.locator('.step', { hasText: 'Sizer' }).locator('.slabel').click();
+assert.equal(await row.locator('li:has(.step:has-text("Sizer")) .sdue').count(), 0, 'clicking again hides it');
+await row.locator('.step', { hasText: 'Frontline' }).locator('.bx').click();
+await me.waitForFunction(() => document.querySelectorAll('.row .step.done').length === 1);
+await row.locator('.step', { hasText: 'Frontline' }).locator('.bx').click();
+await me.waitForFunction(() => document.querySelectorAll('.row .step.done').length === 2);
+// Remove the extra link again so later checks see two
+await row.locator('.info').click();
+await me.locator('.ed .lrow').nth(2).locator('.ibtn').click();
+await me.click('.ed .btn.primary');
+await me.waitForFunction(() => document.querySelectorAll('.row .lnk').length === 2);
 
 // The + after the last step adds steps inline (Enter keeps the box open for the next one)
 await row.locator('.addstep').click();
@@ -87,7 +121,7 @@ await me.keyboard.press('Enter');
 await me.waitForFunction(() => document.querySelectorAll('.row .step').length === 6);
 await me.keyboard.press('Escape');
 await me.waitForSelector('.row .addstep');
-const texts = async () => (await row.locator('.step > span:not(.tag)').allTextContents());
+const texts = async () => (await row.locator('.step .stext').allTextContents());
 assert.deepEqual((await texts()).slice(-2), ['Proposal', 'PO received']);
 
 // Drag a step chip on the list to reorder it
@@ -114,7 +148,7 @@ await me.waitForTimeout(400);
 const grips = me.locator('.ed .srow .grip');
 await dragTo(grips.nth(0), me.locator('.ed .srow').nth(5), false);
 await me.waitForTimeout(150);
-const edOrder = await me.locator('.ed .srow input.fld').evaluateAll((els) => els.map((e) => e.value));
+const edOrder = await me.locator('.ed .srow input.fld:not(.sdate):not(.stime)').evaluateAll((els) => els.map((e) => e.value));
 assert.deepEqual(edOrder, ['Sizer', 'Frontline', 'Meeting with Wilden', 'Discuss with Ogden', 'Proposal', 'PO received'], 'editor drag reorders');
 await me.locator('.ed .srow').nth(5).locator('.ibtn').click();
 await me.locator('.ed .srow').nth(4).locator('.ibtn').click();
@@ -136,7 +170,7 @@ const josh = await open('josh');
 await josh.waitForSelector('.row');
 assert.equal(await josh.locator('.row.upd').count(), 0, 'first visit starts clean');
 // Josh ticks a step and flips a checklist item
-await josh.locator('.row .step', { hasText: 'Meeting with Wilden' }).click();
+await josh.locator('.row .step', { hasText: 'Meeting with Wilden' }).locator('.bx').click();
 await josh.locator('.row .chk', { hasText: 'Impl. plan' }).click();
 await josh.waitForTimeout(150);
 
