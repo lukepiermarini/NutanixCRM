@@ -170,13 +170,13 @@ main { padding-block: 22px 80px;
 .track > li { display: flex; align-items: flex-start; gap: 4px; min-width: 0; }
 .track > li + li::before { content: ""; flex: none; width: 12px; height: 1.5px; margin-top: 15.5px; background: var(--line); border-radius: 2px; }
 .scol { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
-.step { display: inline-flex; align-items: stretch; max-width: 100%; min-height: 32px; font-size: 13px;
+.step { display: inline-flex; align-items: stretch; max-width: 100%; min-width: 200px; min-height: 32px; font-size: 13px;   /* never narrower than a "Meeting with Wilden" pill, so details under steps don't collide */
   -webkit-user-select: none; user-select: none; -webkit-touch-callout: none;
   border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--muted); }
 .step .bx { display: grid; place-items: center; padding: 0 3px 0 9px; border-radius: 999px 0 0 999px; }
 .step .box { width: 16px; height: 16px; border-radius: 4px; border: 1.5px solid var(--faint); display: grid; place-items: center; color: transparent; }
 .step .bx:hover:not(:disabled) .box { border-color: var(--accent); }
-.step .slabel { display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px 4px 5px; text-align: left; color: inherit; font-weight: inherit; border-radius: 0 999px 999px 0; }
+.step .slabel { flex: 1; display: inline-flex; align-items: center; gap: 6px; padding: 4px 12px 4px 5px; text-align: left; color: inherit; font-weight: inherit; border-radius: 0 999px 999px 0; }
 .step .stext { overflow-wrap: anywhere; }
 .step.done { color: var(--ink); border-color: transparent; background: var(--done-soft); }
 .step.done .box { background: var(--done); border-color: var(--done); color: var(--on-done); }
@@ -368,8 +368,8 @@ dialog.mdlg::backdrop { background: rgba(19, 19, 19, .45); }
   .rowedit { opacity: 1; pointer-events: auto; }
 }
 .sdue { display: flex; flex-wrap: nowrap; align-items: center; gap: 6px; padding-left: 4px; white-space: nowrap;
-  margin-right: -480px; position: relative; z-index: 1; }   /* hang below the pill without widening the step */
-.sdue.duedit { z-index: 3; }
+  position: relative; z-index: 1; }
+.sdue.duedit { z-index: 3; margin-right: -480px; }   /* only the open date editor may hang past its step */
 .sdue .due { font-size: 12.5px; padding: 3px 9px; }
 button.due:hover { box-shadow: 0 0 0 1px var(--accent) inset; }
 .adddate { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 500; padding: 3px 9px; border-radius: 6px; border: 1px dashed var(--faint); color: var(--muted); }
@@ -400,7 +400,8 @@ body:not(.ro) .row[data-kind="deals"] .title:hover { box-shadow: 0 1px 0 0 var(-
 /* step notes: a post-it under the step, shown when the step is clicked */
 .addpost { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 500; padding: 3px 9px; border-radius: 6px; border: 1px dashed var(--faint); color: var(--muted); }
 .addpost:hover { border-style: solid; border-color: var(--amber); color: var(--amber); }
-.snote { position: relative; z-index: 1; width: 250px; margin-right: -480px; display: flex; align-items: flex-start; gap: 6px; padding: 7px 9px; text-align: left;
+.snote { position: relative; z-index: 1; width: 0; min-width: 100%;   /* exactly the step's width: the note never widens its column */
+  display: flex; align-items: flex-start; gap: 6px; padding: 7px 9px; text-align: left;
   border-radius: 3px 10px 10px 10px; border: 1px solid color-mix(in srgb, var(--amber) 45%, var(--line)); background: color-mix(in srgb, var(--amber) 14%, var(--surface));
   color: var(--ink); font-size: 12.5px; line-height: 1.45; white-space: pre-wrap; overflow-wrap: anywhere; -webkit-user-select: text; user-select: text; }
 .snote[role="button"] { cursor: text; }
@@ -514,7 +515,6 @@ body.ro .add, body.ro .ed .writer, body.ro #clearDone { display: none; }
   .sync span { display: none; }
   .lrow { grid-template-columns: minmax(0, 1fr) auto; }
   .sdue { margin-right: 0; flex-wrap: wrap; white-space: normal; }
-  .snote { margin-right: 0; width: max-content; max-width: calc(100vw - 100px); }
   .srow { grid-template-columns: 22px 22px minmax(0, 1fr) auto; }
   .srow .sdates { grid-column: 3 / 4; grid-row: 2; }
   .lrow .fld:first-child { grid-column: 1 / -1; }

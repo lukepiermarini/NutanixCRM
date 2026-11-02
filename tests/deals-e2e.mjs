@@ -351,7 +351,15 @@ await me.locator('.head h1').click();   // click away saves
 await me.waitForFunction(() => document.querySelector('.row .snote .snote-t')?.textContent === 'Sizer run with 3:1 ratio for HPE and NX');
 assert.equal(await row.locator('li:has(.step:has-text("Sizer")) .addpost').count(), 0, 'post-it button gives way to the note');
 { const nb = await row.locator('.snote').boundingBox(), pb = await sz().boundingBox();
-  assert.ok(nb.y > pb.y + pb.height && Math.abs(nb.x - pb.x) < 12, 'note sits directly under its step'); }
+  assert.ok(nb.y > pb.y + pb.height && Math.abs(nb.x - pb.x) < 1.5, 'note sits directly under its step');
+  assert.ok(Math.abs(nb.width - pb.width) < 1.5, `note is exactly as wide as its step (${nb.width.toFixed(1)} vs ${pb.width.toFixed(1)})`); }
+// steps are never narrower than ~"Meeting with Wilden", so details under neighbouring steps don't collide
+assert.ok((await row.locator('.step').evaluateAll((els) => els.map((e) => e.getBoundingClientRect().width))).every((w) => w >= 199.5), 'minimum step width');
+await row.locator('.step', { hasText: 'Frontline' }).locator('.slabel').click();
+{ const boxes = await row.locator('.track > li[data-sid]').evaluateAll((els) => els.slice(0, 3).map((li) => [...li.querySelectorAll('.sdue > *, .snote')].map((e) => { const r = e.getBoundingClientRect(); return [r.left, r.right, r.top, r.bottom]; })));
+  const cols = await row.locator('.track > li[data-sid] .step').evaluateAll((els) => els.slice(0, 3).map((e) => { const r = e.getBoundingClientRect(); return [r.left, r.right]; }));
+  boxes.forEach((bs, i) => bs.forEach(([l, r]) => assert.ok(l >= cols[i][0] - 0.5 && r <= cols[i][1] + 0.5, `details of step ${i} stay within its pill (${l.toFixed(0)}-${r.toFixed(0)} vs ${cols[i][0].toFixed(0)}-${cols[i][1].toFixed(0)})`))); }
+await row.locator('.step', { hasText: 'Frontline' }).locator('.slabel').click();
 // click the step again: note hidden, a small post-it mark shows it has one
 await sz().locator('.slabel').click();
 assert.equal(await row.locator('.snote').count(), 0);
