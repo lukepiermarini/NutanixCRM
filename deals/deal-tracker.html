@@ -197,6 +197,38 @@ body:not(.ro) .step .slabel { padding-right: 30px; }   /* room for the hover pen
 .dtype button[aria-pressed="true"].land { background: var(--accent); color: var(--on-accent); }
 .dtype button[aria-pressed="true"].renewal { background: var(--ink); color: var(--page); }
 .dtype.hl { box-shadow: 0 0 0 2px var(--hl-edge); }
+/* Deal progress: Sales Stage over Tech Close on one 16-column grid (two sub-columns per stage),
+   so each Tech Close segment sits under its stage and 75% / 99% split Stage 4's column. */
+.prog { flex: 0 1 auto; min-width: 0; max-width: 100%; display: inline-grid; align-items: center; row-gap: 4px;
+  grid-template-columns: auto repeat(16, minmax(11px, 18px)) auto auto; margin-top: -3px; padding: 2px 4px; border-radius: 8px; }
+.plbl { grid-column: 1; padding-right: 8px; font-size: 10.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); white-space: nowrap; text-align: right; }
+.pseg { min-width: 0; height: 22px; margin: 0 1.5px; padding: 0; overflow: hidden; display: grid; place-items: center; border-radius: 4px;
+  border: 1px solid var(--line); background: var(--surface); color: var(--muted); font-size: 11px; font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.pseg.tc { height: 18px; font-size: 9px; letter-spacing: -.06em; }
+.pseg.tc.cur { box-shadow: inset 0 0 0 1.5px var(--ink); }
+.pseg:hover:not(:disabled) { border-color: var(--accent); color: var(--ink); }
+.pseg.st.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.pseg.tc.on { background: var(--done); border-color: var(--done); color: var(--on-done); }
+.pseg.cur { box-shadow: inset 0 0 0 2px var(--ink); font-weight: 800; }
+.pseg.nine { grid-column: 18; min-width: max-content; margin-left: 8px; padding: 0 7px; border-style: dashed; white-space: nowrap; }
+.pseg.nine.on { background: var(--late); border: 1px solid var(--late); color: #fff; box-shadow: none; }
+.pseg.nine .short { display: none; }
+.prog.is-out .pseg.st:not(.nine) { background: var(--bg); border-color: var(--line); color: var(--faint); box-shadow: none; text-decoration: line-through; }
+.olbl { grid-row: 3; grid-column: 12 / span 6; font-size: 10.5px; font-weight: 600; line-height: 1.2; color: var(--accent-text); text-align: center; white-space: nowrap; }
+.phelp { grid-column: 19; grid-row: 1 / span 2; align-self: center; margin-left: 8px; width: 22px; height: 22px; display: grid; place-items: center; border-radius: 50%;
+  border: 1px solid var(--line); background: var(--surface); color: var(--muted); font-size: 12px; font-weight: 700; }
+.phelp:hover { border-color: var(--accent); color: var(--accent-text); }
+/* small anchored popovers: order status / outcome menus and the help card */
+.pop { position: absolute; z-index: 30; padding: 6px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); box-shadow: var(--shadow); font-size: 13px; }
+.pop .phd { padding: 4px 10px 6px; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--faint); }
+.pop .mi { display: flex; align-items: center; gap: 8px; width: 100%; min-width: 210px; padding: 6px 10px; border-radius: 6px; text-align: left; }
+.pop .mi:hover, .pop .mi:focus-visible { background: var(--accent-soft); }
+.pop .mi .ck { width: 14px; display: grid; place-items: center; color: var(--accent-text); }
+.pop-help { width: min(560px, calc(100vw - 32px)); max-height: min(70vh, 640px); overflow: auto; padding: 10px 14px 12px; }
+.pop-help .phead { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.pop-help h4 { margin: 12px 0 6px; font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--accent-text); }
+.pop-help ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; line-height: 1.5; }
+.pop-help .pfoot { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--line); }
 /* "Edit" pill that opens the details panel: shows while hovering a deal's name line or anywhere on a task */
 .rowedit { flex: none; margin-top: -2px; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 11px; border-radius: 999px; font-size: 12.5px; font-weight: 600;
   color: var(--accent-text); background: var(--accent-soft); opacity: 0; pointer-events: none; }
@@ -330,6 +362,13 @@ body.ro .add, body.ro .ed .writer, body.ro #clearDone { display: none; }
   .lrow .fld:first-child { grid-column: 1 / -1; }
   .row.open { margin-inline: -8px; padding-inline: 8px; }
   .row.upd::before { left: -9px; }
+  .prog { grid-template-columns: auto repeat(16, minmax(10px, 18px)) auto auto; padding-inline: 0; }
+  .plbl { padding-right: 5px; font-size: 10px; letter-spacing: 0; text-transform: none; }
+  .pseg.nine { margin-left: 4px; padding: 0 5px; }
+  .pseg.tc.half { font-size: 0; }   /* 75% / 99% are too narrow for digits here; name and tooltip still say them */
+  .phelp { margin-left: 4px; }
+  .pseg.nine .full { display: none; }
+  .pseg.nine .short { display: inline; }
 }
 @media (prefers-reduced-motion: no-preference) {
   .row, .step, .chk, .circle { transition: background-color .15s, border-color .15s, box-shadow .15s; }
@@ -617,7 +656,7 @@ function effDue(kind, it) {
 function diff(kind, base, next) {
   const patch = {}, keys = [];
   const scalar = { title: '', notes: '', due: '', flagged: false, completed: false, deleted: false };
-  if (kind === 'deals') scalar.dealType = '';
+  if (kind === 'deals') Object.assign(scalar, { dealType: '', salesStage: null, orderStatus: null, closedOutcome: null, techClose: null });
   for (const [f, def] of Object.entries(scalar)) {
     if ((base[f] ?? def) !== (next[f] ?? def)) { patch[f] = next[f] ?? def; keys.push(f); }
   }
@@ -702,7 +741,7 @@ function allUnseen() {
   for (const kind of ['deals', 'tasks']) for (const it of S.items[kind].values()) { const u = unseen(kind, it); if (u) out.push({ kind, it, u }); }
   return out;
 }
-const FIELD_WORDS = { dealType: 'Land & Expand / Renewal', title: 'name', notes: 'notes', due: 'due date', flagged: 'flag', completed: 'status', deleted: 'deleted', steps: 'steps', links: 'links' };
+const FIELD_WORDS = { salesStage: 'sales stage', orderStatus: 'order status', closedOutcome: 'Closed Lost / Disqualified', techClose: 'Tech Close', dealType: 'Land & Expand / Renewal', title: 'name', notes: 'notes', due: 'due date', flagged: 'flag', completed: 'status', deleted: 'deleted', steps: 'steps', links: 'links' };
 function describeFields(fields) {
   const words = new Set();
   for (const f of fields) {
@@ -838,6 +877,8 @@ function paintRow(kind, it, li) {
   circle.setAttribute('aria-label', it.completed ? 'Mark as not complete' : 'Mark complete');
   circle.onclick = () => commit(kind, it.id, (d) => { d.completed = !d.completed; });
 
+  const fa = document.activeElement;
+  const keepFocus = fa && li.contains(fa) && fa.dataset && fa.dataset.fk ? fa.dataset.fk : null;
   const prevAdd = li.querySelector('.addstep-in');
   const prevAddState = prevAdd ? { value: prevAdd.value, focused: document.activeElement === prevAdd } : null;
   const sum = li.querySelector('.sum'); sum.replaceChildren();
@@ -848,6 +889,7 @@ function paintRow(kind, it, li) {
   body.append(h('div', { class: 'line1' },
     h('button', { class: 'title' + (F.has('title') || (u && u.isNew) ? ' hl' : ''), text: it.title || `Untitled ${VIEWS[kind].noun}`, onclick: toggle }),
     kind === 'deals' ? dealTypeToggle(kind, it, F.has('dealType')) : null,
+    kind === 'deals' ? progressTracker(kind, it, ['salesStage', 'orderStatus', 'closedOutcome', 'techClose'].some((f) => F.has(f))) : null,
     S.canWrite && !isOpen ? h('button', { class: 'rowedit', icon: 'pencil', title: `Open the ${VIEWS[kind].noun} editor`, 'aria-label': `Edit ${VIEWS[kind].noun}: ${it.title || ''}`, onclick: toggle }, 'Edit') : null,
     h('div', { class: 'icons' },
       h('button', { class: 'ibtn' + (it.flagged ? ' on' : '') + (F.has('flagged') ? ' hl' : ''), title: it.flagged ? 'Remove flag' : 'Flag', 'aria-label': it.flagged ? 'Remove flag' : 'Flag', disabled: !S.canWrite,
@@ -920,6 +962,7 @@ function paintRow(kind, it, li) {
   }
   if (it.notes) body.append(h('p', { class: 'note' + (F.has('notes') ? ' hl' : ''), text: it.notes }));
   sum.append(...body.childNodes);
+  if (keepFocus) { const t = sum.querySelector(`[data-fk="${keepFocus}"]`); if (t && !t.disabled) t.focus({ preventScroll: true }); }
   sum.style.display = 'contents';
   li.querySelector('.slot').style.display = 'contents';
   if (isOpen && ED.el && ED.el.parentNode !== li.querySelector('.slot')) li.querySelector('.slot').append(ED.el);
@@ -950,6 +993,155 @@ function dealTypeToggle(kind, it, changed) {
     DEAL_TYPES.map((t) => h('button', { class: t.v, 'aria-pressed': String(it.dealType === t.v), disabled: !S.canWrite, text: t.label,
       title: it.dealType === t.v ? 'Click again to clear' : 'Mark as ' + t.label,
       onclick: () => commit(kind, it.id, (d) => { d.dealType = d.dealType === t.v ? '' : t.v; }) })));
+}
+
+/* ---- deal progress: Sales Stage + Tech Close ---- */
+const STAGES = ['Identified Opportunity', 'Opportunity Discovery', 'Develop Opportunity', 'Technical Differentiation', 'Technical Win', 'Commercial Win', 'Order Statuses', 'Closed Won'];
+const ORDER_STATUSES = [
+  { v: 'reseller', label: 'Order with Reseller', short: 'Reseller' },
+  { v: 'distributor', label: 'Order with Distributor', short: 'Distributor' },
+  { v: 'oem', label: 'Order with OEM', short: 'OEM' },
+  { v: 'nutanix', label: 'Order with Nutanix', short: 'Nutanix' },
+  { v: 'spproxy', label: 'SP Proxy Closed', short: 'SP Proxy' },
+];
+const OUTCOMES = [{ v: 'lost', label: 'Closed Lost', short: 'Lost' }, { v: 'disqualified', label: 'Disqualified', short: 'DQ' }];
+// col/span are in half-stage sub-columns (1 = left half of Stage 1). Tech Close ends at Stage 5.
+const TECH = [
+  { v: 0, label: 'Acknowledgement', col: 1, span: 2 },
+  { v: 25, label: 'Discovery', col: 3, span: 2 },
+  { v: 50, label: 'Solutioning', col: 5, span: 2 },
+  { v: 75, label: 'Proposal Review', col: 7, span: 1 },
+  { v: 99, label: 'Executive Validation', col: 8, span: 1 },
+  { v: 100, label: 'Tech Closed', col: 9, span: 2 },
+];
+const HELP_STAGES = [
+  ['1. Identified Opportunity', 'fit or need discussed with the customer or partner; next steps planned on requirements and timing.'],
+  ['2. Opportunity Discovery', 'pain, gain or risk validated; customer metrics identified; mutual agreement to progress, and the "why do anything" is established.'],
+  ['3. Develop Opportunity', 'resources identified and validated; requirements, timing and key stakeholders\' interests established.'],
+  ['4. Technical Differentiation', 'configuration being set for the agreed use case; POC or agreed success criteria in progress; hardware and software combination locked.'],
+  ['5. Technical Win', 'the customer agrees the Nutanix configuration solves their technical requirements.'],
+  ['6. Commercial Win', 'pricing agreed and the ordering process understood.'],
+  ['7. Order Statuses', 'the order is moving through purchasing (Reseller, Distributor, OEM, Nutanix, or SP Proxy Closed).'],
+  ['8. Closed Won', 'a clean PO received and processed by the Orders Team.'],
+  ['9. Closed Lost / Disqualified', 'Lost means we competed and lost (Stage 2 or later); Disqualified means we didn\'t compete.'],
+];
+const HELP_TECH = [
+  ['0% Acknowledgement', 'the SE is aware of and acknowledges the opportunity.'],
+  ['25% Discovery', 'SE engaged on architecture and differentiators; business outcome and technical decision maker identified. Engage Services.'],
+  ['50% Solutioning', 'sizing and technical requirements gathered; Technical Solution Proposal and implementation plan in progress. Engage Specialists & CTAs.'],
+  ['75% Proposal Review', 'proposal presented, stating the customer\'s pain and how we solve it, with a draft implementation plan. Engage Bid Desk.'],
+  ['99% Executive Validation', 'implementation plan final; the customer agrees it\'s the right path; final BOMs and proposals uploaded.'],
+  ['100% Tech Closed', 'the customer has committed to the final BOM; there is a firm "Why Nutanix" based on the outcome.'],
+];
+const stageOf = (it) => (Number.isInteger(it.salesStage) && it.salesStage >= 1 && it.salesStage <= 9 ? it.salesStage : null);
+const techOf = (it) => (TECH.some((t) => t.v === it.techClose) ? it.techClose : null);
+// Each setter keeps the invariants: orderStatus only at Stage 7, closedOutcome only at Stage 9.
+const setStage = (kind, id, n) => commit(kind, id, (d) => { d.salesStage = n; if (n !== 7) d.orderStatus = null; if (n !== 9) d.closedOutcome = null; });
+const setOrderStatus = (kind, id, v) => commit(kind, id, (d) => { d.salesStage = 7; d.orderStatus = v; d.closedOutcome = null; });
+const setOutcome = (kind, id, v) => commit(kind, id, (d) => { d.salesStage = 9; d.closedOutcome = v; d.orderStatus = null; });
+const setTech = (kind, id, v) => commit(kind, id, (d) => { d.techClose = v; });
+
+function progressTracker(kind, it, changed) {
+  const stage = stageOf(it), tc = techOf(it), ro = !S.canWrite;
+  const out = stage === 9 ? OUTCOMES.find((o) => o.v === it.closedOutcome) : null;
+  const os = stage === 7 ? ORDER_STATUSES.find((o) => o.v === it.orderStatus) : null;
+  const g = h('div', { class: 'prog' + (changed ? ' hl' : '') + (stage === 9 ? ' is-out' : ''), role: 'group', 'aria-label': 'Deal progress' },
+    h('span', { class: 'plbl', style: 'grid-row:1', 'aria-hidden': 'true', text: 'Stage' }),
+    h('span', { class: 'plbl', style: 'grid-row:2', 'aria-hidden': 'true', text: 'Tech Close' }));
+  STAGES.forEach((name, i) => {
+    const n = i + 1, cur = stage === n;
+    const label = `Stage ${n}: ${name}` + (n === 7 && os ? ` (${os.label})` : '');
+    g.append(h('button', { type: 'button', class: 'pseg st' + (stage && stage <= 8 && n <= stage ? ' on' : '') + (cur ? ' cur' : ''), 'data-fk': 'st' + n,
+      style: `grid-row:1;grid-column:${2 + i * 2} / span 2`, disabled: ro, title: label, 'aria-label': label, 'aria-current': cur ? 'step' : null,
+      'aria-haspopup': n === 7 ? 'menu' : null,
+      onclick: (e) => {
+        if (n !== 7) return setStage(kind, it.id, n);
+        if (stage !== 7) setStage(kind, it.id, 7);
+        openOrderMenu(kind, it, e.currentTarget);
+      } }, String(n)));
+  });
+  g.append(h('button', { type: 'button', class: 'pseg st nine' + (out ? ' on' : ''), 'data-fk': 'st9', style: 'grid-row:1', disabled: ro, 'aria-haspopup': 'menu',
+    title: out ? `Stage 9: ${out.label}` : 'Stage 9: Closed Lost / Disqualified',
+    'aria-label': 'Stage 9: Closed Lost / Disqualified' + (out ? ` (${out.label})` : ''), 'aria-current': stage === 9 ? 'step' : null,
+    onclick: (e) => openOutcomeMenu(kind, it, e.currentTarget) },
+    out ? [h('span', { class: 'full', text: out.label }), h('span', { class: 'short', text: out.short })] : '9'));
+  if (os) g.append(h('span', { class: 'olbl', title: os.label, text: '▲ ' + os.short }));
+  for (const t of TECH) {
+    const cur = tc === t.v, label = `Tech Close ${t.v}%: ${t.label}`;
+    g.append(h('button', { type: 'button', class: 'pseg tc' + (t.span === 1 ? ' half' : '') + (tc != null && t.v <= tc ? ' on' : '') + (cur ? ' cur' : ''), 'data-fk': 'tc' + t.v,
+      style: `grid-row:2;grid-column:${1 + t.col} / span ${t.span}`, disabled: ro, title: label, 'aria-label': label, 'aria-current': cur ? 'step' : null,
+      onclick: () => setTech(kind, it.id, t.v) }, String(t.v)));
+  }
+  g.append(h('button', { type: 'button', class: 'phelp', 'data-fk': 'help', title: 'What the stages and percentages mean', 'aria-label': 'Help: what the stages and percentages mean',
+    'aria-haspopup': 'dialog', onclick: (e) => openProgressHelp(kind, it, e.currentTarget) }, '?'));
+  return g;
+}
+
+/* anchored popover: Esc or a click outside closes it and returns focus to the control that opened it */
+let POP = null;
+function closePop(refocus) {
+  if (!POP) return;
+  const p = POP; POP = null;
+  p.el.remove();
+  document.removeEventListener('pointerdown', p.onDown, true);
+  document.removeEventListener('focusin', p.onFocus, true);
+  if (refocus) { const t = p.back(); if (t) t.focus(); }
+}
+function openPop(key, anchor, content, { role, label, back }) {
+  if (POP && POP.key === key) { closePop(true); return null; }
+  closePop(false);
+  const el = h('div', { class: 'pop' + (role === 'dialog' ? ' pop-help' : ''), role, 'aria-label': label, tabindex: '-1' }, [content].flat(3));
+  document.body.append(el);
+  const r = anchor.getBoundingClientRect(), vw = document.documentElement.clientWidth;
+  el.style.left = Math.max(16, Math.min(r.left, vw - el.offsetWidth - 16)) + scrollX + 'px';
+  el.style.top = r.bottom + 6 + scrollY + 'px';
+  // the row may repaint while the popover is open, so find the opening control afresh each time
+  const isAnchor = (t) => { const c = back(); return !!(c && c.contains(t)) || anchor.contains(t); };
+  const onDown = (e) => { if (!el.contains(e.target) && !isAnchor(e.target)) closePop(false); };
+  const onFocus = (e) => { if (!el.contains(e.target) && !isAnchor(e.target)) closePop(false); };
+  document.addEventListener('pointerdown', onDown, true);
+  document.addEventListener('focusin', onFocus, true);
+  POP = { key, el, back, onDown, onFocus };
+  el.addEventListener('keydown', (e) => {   // arrow keys move between menu items
+    if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+    const items = [...el.querySelectorAll('.mi:not(:disabled)')]; if (!items.length) return;
+    e.preventDefault();
+    const i = items.indexOf(document.activeElement);
+    items[(i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length].focus();
+  });
+  return el;
+}
+window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && POP) { e.stopPropagation(); e.preventDefault(); closePop(true); } }, true);
+const rowCtl = (kind, id, fk) => () => { const li = rowEls.get(kind + '/' + id); return (li && li.querySelector(`[data-fk="${fk}"]`)) || null; };
+function menuPop(key, anchor, title, items, back) {
+  const el = openPop(key, anchor, [h('div', { class: 'phd', text: title }),
+    items.map((o) => h('button', { type: 'button', class: 'mi', role: 'menuitemradio', 'aria-checked': String(!!o.checked), onclick: () => { closePop(true); o.pick(); } },
+      h('span', { class: 'ck' }, o.checked ? h('span', { icon: 'check' }) : null), o.label))],
+    { role: 'menu', label: title, back });
+  if (el) (el.querySelector('.mi[aria-checked="true"]') || el.querySelector('.mi')).focus();
+}
+function openOrderMenu(kind, it, anchor) {
+  const curr = stageOf(it) === 7 ? it.orderStatus : null;
+  menuPop('order-' + it.id, anchor, 'Order status', ORDER_STATUSES.map((o) => ({ label: o.label, checked: curr === o.v, pick: () => setOrderStatus(kind, it.id, o.v) })), rowCtl(kind, it.id, 'st7'));
+}
+function openOutcomeMenu(kind, it, anchor) {
+  const curr = stageOf(it) === 9 ? it.closedOutcome : null;
+  menuPop('out-' + it.id, anchor, 'Stage 9 outcome', OUTCOMES.map((o) => ({ label: o.label, checked: curr === o.v, pick: () => setOutcome(kind, it.id, o.v) })), rowCtl(kind, it.id, 'st9'));
+}
+function openProgressHelp(kind, it, anchor) {
+  const list = (rows) => h('ul', null, rows.map(([t, d]) => h('li', null, h('strong', { text: t + ': ' }), d)));
+  const el = openPop('help-' + it.id, anchor, [
+    h('div', { class: 'phead' }, h('strong', { text: 'Deal progress' }),
+      h('button', { type: 'button', class: 'ibtn', icon: 'x', title: 'Close', 'aria-label': 'Close help', onclick: () => closePop(true) })),
+    h('h4', { text: 'Sales Stages' }), list(HELP_STAGES),
+    h('h4', { text: 'Tech Close' }), list(HELP_TECH),
+    S.canWrite ? h('div', { class: 'pfoot' },
+      h('button', { type: 'button', class: 'btn sm', text: 'Clear Sales Stage', disabled: stageOf(it) == null,
+        onclick: () => { closePop(true); commit(kind, it.id, (d) => { d.salesStage = null; d.orderStatus = null; d.closedOutcome = null; }); } }),
+      h('button', { type: 'button', class: 'btn sm', text: 'Clear Tech Close', disabled: techOf(it) == null,
+        onclick: () => { closePop(true); setTech(kind, it.id, null); } })) : null,
+  ], { role: 'dialog', label: 'Deal progress help', back: rowCtl(kind, it.id, 'help') });
+  if (el) el.focus();
 }
 
 function openDueEditor(it, s, isNext) {

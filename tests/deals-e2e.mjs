@@ -94,6 +94,123 @@ assert.deepEqual(await pressed(), ['Renewal'], 'saved');
 await dt.locator('button.renewal').click();
 await me.waitForFunction(() => !document.querySelector('.row .dtype [aria-pressed=true]'));
 
+// ---------- Deal progress: Sales Stage + Tech Close ----------
+const prog = row.locator('.prog');
+const st = (n) => prog.locator(`[data-fk="st${n}"]`);
+const tc = (v) => prog.locator(`[data-fk="tc${v}"]`);
+const box = (l) => l.boundingBox();
+const dealDoc = () => me.evaluate(() => Object.values(JSON.parse(localStorage.getItem('crm.localdb.v1')).deals)[0]);
+const current = async (rowSel) => prog.locator(`.pseg.${rowSel}[aria-current="step"]`).evaluateAll((els) => els.map((e) => e.dataset.fk));
+// Placement: directly right of Land & Expand / Renewal, same row
+{ const d = await box(row.locator('.dtype')), p = await box(prog);
+  assert.ok(p.x >= d.x + d.width && p.x - (d.x + d.width) < 24 && Math.abs(p.y - d.y) < 14, 'tracker sits right of the deal-type toggle'); }
+// Names, order and unset default
+assert.deepEqual(await prog.locator('.pseg.st:not(.nine)').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label'))),
+  ['Stage 1: Identified Opportunity', 'Stage 2: Opportunity Discovery', 'Stage 3: Develop Opportunity', 'Stage 4: Technical Differentiation',
+   'Stage 5: Technical Win', 'Stage 6: Commercial Win', 'Stage 7: Order Statuses', 'Stage 8: Closed Won']);
+assert.deepEqual(await prog.locator('.pseg.tc').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label'))),
+  ['Tech Close 0%: Acknowledgement', 'Tech Close 25%: Discovery', 'Tech Close 50%: Solutioning', 'Tech Close 75%: Proposal Review',
+   'Tech Close 99%: Executive Validation', 'Tech Close 100%: Tech Closed']);
+assert.equal(await prog.locator('[aria-current]').count(), 0, 'new deals start unset');
+assert.equal(await prog.locator('.pseg.on').count(), 0);
+assert.equal(await prog.locator('.plbl').first().textContent(), 'Stage');
+assert.equal(await prog.locator('.plbl').nth(1).textContent(), 'Tech Close');
+// Alignment: Tech Close sits under Stages 1–5 and ends at Stage 5; 75/99 split Stage 4
+{ const s = {}; for (const n of [1, 2, 3, 4, 5, 6]) s[n] = await box(st(n));
+  const t = {}; for (const v of [0, 25, 50, 75, 99, 100]) t[v] = await box(tc(v));
+  const near = (a, b, msg) => assert.ok(Math.abs(a - b) <= 1.5, `${msg} (${a.toFixed(1)} vs ${b.toFixed(1)})`);
+  near(t[0].x, s[1].x, '0% under Stage 1'); near(t[0].x + t[0].width, s[1].x + s[1].width, '0% under Stage 1 (right)');
+  near(t[25].x, s[2].x, '25% under Stage 2'); near(t[50].x, s[3].x, '50% under Stage 3');
+  near(t[75].x, s[4].x, '75% starts at Stage 4'); near(t[99].x + t[99].width, s[4].x + s[4].width, '99% ends at Stage 4');
+  assert.ok(t[75].x + t[75].width <= t[99].x + 0.5 && t[75].width < s[4].width * 0.6, '75% and 99% split Stage 4');
+  near(t[100].x, s[5].x, '100% under Stage 5'); near(t[100].x + t[100].width, s[5].x + s[5].width, 'Tech Close ends at Stage 5');
+  assert.ok(t[100].x + t[100].width < s[6].x, 'nothing under Stages 6–8');
+  assert.ok(t[0].y > s[1].y + s[1].height - 1, 'Tech Close is below Sales Stage');
+  const h = await box(prog.locator('.phelp'));
+  assert.ok(h.x > (await box(st(8))).x && Math.abs((h.y + h.height / 2) - ((s[1].y + t[0].y + t[0].height) / 2)) < 6, 'help is right of the bars, centred between them'); }
+// Click sets immediately; fill up to and including current
+await st(3).click();
+await me.waitForFunction(() => document.querySelector('.row [data-fk="st3"]')?.getAttribute('aria-current') === 'step');
+assert.deepEqual(await prog.locator('.pseg.st.on').evaluateAll((els) => els.map((e) => e.dataset.fk)), ['st1', 'st2', 'st3']);
+await tc(50).click();
+await me.waitForFunction(() => document.querySelector('.row [data-fk="tc50"]')?.getAttribute('aria-current') === 'step');
+assert.deepEqual(await prog.locator('.pseg.tc.on').evaluateAll((els) => els.map((e) => e.dataset.fk)), ['tc0', 'tc25', 'tc50']);
+assert.deepEqual(await current('st'), ['st3'], 'Tech Close does not change the stage');
+{ const d = await dealDoc(); assert.equal(d.salesStage, 3); assert.equal(d.techClose, 50); assert.equal(d.orderStatus ?? null, null); }
+// Keyboard: segments are reachable and operable, and focus stays put through the save
+await st(5).focus(); await me.keyboard.press('Enter');
+await me.waitForFunction(() => document.querySelector('.row [data-fk="st5"]')?.getAttribute('aria-current') === 'step');
+assert.equal(await me.evaluate(() => document.activeElement?.dataset.fk), 'st5', 'focus stays on the segment after saving');
+await me.keyboard.press('Tab');
+assert.equal(await me.evaluate(() => document.activeElement?.dataset.fk), 'st6', 'Tab moves to the next stage');
+await tc(99).focus(); await me.keyboard.press('Space');
+await me.waitForFunction(() => document.querySelector('.row [data-fk="tc99"]')?.getAttribute('aria-current') === 'step');
+assert.deepEqual(await current('st'), ['st5'], 'stage unchanged by Tech Close');
+// Survives reload
+await me.reload(); await me.waitForSelector('.row .prog');
+assert.deepEqual(await current('st'), ['st5']); assert.deepEqual(await current('tc'), ['tc99']);
+// Stage 7 opens the order-status menu (keyboard)
+await st(7).focus(); await me.keyboard.press('Enter');
+await me.waitForSelector('.pop[role="menu"]');
+assert.deepEqual(await me.locator('.pop .mi').allTextContents(), ['Order with Reseller', 'Order with Distributor', 'Order with OEM', 'Order with Nutanix', 'SP Proxy Closed']);
+await me.waitForFunction(() => document.querySelector('.row [data-fk="st7"]')?.getAttribute('aria-current') === 'step');
+await me.keyboard.press('ArrowDown');   // first item -> second
+await me.keyboard.press('Enter');
+await me.waitForSelector('.pop', { state: 'detached' });
+await me.waitForFunction(() => document.querySelector('.row .olbl')?.textContent.includes('Distributor'));
+assert.match(await st(7).getAttribute('aria-label'), /Stage 7: Order Statuses \(Order with Distributor\)/);
+{ const d = await dealDoc(); assert.equal(d.salesStage, 7); assert.equal(d.orderStatus, 'distributor'); }
+// Esc closes a menu without changing anything, and returns focus
+await st(7).click(); await me.waitForSelector('.pop[role="menu"]');
+assert.equal(await me.locator('.pop .mi[aria-checked="true"]').textContent(), 'Order with Distributor');
+await me.keyboard.press('Escape');
+await me.waitForSelector('.pop', { state: 'detached' });
+assert.equal(await me.evaluate(() => document.activeElement?.dataset.fk), 'st7', 'focus returns to Stage 7');
+assert.equal(await me.locator('.row.open').count(), 0, 'Esc on the menu does not touch the details panel');
+// Stage 9 outcome: asks, greys out the stage bar, red badge; Tech Close untouched
+await st(9).click(); await me.waitForSelector('.pop[role="menu"]');
+assert.deepEqual(await me.locator('.pop .mi').allTextContents(), ['Closed Lost', 'Disqualified']);
+await me.locator('.pop .mi', { hasText: 'Disqualified' }).click();
+await me.waitForFunction(() => document.querySelector('.row .prog')?.classList.contains('is-out'));
+assert.equal(await st(9).locator('.full').textContent(), 'Disqualified');
+assert.equal(await st(9).evaluate((e) => getComputedStyle(e).backgroundColor), 'rgb(214, 58, 58)', 'red outcome badge');
+assert.equal(await prog.locator('.pseg.st.on:not(.nine)').count(), 0, 'stage progress greyed out');
+assert.equal(await prog.locator('.olbl').count(), 0, 'order status cleared off Stage 7');
+assert.deepEqual(await current('tc'), ['tc99'], 'Tech Close independent of the outcome');
+{ const d = await dealDoc(); assert.equal(d.salesStage, 9); assert.equal(d.closedOutcome, 'disqualified'); assert.equal(d.orderStatus, null); }
+// Choosing a stage 1–8 clears the outcome
+await st(4).click();
+await me.waitForFunction(() => !document.querySelector('.row .prog').classList.contains('is-out'));
+{ const d = await dealDoc(); assert.equal(d.salesStage, 4); assert.equal(d.closedOutcome, null); }
+// Help popover: every stage and percentage; Esc and outside click close it; clearing both bars
+await prog.locator('.phelp').click(); await me.waitForSelector('.pop[role="dialog"]');
+const helpText = await me.locator('.pop').textContent();
+for (const t of ['1. Identified Opportunity', '2. Opportunity Discovery', '3. Develop Opportunity', '4. Technical Differentiation', '5. Technical Win',
+  '6. Commercial Win', '7. Order Statuses', '8. Closed Won', '9. Closed Lost / Disqualified',
+  '0% Acknowledgement', '25% Discovery', '50% Solutioning', '75% Proposal Review', '99% Executive Validation', '100% Tech Closed']) assert.ok(helpText.includes(t), 'help lists ' + t);
+assert.ok(helpText.includes('a clean PO received and processed by the Orders Team.'));
+await me.keyboard.press('Escape'); await me.waitForSelector('.pop', { state: 'detached' });
+assert.equal(await me.evaluate(() => document.activeElement?.dataset.fk), 'help');
+await prog.locator('.phelp').click(); await me.waitForSelector('.pop[role="dialog"]');
+await me.locator('.head h1').click(); await me.waitForSelector('.pop', { state: 'detached' });
+await prog.locator('.phelp').click(); await me.waitForSelector('.pop[role="dialog"]');
+await prog.locator('.phelp').click(); await me.waitForSelector('.pop', { state: 'detached' });   // ? toggles
+await prog.locator('.phelp').click();
+await me.locator('.pop button', { hasText: 'Clear Sales Stage' }).click();
+await me.waitForFunction(() => !document.querySelector('.row .prog .pseg.st[aria-current]'));
+assert.deepEqual(await current('tc'), ['tc99'], 'clearing the stage leaves Tech Close');
+await prog.locator('.phelp').click();
+assert.ok(await me.locator('.pop button', { hasText: 'Clear Sales Stage' }).isDisabled(), 'nothing to clear');
+await me.locator('.pop button', { hasText: 'Clear Tech Close' }).click();
+await me.waitForFunction(() => !document.querySelector('.row .prog [aria-current]'));
+await me.reload(); await me.waitForSelector('.row .prog');
+assert.equal(await prog.locator('[aria-current]').count(), 0, 'cleared values stay cleared after reload');
+assert.equal(await prog.locator('.pseg.on').count(), 0);
+{ const d = await dealDoc(); assert.equal(d.salesStage, null); assert.equal(d.techClose, null); assert.equal(d.orderStatus, null); assert.equal(d.closedOutcome, null); }
+// Leave a value set for the two-person check below
+await tc(25).click();
+await me.waitForFunction(() => document.querySelector('.row [data-fk="tc25"]')?.getAttribute('aria-current') === 'step');
+
 // Checklist pill wording
 assert.match(await row.locator('.chk').first().textContent(), /^Updated Recent Notes/);
 
@@ -133,8 +250,8 @@ await row.locator('.step').first().hover();
 assert.equal(await op2(row.locator('.rowedit')), '0', 'no deal Edit button while hovering a step');
 await row.locator('.title').hover();
 assert.equal(await op2(row.locator('.rowedit')), '1', 'deal Edit button shows on hovering the name');
-const tb = await row.locator('.dtype').boundingBox(), eb = await row.locator('.rowedit').boundingBox();
-assert.ok(eb.x - (tb.x + tb.width) < 20, 'Edit follows the name and its deal-type toggle (gap ' + Math.round(eb.x - (tb.x + tb.width)) + 'px)');
+const tb = await row.locator('.prog').boundingBox(), eb = await row.locator('.rowedit').boundingBox();
+assert.ok(eb.x - (tb.x + tb.width) < 20, 'Edit follows the name, deal-type toggle and progress tracker (gap ' + Math.round(eb.x - (tb.x + tb.width)) + 'px)');
 await row.locator('.rowedit').click();
 await me.waitForSelector('.row.open .ed');
 assert.equal(await row.locator('.rowedit').count(), 0, 'Edit button hides while the editor is open');
@@ -243,6 +360,7 @@ assert.equal(await josh.locator('.row.upd').count(), 0, 'first visit starts clea
 await josh.locator('.row .step', { hasText: 'Meeting with Wilden' }).locator('.bx').click();
 await josh.locator('.row .chk', { hasText: 'Impl. plan' }).click();
 await josh.locator('.row .dtype button.land').click();
+await josh.locator('.row .prog [data-fk="st2"]').click();
 await josh.waitForTimeout(150);
 
 // Back to me: the change shows up live, highlighted, with who did it
@@ -251,6 +369,8 @@ await me.waitForSelector('.row.upd');
 assert.match(await me.textContent('#banner'), /Josh made changes/);
 assert.match(await me.textContent('.updchip'), /Josh changed (?=.*steps)(?=.*Impl\. plan)(?=.*Land & Expand \/ Renewal)/);
 assert.equal(await me.locator('.dtype.hl').count(), 1, 'deal type change highlighted');
+assert.equal(await me.locator('.prog.hl').count(), 1, 'sales stage change highlighted');
+assert.match(await me.textContent('.updchip'), /sales stage/);
 assert.equal(await me.locator('.step.hl').count(), 1, 'only the changed step is highlighted');
 assert.match(await me.locator('.step.hl').textContent(), /Meeting with Wilden/);
 assert.equal(await me.locator('.chk.hl').count(), 1);
@@ -312,6 +432,15 @@ await me.setViewportSize({ width: 390, height: 844 });
 await me.waitForTimeout(100);
 const overflow = await me.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 assert.ok(overflow <= 0, 'no horizontal scroll at phone width (' + overflow + 'px)');
+{ const p = await me.locator('.row .prog').first().boundingBox(); assert.ok(p.x >= 0 && p.x + p.width <= 390, 'tracker fits at phone width'); }
+// Phone width with a Stage 9 outcome: the red badge is fully visible and nothing overflows
+await me.locator('.row .prog [data-fk="st9"]').first().click(); await me.locator('.pop .mi', { hasText: 'Disqualified' }).click();
+await me.waitForFunction(() => document.querySelector('.row .prog.is-out'));
+{ const n = me.locator('.row .prog [data-fk="st9"]').first(), hb = await me.locator('.row .prog .phelp').first().boundingBox(), nb = await n.boundingBox();
+  assert.equal(await n.evaluate((e) => e.scrollWidth <= e.clientWidth), true, 'outcome badge text not clipped');
+  assert.equal(await n.locator('.short').textContent(), 'DQ');
+  assert.ok(nb.x + nb.width <= hb.x && hb.x + hb.width <= 390 - 16 + 1, 'badge and help fit inside the gutter');
+  assert.ok(await me.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth), 'still no horizontal scroll'); }
 await me.screenshot({ path: join(shots, 'deals-3-phone.png'), fullPage: true });
 
 assert.deepEqual(errors, [], 'no page errors');
