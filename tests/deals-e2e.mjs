@@ -279,6 +279,8 @@ assert.match(await row.locator('.chk').first().textContent(), /^Updated Recent N
 
 // Links: blue icons and a + square after the last link opens an inline add box
 assert.equal(await row.locator('.lnk > svg').first().evaluate((e) => getComputedStyle(e).color), 'rgb(23, 105, 224)', 'link icons are blue');
+assert.equal(await row.locator('.lnk code').first().evaluate((e) => getComputedStyle(e).color), 'rgb(23, 105, 224)', 'Sizer ID is the same blue');
+assert.equal(await row.locator('.lnk > span:last-child svg').first().evaluate((e) => getComputedStyle(e).color), 'rgb(23, 105, 224)', 'open-in-new-tab arrow is the same blue');
 await row.locator('.lnkadd').click();
 await me.fill('.linkadd .u', 'https://sizer.nutanix.com/#/scenario/S-1757241');
 await me.fill('.linkadd .l', 'Half the cores');
