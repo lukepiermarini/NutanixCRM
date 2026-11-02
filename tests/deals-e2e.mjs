@@ -116,6 +116,8 @@ await row.locator('.step').first().hover();
 assert.equal(await op2(row.locator('.rowedit')), '0', 'no deal Edit button while hovering a step');
 await row.locator('.title').hover();
 assert.equal(await op2(row.locator('.rowedit')), '1', 'deal Edit button shows on hovering the name');
+const tb = await row.locator('.title').boundingBox(), eb = await row.locator('.rowedit').boundingBox();
+assert.ok(eb.x - (tb.x + tb.width) < 20, 'Edit sits right next to the name (gap ' + Math.round(eb.x - (tb.x + tb.width)) + 'px)');
 await row.locator('.rowedit').click();
 await me.waitForSelector('.row.open .ed');
 assert.equal(await row.locator('.rowedit').count(), 0, 'Edit button hides while the editor is open');

@@ -151,7 +151,7 @@ main { padding-block: 22px 80px;
 .row.done .circle { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .body { min-width: 0; display: flex; flex-direction: column; gap: 13px; }
 .line1 { display: flex; align-items: flex-start; gap: 10px; }
-.title { text-align: left; font-size: 16px; line-height: 1.4; font-weight: 600; letter-spacing: -.005em; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.title { text-align: left; font-size: 16px; line-height: 1.4; font-weight: 600; letter-spacing: -.005em; flex: 0 1 auto; min-width: 0; overflow-wrap: anywhere; }
 .title:hover { color: var(--accent-text); }
 .row.done .title { color: var(--muted); font-weight: 500; }
 .icons { display: flex; align-items: center; gap: 6px; margin-left: auto; }
@@ -190,7 +190,7 @@ body:not(.ro) .step .slabel { padding-right: 30px; }   /* room for the hover pen
 .step.editing { border-color: var(--accent); background: var(--surface); -webkit-user-select: text; user-select: text; }
 .stepedit-in { border: 0; background: none; outline: none; font: inherit; color: var(--ink); padding: 4px 12px 4px 5px; min-width: 120px; max-width: 100%; }
 /* "Edit" pill that opens the details panel: shows while hovering a deal's name line or anywhere on a task */
-.rowedit { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 12px; border-radius: 999px; font-size: 12.5px; font-weight: 600;
+.rowedit { flex: none; margin-top: -2px; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 11px; border-radius: 999px; font-size: 12.5px; font-weight: 600;
   color: var(--accent-text); background: var(--accent-soft); opacity: 0; pointer-events: none; }
 .rowedit:hover { background: var(--accent); color: var(--on-accent); }
 .row[data-kind="deals"] .line1:hover .rowedit, .row[data-kind="tasks"]:hover .rowedit, .rowedit:focus-visible { opacity: 1; pointer-events: auto; }
@@ -838,8 +838,8 @@ function paintRow(kind, it, li) {
   li.dataset.kind = kind;
   body.append(h('div', { class: 'line1' },
     h('button', { class: 'title' + (F.has('title') || (u && u.isNew) ? ' hl' : ''), text: it.title || `Untitled ${VIEWS[kind].noun}`, onclick: toggle }),
+    S.canWrite && !isOpen ? h('button', { class: 'rowedit', icon: 'pencil', title: `Open the ${VIEWS[kind].noun} editor`, 'aria-label': `Edit ${VIEWS[kind].noun}: ${it.title || ''}`, onclick: toggle }, 'Edit') : null,
     h('div', { class: 'icons' },
-      S.canWrite && !isOpen ? h('button', { class: 'rowedit', icon: 'pencil', title: `Open the ${VIEWS[kind].noun} editor`, 'aria-label': `Edit ${VIEWS[kind].noun}: ${it.title || ''}`, onclick: toggle }, 'Edit') : null,
       h('button', { class: 'ibtn' + (it.flagged ? ' on' : '') + (F.has('flagged') ? ' hl' : ''), title: it.flagged ? 'Remove flag' : 'Flag', 'aria-label': it.flagged ? 'Remove flag' : 'Flag', disabled: !S.canWrite,
         icon: it.flagged ? 'flag' : 'flagOff', onclick: () => commit(kind, it.id, (d) => { d.flagged = !d.flagged; }) }),
       h('button', { class: 'ibtn info', title: 'Details', 'aria-label': 'Details', 'aria-expanded': String(!!isOpen), icon: 'info', onclick: toggle }))));
