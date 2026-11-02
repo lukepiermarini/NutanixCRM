@@ -102,8 +102,18 @@ const box = (l) => l.boundingBox();
 const dealDoc = () => me.evaluate(() => Object.values(JSON.parse(localStorage.getItem('crm.localdb.v1')).deals)[0]);
 const current = async (rowSel) => prog.locator(`.pseg.${rowSel}[aria-current="step"]`).evaluateAll((els) => els.map((e) => e.dataset.fk));
 // Placement: directly right of Land & Expand / Renewal, same row
+await me.setViewportSize({ width: 1600, height: 1100 });
 { const d = await box(row.locator('.dtype')), p = await box(prog);
-  assert.ok(p.x >= d.x + d.width && p.x - (d.x + d.width) < 24 && Math.abs(p.y - d.y) < 14, 'tracker sits right of the deal-type toggle'); }
+  assert.ok(p.x >= d.x + d.width && p.x - (d.x + d.width) < 24 && Math.abs(p.y - d.y) < 14, 'tracker sits right of the deal-type toggle');
+  assert.ok(p.width > 600, 'tracker stretches into the free space (' + Math.round(p.width) + 'px)');
+  const w = await prog.locator('.pseg.tc').first().evaluate((e) => e.getBoundingClientRect().width);
+  assert.ok(w >= 50, 'Tech Close cells have room (' + Math.round(w) + 'px)'); }
+await me.setViewportSize({ width: 1280, height: 1100 });
+// Not enough room beside a long title: it moves to its own line at full width instead of squishing
+{ const d = await box(row.locator('.dtype')), p = await box(prog);
+  const sameRow = Math.abs(p.y - d.y) < 14;
+  assert.ok(sameRow ? p.width >= 440 : (p.y > d.y + d.height && p.width > 600), `tracker stays readable at 1280px (sameRow=${sameRow}, width ${Math.round(p.width)})`);
+  assert.ok(await prog.locator('.pseg.tc').first().evaluate((e) => e.getBoundingClientRect().width) >= 34, 'Tech Close cells not squished'); }
 // Names, order and unset default
 assert.deepEqual(await prog.locator('.pseg.st:not(.nine)').evaluateAll((els) => els.map((e) => e.getAttribute('aria-label'))),
   ['Stage 1: Identified Opportunity', 'Stage 2: Opportunity Discovery', 'Stage 3: Develop Opportunity', 'Stage 4: Technical Differentiation',

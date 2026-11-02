@@ -200,8 +200,9 @@ body:not(.ro) .step .slabel { padding-right: 30px; }   /* room for the hover pen
 /* Deal progress: two capsule-shaped progress bars. Sales Stage spans eight equal stage columns; Tech Close
    spans the first five (it ends at Stage 5) and splits them into six equal cells. Hovering a cell explains it. */
 .prog { --barh: 26px; --pgap: 5px; --colmin: 26px;
-  flex: 0 1 auto; min-width: 0; max-width: 100%; display: inline-grid; align-items: center; row-gap: var(--pgap);
-  grid-template-columns: auto repeat(8, minmax(var(--colmin), 36px)) auto; margin-top: -4px; padding: 2px 4px; border-radius: 8px; }
+  /* grows into the free space on the title line (up to 720px); if less than 440px is left it moves to its own line */
+  flex: 1 1 440px; min-width: 0; max-width: min(720px, 100%); display: inline-grid; align-items: center; row-gap: var(--pgap);
+  grid-template-columns: auto repeat(8, minmax(var(--colmin), 1fr)) auto; margin-top: -4px; padding: 2px 4px; border-radius: 8px; }
 .plbl { grid-column: 1; padding-right: 8px; font-size: 10.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--muted); white-space: nowrap; text-align: right; }
 .pbar { height: var(--barh); display: grid; gap: 2px; padding: 2px; border-radius: 999px; border: 1.5px solid var(--accent); background: var(--surface); }
 .pbar.st { grid-row: 1; grid-column: 2 / span 8; grid-template-columns: repeat(8, minmax(0, 1fr)); }
@@ -213,7 +214,7 @@ body:not(.ro) .step .slabel { padding-right: 30px; }   /* room for the hover pen
 .pbar > .pseg:last-child { border-radius: 3px 999px 999px 3px; }
 .pseg:hover:not(:disabled) { box-shadow: inset 0 0 0 1.5px var(--accent); color: var(--ink); }
 .pseg:focus-visible { outline: 2px solid var(--accent-text); outline-offset: 1px; position: relative; z-index: 1; }
-.pseg.tc { font-size: 10px; }
+.pseg.tc { font-size: 11px; }
 .pseg.st.on { background: var(--accent); color: var(--on-accent); box-shadow: none; }
 .pseg.tc.on { background: var(--done); color: var(--on-done); box-shadow: none; }
 .pseg.st.cur, .pseg.tc.cur, .pseg.cur:hover:not(:disabled) { box-shadow: inset 0 0 0 2px var(--ink); font-weight: 800; }
