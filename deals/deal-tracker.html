@@ -219,7 +219,7 @@ body:not(.ro) .step .slabel { padding-right: 30px; }   /* room for the hover pen
 .pseg.tc { font-size: 11px; }
 .pseg.st.on { background: var(--accent); color: var(--on-accent); box-shadow: none; }
 .pseg.tc.on { background: var(--done); color: var(--on-done); box-shadow: none; }
-.pseg.st.cur, .pseg.tc.cur, .pseg.cur:hover:not(:disabled) { box-shadow: inset 0 0 0 2px var(--ink); font-weight: 800; }
+.pseg.st.cur, .pseg.tc.cur { font-weight: 800; }   /* current step: last filled cell, in bold (no outline) */
 .pseg.nine { grid-row: 1; grid-column: 10; height: var(--barh); min-width: max-content; margin-left: 8px; padding: 0 9px; border-radius: 999px;
   box-shadow: none; border: 1.5px dashed var(--faint); white-space: nowrap; }
 .pseg.nine:hover:not(:disabled) { border-color: var(--late); color: var(--late); box-shadow: none; }
