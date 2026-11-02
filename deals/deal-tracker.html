@@ -696,7 +696,7 @@ const S = {
   editTitle: null, // {id, text} while a deal's name is being edited in place
   editLink: null,  // {id, lid, label, url} while a link is being edited in place
   editStepNote: null, // {id, sid, nid (null = new), text} while a step note is being written
-  collapsedNotes: (() => { try { return new Set(JSON.parse(localStorage.getItem('crm.collapsedNotes') || '[]')); } catch { return new Set(); } })(),   // per viewer
+  expandedNotes: (() => { try { return new Set(JSON.parse(localStorage.getItem('crm.expandedNotes') || '[]')); } catch { return new Set(); } })(),   // per viewer; notes start collapsed
   askDelete: null, // deal id showing "Delete this deal?"
 };
 const rowEls = new Map();   // key -> li
@@ -1832,10 +1832,10 @@ function stepNoteArea(kind, it, s, isNext) {
   const box = h('div', { class: 'snotes' });
   for (const n of notes) {
     if (E && E.nid === n.id) { box.append(editor()); continue; }
-    const ck = it.id + ':' + n.id, collapsed = S.collapsedNotes.has(ck);
+    const ck = it.id + ':' + n.id, collapsed = !S.expandedNotes.has(ck);
     const flip = () => {
-      collapsed ? S.collapsedNotes.delete(ck) : S.collapsedNotes.add(ck);
-      try { localStorage.setItem('crm.collapsedNotes', JSON.stringify([...S.collapsedNotes])); } catch {}
+      collapsed ? S.expandedNotes.add(ck) : S.expandedNotes.delete(ck);
+      try { localStorage.setItem('crm.expandedNotes', JSON.stringify([...S.expandedNotes])); } catch {}
       render();
     };
     box.append(h('div', { class: 'snote' + up + (collapsed ? ' collapsed' : ''), 'data-nid': n.id },

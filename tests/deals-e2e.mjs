@@ -376,18 +376,21 @@ await me.keyboard.type('Second pass at 4:1 for the DR site, which ended up needi
 await me.waitForFunction(() => !document.querySelector('.row .snote.editing') && document.querySelectorAll('.row .snote').length === 2);
 const sNotes = row.locator('li:has(.step:has-text("Sizer")) .snote');
 assert.deepEqual(await sNotes.locator('.snote-t').allTextContents(), ['Sizer run with 3:1 ratio for HPE and NX (confirmed)', 'Second pass at 4:1 for the DR site, which ended up needing a lot more storage than the first estimate suggested']);
-// collapse to one line with "…", then expand again
-const n2 = sNotes.nth(1), tall = (await n2.boundingBox()).height;
+// notes start collapsed to one line with "…"; the arrow expands (and collapses) them
+assert.equal(await sNotes.locator('.snote-t').first().evaluate((e) => getComputedStyle(e).textOverflow), 'ellipsis');
+assert.equal(await row.locator('.snote.collapsed').count(), 2, 'collapsed by default');
+const n2 = sNotes.nth(1), short = (await n2.boundingBox()).height;
+assert.ok(await n2.locator('.snote-t').evaluate((e) => e.scrollWidth > e.clientWidth), 'long note is cut off with …');
+await n2.getByRole('button', { name: 'Expand note' }).click();
+await me.waitForFunction(() => document.querySelectorAll('.row .snote.collapsed').length === 1);
+const tall = (await n2.boundingBox()).height;
+assert.ok(tall > short + 10, `expanded note shows all of it (${tall} > ${short})`);
 await n2.getByRole('button', { name: 'Collapse note' }).click();
-await me.waitForSelector('.row .snote.collapsed');
-{ const cb = await row.locator('.snote.collapsed').boundingBox();
-  assert.ok(cb.height < tall - 10, `collapsed note is one line (${cb.height} < ${tall})`);
-  assert.equal(await row.locator('.snote.collapsed .snote-t').evaluate((e) => getComputedStyle(e).textOverflow), 'ellipsis');
-  assert.ok(await row.locator('.snote.collapsed .snote-t').evaluate((e) => e.scrollWidth > e.clientWidth), 'text is cut off with …'); }
+await me.waitForFunction(() => document.querySelectorAll('.row .snote.collapsed').length === 2);
+await n2.getByRole('button', { name: 'Expand note' }).click();
 await me.reload(); await me.waitForSelector('.row .step'); await sz().locator('.slabel').click();
-assert.equal(await row.locator('.snote.collapsed').count(), 1, 'collapsed state is remembered in this browser');
-await row.locator('.snote.collapsed').getByRole('button', { name: 'Expand note' }).click();
-await me.waitForFunction(() => !document.querySelector('.row .snote.collapsed'));
+assert.equal(await row.locator('.snote.collapsed').count(), 1, 'what you expanded is remembered in this browser');
+assert.equal(await sNotes.nth(1).getAttribute('class').then((c) => c.includes('collapsed')), false);
 // grey for a done/past step, purple for the upcoming next step (like the dates)
 assert.equal(await sNotes.first().evaluate((e) => getComputedStyle(e).backgroundColor), await row.locator('.lnk').first().evaluate((e) => getComputedStyle(e).backgroundColor), 'done step: grey note');
 // delete the second note from its editor
