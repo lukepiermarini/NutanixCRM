@@ -388,7 +388,7 @@ button.due:hover { box-shadow: 0 0 0 1px var(--accent) inset; }
 .row[data-kind="deals"] .title { cursor: text; border-radius: 4px; }
 body:not(.ro) .row[data-kind="deals"] .title:hover { box-shadow: 0 1px 0 0 var(--faint); }
 .titleedit { flex: 1 1 320px; min-width: 0; display: flex; }
-/* deal name with its Salesforce opportunity link right below */
+/* deal name with its Salesforce account link right below */
 .tcol { flex: 0 1 auto; min-width: 0; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
 .tcol .titleedit { flex: none; width: 460px; max-width: 100%; }
 .sfw { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; border-radius: 6px; }
@@ -1323,19 +1323,19 @@ function titleEditor(kind, it) {
     blurActive(); render();
   }));
 }
-// The deal's Salesforce opportunity link, right below its name
+// The deal's Salesforce account link, right below its name
 function sfLine(kind, it, changed) {
   if (S.canWrite && S.editSf && S.editSf.id === it.id) {
     const E = S.editSf;
     const close = () => { S.editSf = null; blurActive(); render(); };
     const save = (v) => {
       const url = v ? safeUrl(v) : '';
-      if (v && !url) { toast('Paste the opportunity’s web address, like https://nutanix.lightning.force.com/lightning/r/Opportunity/…'); return; }
+      if (v && !url) { toast('Paste the account’s web address, like https://nutanix.lightning.force.com/lightning/r/Account/…'); return; }
       S.editSf = null;
       commit(kind, it.id, (d) => { d.sfdcUrl = url; });
       blurActive(); render();
     };
-    const ui = h('input', { class: 'fld u', value: E.url, inputmode: 'url', autocomplete: 'off', placeholder: 'Paste the Salesforce opportunity link', 'aria-label': 'Salesforce opportunity link',
+    const ui = h('input', { class: 'fld u', value: E.url, inputmode: 'url', autocomplete: 'off', placeholder: 'Paste the Salesforce account link', 'aria-label': 'Salesforce account link',
       onkeydown: (e) => { if (e.key === 'Enter') { e.preventDefault(); save(E.url.trim()); } else if (e.key === 'Escape') { e.stopPropagation(); close(); } },
       oninput: (e) => { E.url = e.target.value; } });
     if (E.focus) { E.focus = false; queueMicrotask(() => { if (ui.isConnected) { ui.focus(); ui.select(); } }); }
@@ -1349,7 +1349,7 @@ function sfLine(kind, it, changed) {
   if (url) {
     const isSf = /salesforce\.com|force\.com/i.test(hostOf(url));
     return h('span', { class: 'sfw' + (changed ? ' hl' : '') },
-      h('a', { class: 'sflink', href: url, target: '_blank', rel: 'noopener noreferrer', title: url, icon: 'cloud' }, isSf ? 'Salesforce opportunity' : 'Opportunity link', h('span', { class: 'ext', icon: 'ext' })),
+      h('a', { class: 'sflink', href: url, target: '_blank', rel: 'noopener noreferrer', title: url, icon: 'cloud' }, isSf ? 'Salesforce Account' : 'Account link', h('span', { class: 'ext', icon: 'ext' })),
       S.canWrite ? h('button', { type: 'button', class: 'sfedit', icon: 'pencil', title: 'Change the Salesforce link', 'aria-label': 'Change the Salesforce link', onclick: start }) : null);
   }
   return S.canWrite ? h('button', { type: 'button', class: 'addsf' + (changed ? ' hl' : ''), icon: 'plus', onclick: start }, 'Add Salesforce link') : null;

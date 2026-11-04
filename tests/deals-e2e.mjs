@@ -339,7 +339,7 @@ assert.equal(await me.locator('.ed').count(), 0, 'Esc only cancelled the rename'
 await row.locator('.title').click(); await me.fill('.titleedit input', 'Ogden School District build (3:1 ratio) HPE and NX');
 await me.locator('.head h1').click();   // clicking away saves
 await me.waitForFunction(() => document.querySelector('.row .title')?.textContent === 'Ogden School District build (3:1 ratio) HPE and NX');
-// Salesforce opportunity link right below the deal name
+// Salesforce account link right below the deal name
 await row.getByRole('button', { name: 'Add Salesforce link' }).click();
 await me.fill('.sfedit-form input', 'https://nutanix.lightning.force.com/lightning/r/Opportunity/006Ab00000XyZ12/view');
 await me.press('.sfedit-form input', 'Enter');
@@ -348,7 +348,7 @@ await me.waitForSelector('.row .sflink');
   assert.ok(lb.y >= tb.y + tb.height - 1 && Math.abs(lb.x - tb.x) < 2, 'link sits right below the name'); }
 assert.equal(await row.locator('.sflink').getAttribute('href'), 'https://nutanix.lightning.force.com/lightning/r/Opportunity/006Ab00000XyZ12/view');
 assert.equal(await row.locator('.sflink').getAttribute('target'), '_blank');
-assert.match(await row.locator('.sflink').textContent(), /Salesforce opportunity/);
+assert.match(await row.locator('.sflink').textContent(), /^Salesforce Account$/);
 await row.locator('.sfw').hover(); await row.getByRole('button', { name: 'Change the Salesforce link' }).click();
 await me.fill('.sfedit-form input', 'https://nutanix.lightning.force.com/lightning/r/Opportunity/006Ab00000XyZ99/view'); await me.press('.sfedit-form input', 'Enter');
 await me.reload(); await me.waitForSelector('.row .sflink');
