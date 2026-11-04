@@ -495,12 +495,45 @@ const dragTo = async (from, to, before = true) => {
   await me.mouse.move(before ? b.x + 4 : b.x + b.width - 4, before ? b.y + b.height / 2 : b.y + b.height * 0.8, { steps: 8 });
   await me.mouse.up();
 };
+// mid-drag: a lifted copy follows the pointer, the original stays as a placeholder, neighbours glide aside
+{ const a = await row.locator('.step', { hasText: 'Frontline' }).boundingBox();
+  await me.mouse.move(a.x + 40, a.y + a.height / 2); await me.mouse.down();
+  await me.mouse.move(a.x + 46, a.y + a.height / 2 + 1, { steps: 2 });
+  await me.waitForSelector('.drag-ghost');
+  assert.equal(await me.locator('.track > li.dragging').count(), 1, 'placeholder shown');
+  const g0 = await me.locator('.drag-ghost').boundingBox();
+  await me.mouse.move(a.x + 120, a.y + a.height / 2 + 30, { steps: 6 }); await me.waitForTimeout(60);
+  const g1 = await me.locator('.drag-ghost').boundingBox();
+  assert.ok(g1.x - g0.x > 60 && g1.y - g0.y > 20, 'the copy follows the pointer');
+  const sb = await row.locator('.step', { hasText: 'Sizer' }).boundingBox();
+  await me.evaluate(() => { window.__glided = false; new MutationObserver((ms) => { if (ms.some((m) => /translate/.test(m.target.style.transform))) window.__glided = true; })
+    .observe(document.querySelector('.row .track'), { subtree: true, attributes: true, attributeFilter: ['style'] }); });
+  await me.mouse.move(sb.x + 6, sb.y + sb.height / 2, { steps: 10 }); await me.waitForTimeout(40);
+  assert.ok(await me.evaluate(() => window.__glided), 'neighbours animate into place');
+  await me.waitForTimeout(250);
+  assert.equal(await me.evaluate(() => [...document.querySelectorAll('.row .track > li[data-sid]')].findIndex((li) => li.classList.contains('dragging'))), 0, 'placeholder moved to the front');
+  // Esc cancels the drag and puts everything back
+  await me.keyboard.press('Escape'); await me.mouse.up(); await me.waitForTimeout(300);
+  assert.equal(await me.locator('.drag-ghost').count(), 0);
+  assert.deepEqual(await texts(), ['Sizer', 'Frontline', 'Meeting with Wilden', 'Discuss with Ogden', 'Proposal', 'PO received'], 'Esc cancels');
+  assert.equal(await row.locator('.step.done').count(), 2, 'cancelling a drag does not tick a step'); }
 await dragTo(row.locator('.step', { hasText: 'PO received' }), row.locator('.step', { hasText: 'Sizer' }));
-await me.waitForTimeout(150);
+await me.waitForTimeout(400);
+assert.equal(await me.locator('.drag-ghost').count(), 0, 'the copy settles and disappears');
 assert.deepEqual(await texts(), ['PO received', 'Sizer', 'Frontline', 'Meeting with Wilden', 'Discuss with Ogden', 'Proposal'], 'drag reorders steps');
 await me.reload(); await me.waitForSelector('.row .step');
 assert.equal((await texts())[0], 'PO received', 'reorder is saved');
 assert.equal(await row.locator('.step.done').count(), 2, 'dragging does not toggle steps');
+// drag across to the end, and into the middle
+await dragTo(row.locator('.step', { hasText: 'PO received' }), row.locator('.step', { hasText: 'Proposal' }), false);
+await me.waitForTimeout(400);
+assert.deepEqual(await texts(), ['Sizer', 'Frontline', 'Meeting with Wilden', 'Discuss with Ogden', 'Proposal', 'PO received'], 'drag to the end');
+await dragTo(row.locator('.step', { hasText: 'PO received' }), row.locator('.step', { hasText: 'Frontline' }));
+await me.waitForTimeout(400);
+assert.deepEqual(await texts(), ['Sizer', 'PO received', 'Frontline', 'Meeting with Wilden', 'Discuss with Ogden', 'Proposal'], 'drag into the middle');
+await dragTo(row.locator('.step', { hasText: 'PO received' }), row.locator('.step', { hasText: 'Sizer' }));
+await me.waitForTimeout(400);
+assert.equal((await texts())[0], 'PO received');
 
 // Remove the two test steps from the step's rename box (× next to the name)
 for (const name of ['PO received', 'Proposal']) {

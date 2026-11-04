@@ -445,9 +445,15 @@ body:not(.ro) .row[data-kind="deals"] .title:hover { box-shadow: 0 1px 0 0 var(-
 .addstep-in { height: 32px; font-size: 13.5px; padding: 4px 11px; border-radius: 999px; border: 1.5px solid var(--accent); background: var(--surface); outline: none; width: 220px; max-width: 100%; color: var(--ink); }
 .track > li.addli { min-width: 0; }
 body:not(.ro) .track .step { cursor: grab; }
-.track .step.dragging, .srow.dragging { opacity: .45; }
-.track.sorting .step { cursor: grabbing; }
-.track.sorting .step:not(.dragging) { transition: transform .12s; }
+/* dragging a step: the lifted copy follows the pointer; the original stays as a faint placeholder */
+.drag-ghost { position: fixed; left: 0; top: 0; z-index: 100; margin: 0; pointer-events: none; cursor: grabbing;
+  box-shadow: 0 12px 28px rgba(19, 19, 19, .22), 0 2px 6px rgba(19, 19, 19, .12); transform: rotate(-1.5deg) scale(1.03); }
+.drag-ghost.settling { transition: translate 160ms cubic-bezier(.2, .75, .3, 1), transform 160ms ease, box-shadow 160ms ease; transform: none; box-shadow: none; }
+.drag-ghost .sedit { display: none; }
+.track > li.dragging { opacity: .35; }
+.track > li.dragging .step { border-style: dashed; border-color: var(--accent); }
+body.is-dragging, body.is-dragging * { cursor: grabbing !important; -webkit-user-select: none; user-select: none; }
+.srow.dragging { opacity: .45; }
 .grip { width: 22px; height: 28px; display: grid; place-items: center; color: var(--faint); cursor: grab; border-radius: 5px; touch-action: none; }
 .grip:hover { color: var(--ink); background: var(--bg); }
 .srow.dragging .grip { cursor: grabbing; }
@@ -723,46 +729,122 @@ let DRAG = null;            // step being dragged {el}
 let swallowClick = false;
 window.addEventListener('click', (e) => { if (swallowClick) { e.stopPropagation(); e.preventDefault(); swallowClick = false; } }, true);
 document.addEventListener('touchmove', (e) => { if (DRAG) e.preventDefault(); }, { passive: false });
+// Smooth drag-to-reorder: a lifted copy follows the pointer, a faint placeholder marks the drop spot, neighbours glide
+// out of the way, and the copy settles into place on release. Mouse: drag after 4px. Touch: press and hold. Esc cancels.
 function sortable(container, { item, handle, axis, onDrop }) {
   container.addEventListener('pointerdown', (e) => {
-    if (!S.canWrite || e.button !== 0 || e.target.closest('input')) return;
+    if (!S.canWrite || e.button !== 0 || e.target.closest('input, textarea, select')) return;
     const grip = e.target.closest(handle);
     if (!grip || !container.contains(grip)) return;
     const el = grip.closest(item);
     if (!el) return;
-    const id = e.pointerId, x0 = e.clientX, y0 = e.clientY, touch = e.pointerType === 'touch';
-    let active = false, timer = null;
-    const begin = () => { active = true; DRAG = { el }; el.classList.add('dragging'); container.classList.add('sorting'); };
-    const end = () => {
-      clearTimeout(timer); DRAG = null;
-      el.classList.remove('dragging'); container.classList.remove('sorting');
-      window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up); window.removeEventListener('pointercancel', cancel);
+    const list = el.parentNode, id = e.pointerId, x0 = e.clientX, y0 = e.clientY, touch = e.pointerType === 'touch';
+    const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const items = () => [...list.children].filter((c) => c.matches(item));
+    const startIds = items().map((c) => c.dataset.sid);
+    let active = false, timer = null, ghost = null, offX = 0, offY = 0, px = x0, py = y0, raf = 0, queued = false;
+
+    // move `el` in the list, animating every other item from where it was to where it lands (FLIP)
+    const glide = (mutate) => {
+      const others = items().filter((c) => c !== el);
+      const from = new Map(others.map((c) => [c, c.getBoundingClientRect()]));
+      others.forEach((c) => { c.style.transition = 'none'; c.style.transform = ''; });
+      mutate();
+      if (reduce) return;
+      others.forEach((c) => {
+        const a = from.get(c), b = c.getBoundingClientRect(), dx = a.left - b.left, dy = a.top - b.top;
+        if (!dx && !dy) return;
+        c.style.transform = `translate(${dx}px, ${dy}px)`;
+        requestAnimationFrame(() => { c.style.transition = 'transform 180ms cubic-bezier(.2, .75, .3, 1)'; c.style.transform = ''; });
+      });
+    };
+    // where should the placeholder go for this pointer position?
+    const place = () => {
+      queued = false;
+      if (!active) return;
+      if (ghost) ghost.style.translate = `${px - offX}px ${py - offY}px`;
+      let target = null, best = Infinity;
+      for (const c of items()) {
+        const r = c.getBoundingClientRect();
+        const dx = px < r.left ? r.left - px : px > r.right ? px - r.right : 0;
+        const dy = py < r.top ? r.top - py : py > r.bottom ? py - r.bottom : 0;
+        const d = dx * dx + dy * dy * 4;   // prefer items on the pointer's row
+        if (d < best) { best = d; target = c; }
+      }
+      if (!target || target === el) return;
+      const r = target.getBoundingClientRect();
+      const sameRow = py >= r.top && py <= r.bottom;
+      const after = axis === 'y' || !sameRow ? py > r.top + r.height / 2 : px > r.left + r.width / 2;
+      const ref = after ? target.nextSibling : target;
+      if (ref === el || el.nextSibling === ref) return;
+      glide(() => list.insertBefore(el, ref));
+    };
+    const schedule = () => { if (!queued) { queued = true; requestAnimationFrame(place); } };
+    // keep scrolling while the pointer rests near the top or bottom edge
+    const edgeScroll = () => {
+      if (!active) return;
+      const edge = 70, v = py < edge ? -Math.ceil((edge - py) / 4) : py > innerHeight - edge ? Math.ceil((py - innerHeight + edge) / 4) : 0;
+      if (v) { scrollBy(0, v); schedule(); }
+      raf = requestAnimationFrame(edgeScroll);
+    };
+    const begin = () => {
+      active = true; DRAG = { el }; hideTip();
+      const pill = el.querySelector('.step') || el, r = pill.getBoundingClientRect();
+      offX = x0 - r.left; offY = y0 - r.top;
+      ghost = pill.cloneNode(true);
+      ghost.classList.add('drag-ghost'); ghost.setAttribute('aria-hidden', 'true');
+      Object.assign(ghost.style, { width: r.width + 'px', height: r.height + 'px', translate: `${r.left}px ${r.top}px` });
+      document.body.append(ghost);
+      el.classList.add('dragging'); list.classList.add('sorting'); document.body.classList.add('is-dragging');
+      window.addEventListener('keydown', onKey, true);
+      raf = requestAnimationFrame(edgeScroll);
+    };
+    const detach = () => {
+      clearTimeout(timer); cancelAnimationFrame(raf);
+      window.removeEventListener('pointermove', move); window.removeEventListener('pointerup', up);
+      window.removeEventListener('pointercancel', cancel); window.removeEventListener('keydown', onKey, true);
+    };
+    const finish = (keep) => {
+      detach();
+      if (!active) return;
+      active = false;
+      if (!keep) {   // put everything back where it started
+        const byId = new Map(items().map((c) => [c.dataset.sid, c])), anchor = [...list.children].find((c) => !c.matches(item)) || null;
+        glide(() => startIds.forEach((sid) => list.insertBefore(byId.get(sid), anchor)));
+      }
+      const pill = el.querySelector('.step') || el, r = pill.getBoundingClientRect();
+      const done = () => {
+        ghost.remove(); el.classList.remove('dragging'); list.classList.remove('sorting'); document.body.classList.remove('is-dragging');
+        items().forEach((c) => { c.style.transition = ''; c.style.transform = ''; });
+        DRAG = null;
+        const ids = items().map((c) => c.dataset.sid);
+        onDrop(keep && ids.join() !== startIds.join() ? ids : null);
+      };
+      if (reduce) return done();
+      ghost.classList.add('settling');
+      ghost.style.translate = `${r.left}px ${r.top}px`;
+      setTimeout(done, 170);
     };
     const move = (ev) => {
       if (ev.pointerId !== id) return;
+      px = ev.clientX; py = ev.clientY;
       if (!active) {
-        if (Math.hypot(ev.clientX - x0, ev.clientY - y0) < 6) return;
-        if (touch) { end(); return; }   // a swipe before the hold finished: let the page scroll
+        const far = Math.hypot(px - x0, py - y0);
+        if (touch) { if (far > 8) detach(); return; }   // a swipe before the hold finished: let the page scroll
+        if (far < 4) return;
         begin();
       }
       ev.preventDefault();
-      if (ev.clientY < 70) window.scrollBy(0, -14); else if (ev.clientY > innerHeight - 70) window.scrollBy(0, 14);
-      const hit = document.elementFromPoint(ev.clientX, ev.clientY);
-      const over = hit && hit.closest(item);
-      if (!over || over === el || over.parentNode !== el.parentNode) return;
-      const r = over.getBoundingClientRect();
-      const after = axis === 'y' ? ev.clientY > r.top + r.height / 2 : ev.clientX > r.left + r.width / 2;
-      const ref = after ? over.nextSibling : over;
-      if (ref !== el) el.parentNode.insertBefore(el, ref);
+      schedule();
     };
     const up = (ev) => {
       if (ev.pointerId !== id) return;
-      const was = active; end();
-      if (was) { swallowClick = true; setTimeout(() => { swallowClick = false; }, 0);
-        onDrop([...el.parentNode.children].filter((c) => c.matches(item)).map((c) => c.dataset.sid)); }
+      if (active) { swallowClick = true; setTimeout(() => { swallowClick = false; }, 0); }
+      finish(true);
     };
-    const cancel = (ev) => { if (ev.pointerId !== id) return; const was = active; end(); if (was) onDrop(null); };
-    if (touch) timer = setTimeout(() => { begin(); if (navigator.vibrate) try { navigator.vibrate(10); } catch {} }, 350);
+    const cancel = (ev) => { if (ev.pointerId === id) finish(false); };
+    const onKey = (ev) => { if (ev.key === 'Escape') { ev.stopPropagation(); ev.preventDefault(); swallowClick = true; setTimeout(() => { swallowClick = false; }, 0); finish(false); } };
+    if (touch) timer = setTimeout(() => { begin(); schedule(); if (navigator.vibrate) try { navigator.vibrate(10); } catch {} }, 250);
     window.addEventListener('pointermove', move, { passive: false });
     window.addEventListener('pointerup', up); window.addEventListener('pointercancel', cancel);
   });
